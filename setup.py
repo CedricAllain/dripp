@@ -7,4 +7,13 @@ setuptools.setup(
     "Model Stimuli Induced Patterns in M/EEG Signals.",
     packages=setuptools.find_packages(),
     python_requires='>=3.7',
+    install_requires=[
+        'mne',
+        'numpy',
+        'pandas',
+        'scipy',
+        'math',
+        'joblib',
+        'matplotlib',
+    ],
 )
