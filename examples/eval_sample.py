@@ -10,6 +10,7 @@ import matplotlib.gridspec as gridspec
 
 from dripp.experiments.run_multiple_em_on_cdl import \
     run_multiple_em_on_cdl
+from dripp.cdl import utils
 from dripp.config import SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 
