@@ -159,13 +159,13 @@ for i, this_comb in enumerate(combs):
     df_comb = df_comb.rename({'n_tasks': r'$n_t$'}, axis=1)
 
     # mean
-    df_mean = df_comb[['T', n_tasks_str, 'infinite_norm_of_diff_bis']].groupby(
+    df_mean = df_comb[['T', n_tasks_str, 'infinite_norm_of_diff_rel']].groupby(
         ['T', n_tasks_str]).mean().unstack()
     df_mean.columns = df_mean.columns.droplevel()
     list_df_mean.append(df_mean)
 
     # std
-    df_std = df_comb[['T', n_tasks_str, 'infinite_norm_of_diff_bis']].groupby(
+    df_std = df_comb[['T', n_tasks_str, 'infinite_norm_of_diff_rel']].groupby(
         ['T', n_tasks_str]).std().unstack()
     df_std.columns = df_std.columns.droplevel()
     list_df_std.append(df_std)
@@ -178,7 +178,7 @@ for i, this_comb in enumerate(combs):
     list_title.append(title)
 
 
-# plot mean
+# plot mean (Figure 3 in paper)
 fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=figsize)
 
 for ii in range(2):
@@ -194,7 +194,7 @@ plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
-# plot std
+# plot std (Figure A.1 in paper)
 fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=figsize)
 
 for ii in range(2):
