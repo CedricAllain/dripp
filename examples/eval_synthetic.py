@@ -7,8 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from dripp.experiments.run_multiple_em_on_syntetic import \
-    run_multiple_em_on_syntetic
+from dripp.experiments.run_multiple_em_on_synthetic import \
+    run_multiple_em_on_synthetic
 from dripp.config import SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 
@@ -58,7 +58,7 @@ em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
 # ===================================================
 
 # run RM
-df_res = run_multiple_em_on_syntetic(
+df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
     sfreq=1000, n_jobs=50)
 
