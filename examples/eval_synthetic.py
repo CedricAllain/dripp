@@ -33,7 +33,7 @@ cmap = 'viridis_r'
 # default parameters for data simulation
 simu_params = {'lower': 30e-3, 'upper': 800e-3,
                'baseline': 0.8, 'alpha': 0.8, 'm': 200e-3,
-               'isi': 1, 'uniform': True}
+               'isi': 1}
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
