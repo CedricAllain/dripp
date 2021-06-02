@@ -60,13 +60,8 @@ plt.rcParams.update({
     'ytick.labelsize': fontsize,
 })
 
-# atoms to plot
-dict_to_plot = {0: ['auditory', 'visual'],
-                1: ['auditory', 'visual'],
-                2: ['auditory', 'visual'],
-                6: ['auditory', 'visual']}
-
-plotted_atoms = list(dict_to_plot.keys())
+# atoms and tasks to plot
+plotted_atoms = [0, 1, 2, 6]
 plotted_tasks = {'auditory': [1, 2],
                  'visual': [3, 4]}
 
