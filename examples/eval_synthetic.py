@@ -4,8 +4,8 @@ Plot figures of results on synthetic data
 """
 
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from dripp.experiments.run_multiple_em_on_simu import run_multiple_em_on_simu
 from dripp.config import SAVE_RESULTS_PATH
@@ -84,31 +84,32 @@ n_tasks = 0.5
 list_seeds = np.random.choice(list(range(50)), size=8, replace=False)
 
 fig, axes = plt.subplots(1, 2, figsize=figsize)
-for i, comb in enumerate(combs):
+for i, this_comb in enumerate(combs):
     # filter resulsts dataframe
     df_comb = df_res[(df_res['T'] == T) &
                      (df_res['n_tasks'] == n_tasks) &
-                     (df_res['lower'] == comb['lower']) &
-                     (df_res['upper'] == comb['upper']) &
-                     (df_res['baseline'] == comb['baseline']) &
-                     (df_res['alpha'] == comb['alpha']) &
-                     (df_res['m'] == comb['m']) &
-                     (df_res['sigma'] == comb['sigma'])]
+                     (df_res['lower'] == this_comb['lower']) &
+                     (df_res['upper'] == this_comb['upper']) &
+                     (df_res['baseline'] == this_comb['baseline']) &
+                     (df_res['alpha'] == this_comb['alpha']) &
+                     (df_res['m'] == this_comb['m']) &
+                     (df_res['sigma'] == this_comb['sigma'])]
     # check if no warning wera raised
     if min(df_comb['C'].values) == 0 or \
             min(df_comb['C_sigma'].values) == 0:
         print('C or C_sigma is 0')
     # define true kernel
     kernel_true = TruncNormKernel(
-        comb['lower'], comb['upper'], comb['m'], comb['sigma'])
+        this_comb['lower'], this_comb['upper'],
+        this_comb['m'], this_comb['sigma'])
 
-    yy = comb['baseline'] + kernel_true.eval(xx)
+    yy = this_comb['baseline'] + kernel_true.eval(xx)
     axes[i].plot(xx, yy, label='Ground truth', color='black', linestyle='--')
 
     # define estimated kernels
     for j, seed in enumerate(list_seeds):
         sub_df = df_comb[df_comb['seed'] == seed]
-        kernel = TruncNormKernel(comb['lower'], comb['upper'],
+        kernel = TruncNormKernel(this_comb['lower'], this_comb['upper'],
                                  sub_df['m_hat'].values[0],
                                  sub_df['sigma_hat'].values[0])
 
@@ -122,25 +123,107 @@ for i, comb in enumerate(combs):
 
     axes[i].set_xlim(0, stop)
     axes[i].set_xlabel('Time (s)', fontsize=fontsize)
-    title = rf"$\mu={comb['baseline']}$, "
-    title += rf" $\alpha={comb['alpha']}$, "
-    title += rf" $m={comb['m']}$, "
-    title += rf" $\sigma={comb['sigma']}$"
+    title = rf"$\mu={this_comb['baseline']}$, "
+    title += rf" $\alpha={this_comb['alpha']}$, "
+    title += rf" $m={this_comb['m']}$, "
+    title += rf" $\sigma={this_comb['sigma']}$"
     axes[i].legend(fontsize=fontsize)
     axes[i].set_title(title, fontsize=fontsize)
 
 plt.tight_layout()
-
-name = 'fig2.pdf'
-path_fig = SAVE_RESULTS_PATH / name
-plt.savefig(path_fig, dpi=300)
-plt.savefig(str(path_fig).replace('pdf', 'png'), dpi=300)
+plt.savefig(SAVE_RESULTS_PATH / 'fig2.pdf', dpi=300)
 plt.show()
 plt.close()
 
 # ------ PLOT MEAN/STD OF THE RELATIVE NORM ------
 # (Figure 3 and A.1 in paper)
 
+list_df_mean = []
+list_df_std = []
+list_title = []
+
+for i, this_comb in enumerate(combs):
+    # filter resulsts dataframe
+    df_comb = df_res[(df_res['lower'] == this_comb['lower']) &
+                     (df_res['upper'] == this_comb['upper']) &
+                     (df_res['baseline'] == this_comb['baseline']) &
+                     (df_res['alpha'] == this_comb['alpha']) &
+                     (df_res['m'] == this_comb['m']) &
+                     (df_res['sigma'] == this_comb['sigma'])]
+
+    # check if no warning wera raised
+    if min(df_comb['C'].values) == 0 or \
+            min(df_comb['C_sigma'].values) == 0:
+        print('C or C_sigma is 0')
+
+    n_tasks_str = r'$n_t$'
+    df_comb = df_comb.rename({'n_tasks': r'$n_t$'}, axis=1)
+
+    # mean
+    df_mean = df_comb[['T', n_tasks_str, 'infinite_norm_of_diff_bis']].groupby(
+        ['T', n_tasks_str]).mean().unstack()
+    df_mean.columns = df_mean.columns.droplevel()
+    list_df_mean.append(df_mean)
+
+    # std
+    df_std = df_comb[['T', n_tasks_str, 'infinite_norm_of_diff_bis']].groupby(
+        ['T', n_tasks_str]).std().unstack()
+    df_std.columns = df_std.columns.droplevel()
+    list_df_std.append(df_std)
+
+    # title
+    title = rf"$\mu={this_comb['baseline']}$, "
+    title += rf" $\alpha={this_comb['alpha']}$, "
+    title += rf" $m={this_comb['m']}$, "
+    title += rf" $\sigma={this_comb['sigma']}$"
+    list_title.append(title)
+
 
 # plot mean
-fig, axes = plt.subplots(1, 1, sharey=True, sharex=True, figsize=figsize)
+fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=figsize)
+
+for ii in range(2):
+    ax = axes[ii]
+    list_df_mean[ii].plot(logy=True, logx=True, cmap=cmap, ax=ax)
+    ax.set_xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
+    ax.set_ylabel(r"Mean $\|\ \|_{\infty} / \lambda^*_{max}$",
+                  fontsize=fontsize)
+    ax.set_title(list_title[ii], fontsize=fontsize, pad=5)
+
+plt.tight_layout()
+plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean.pdf', dpi=300, bbox_inches='tight')
+plt.show()
+plt.close()
+
+# plot std
+fig, axes = plt.subplots(1, 2, sharey=True, sharex=True, figsize=figsize)
+
+for ii in range(2):
+    ax = axes[ii]
+    list_df_std[ii].plot(logy=True, logx=True, cmap=cmap, ax=ax)
+    ax.set_xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
+    ax.set_ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
+                  fontsize=fontsize)
+    ax.set_title(list_title[ii], fontsize=fontsize, pad=5)
+
+plt.tight_layout()
+plt.savefig(SAVE_RESULTS_PATH / 'fig3_std.pdf', dpi=300, bbox_inches='tight')
+plt.show()
+plt.close()
+
+# ------ PLOT COMPUTATION TIME OF THE RELATIVE NORM ------
+# (Figure A.2 in paper)
+
+ax = sns.lineplot(data=df_res, x="T", y="comput_time",
+                  markers=["."], estimator='mean', ci=95)
+
+
+ax.set_xlim(df_comb['T'].min(), df_comb['T'].max())
+ax.set_xlabel(r"$T$ (s)", fontsize=fontsize)
+ax.set_ylabel('CPU time (s)', fontsize=fontsize)
+ax.set_xscale('log')
+
+plt.tight_layout()
+plt.savefig(SAVE_RESULTS_PATH / 'fig3_computation_time.pdf', dpi=300)
+plt.show()
+plt.close()
