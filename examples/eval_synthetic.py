@@ -49,7 +49,7 @@ simu_params_to_vary = {
 # default parameters for EM computation
 em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
              'initializer': 'smart_start', 'n_iter': 200, 'alpha_pos': True,
-             'verbose': True}
+             'verbose': False}
 
 # parameters to vary for EM computation
 em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
@@ -61,11 +61,11 @@ em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
 # run RM
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
-    sfreq=1000, n_jobs=1)
+    sfreq=1000, n_jobs=5)
 
 # save results
 path_df_res = SAVE_RESULTS_PATH / 'results_em_synthetic.csv'
-df_res.to_pickle(path_df_res)
+df_res.to_csv(path_df_res)
 
 # ===================================================
 # PLOT FIGURES
@@ -151,11 +151,6 @@ for i, this_comb in enumerate(combs):
                      (df_res['alpha'] == this_comb['alpha']) &
                      (df_res['m'] == this_comb['m']) &
                      (df_res['sigma'] == this_comb['sigma'])]
-
-    # check if no warning wera raised
-    if min(df_comb['C'].values) == 0 or \
-            min(df_comb['C_sigma'].values) == 0:
-        print('C or C_sigma is 0')
 
     n_tasks_str = r'$n_t$'
     df_comb = df_comb.rename({'n_tasks': r'$n_t$'}, axis=1)
