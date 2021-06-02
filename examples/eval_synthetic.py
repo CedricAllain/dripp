@@ -48,7 +48,8 @@ simu_params_to_vary = {
 
 # default parameters for EM computation
 em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
-             'initializer': 'smart_start', 'n_iter': 200, 'alpha_pos': True}
+             'initializer': 'smart_start', 'n_iter': 200, 'alpha_pos': True,
+             'verbose': True}
 
 # parameters to vary for EM computation
 em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
@@ -60,7 +61,7 @@ em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
 # run RM
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
-    sfreq=1000, n_jobs=50)
+    sfreq=1000, n_jobs=1)
 
 # save results
 path_df_res = SAVE_RESULTS_PATH / 'results_em_synthetic.csv'

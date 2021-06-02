@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="dripp",
+    name="dripp_neurips_2021",
     version="0.0.1",
     description="Official implementation of DriPP: Driven Point Processes to "
     "Model Stimuli Induced Patterns in M/EEG Signals.",
@@ -12,7 +12,6 @@ setuptools.setup(
         'numpy',
         'pandas',
         'scipy',
-        'math',
         'joblib',
         'matplotlib',
     ],
