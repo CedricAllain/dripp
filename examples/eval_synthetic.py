@@ -69,8 +69,6 @@ df_res.to_pickle(path_df_res)
 # PLOT FIGURES
 # ===================================================
 
-start, stop = 0, 1
-xx = np.linspace(start, stop, (stop - start) * 300)
 
 comb1 = {'sigma': 0.2, **simu_params}  # "wide" kernel scenario
 comb2 = {'sigma': 0.05, **simu_params}  # "sharp" kernel scenario
@@ -84,6 +82,10 @@ n_tasks = 0.5
 list_seeds = np.random.choice(list(range(50)), size=8, replace=False)
 
 fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+start, stop = 0, 1
+xx = np.linspace(start, stop, (stop - start) * 300)
+
 for i, this_comb in enumerate(combs):
     # filter resulsts dataframe
     df_comb = df_res[(df_res['T'] == T) &
@@ -94,10 +96,7 @@ for i, this_comb in enumerate(combs):
                      (df_res['alpha'] == this_comb['alpha']) &
                      (df_res['m'] == this_comb['m']) &
                      (df_res['sigma'] == this_comb['sigma'])]
-    # check if no warning wera raised
-    if min(df_comb['C'].values) == 0 or \
-            min(df_comb['C_sigma'].values) == 0:
-        print('C or C_sigma is 0')
+
     # define true kernel
     kernel_true = TruncNormKernel(
         this_comb['lower'], this_comb['upper'],
@@ -214,10 +213,10 @@ plt.close()
 # ------ PLOT COMPUTATION TIME OF THE RELATIVE NORM ------
 # (Figure A.2 in paper)
 
+plt.figure(figsize=figsize)
+
 ax = sns.lineplot(data=df_res, x="T", y="comput_time",
                   markers=["."], estimator='mean', ci=95)
-
-
 ax.set_xlim(df_comb['T'].min(), df_comb['T'].max())
 ax.set_xlabel(r"$T$ (s)", fontsize=fontsize)
 ax.set_ylabel('CPU time (s)', fontsize=fontsize)
