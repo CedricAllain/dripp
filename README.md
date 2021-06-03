@@ -6,34 +6,32 @@ This repository is the official implementation of DriPP: Driven Point Processes 
 
 To install the package under development, place yourself in the folder and run
 
-```
-pip install -e ./
+```shell
+pip install -e .
 ```
 
 ## Results
 
 To get the results on synthetic data (figures 2, 3, A.1 and A.2 in the paper)
 
-```
+```shell
 python eval_synthetic.py
 ```
 
 > When run in parallel with 40 CPU, takes approximately
 
-To get the results on `mne.sample` dataset (figure 4 in paper)
+To get the results on [MNE sample dataset](https://mne.tools/dev/overview/datasets_index.html#sample) (figure 4 in paper)
 
-```
+```shell
 python eval_sample.py
 ```
 
 > When run in parallel with 40 CPU, takes approximately
 
-To get the results on `mne.somato` dataset (figures 5, A.3, A.4 in paper)
+To get the results on [MNE somatosensory dataset](https://mne.tools/dev/overview/datasets_index.html#somatosensory) (figures 5, A.3, A.4 in paper)
 
-```
+```shell
 python eval_somato.py
 ```
 
 > When run in parallel with 40 CPU, takes approximately
-
-
