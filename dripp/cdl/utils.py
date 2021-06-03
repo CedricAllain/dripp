@@ -6,9 +6,6 @@ import numpy as np
 import mne
 
 
-from ..base import NumpyEncoder
-
-
 ###############################################################################
 # General
 ###############################################################################
@@ -126,7 +123,7 @@ def get_data_utils(data_source='sample', subject='sample', kind='passive',
 
 
 ###############################################################################
-# On events
+# On driver's events
 ###############################################################################
 
 def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
@@ -293,7 +290,7 @@ def get_events_timestamps(events=None, sfreq=None, info=None,
     -------
     events_timestamps : dict
         keys are int, the event id,
-        values are numpy.array of float, the event's timestamps
+        values are numpy.array of float, the event's timestamps (in seconds)
 
     """
 
@@ -306,8 +303,6 @@ def get_events_timestamps(events=None, sfreq=None, info=None,
     if event_id == 'all':
         event_id = list(set(events[:, -1]))
 
-    # n_events = len(event_id)
-    # events_timestamps = np.empty(shape=(n_events), dtype='object')
     events_timestamps = {}  # save events' timestamps in a dictionary
 
     for i in event_id:
@@ -318,7 +313,7 @@ def get_events_timestamps(events=None, sfreq=None, info=None,
 
 
 ###############################################################################
-# On activations
+# On stochastic process' activations
 ###############################################################################
 
 
@@ -360,11 +355,11 @@ def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
     assert isinstance(idx_atoms, list), \
         "idx_atoms must be 'all' or of type int | list of int "
 
-    # select atom
+    # select desired atoms
     acti = z_hat[0, idx_atoms]
 
     if shift:
-        # roll to put activation in the peak of the atoms
+        # roll to put activation to the peak amplitude time in the atom.
         for kk in idx_atoms:
             shift = np.argmax(np.abs(v_hat_[kk]))
             acti[kk] = np.roll(acti[kk], shift)
@@ -374,7 +369,24 @@ def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
 
 
 def block_process_1d(a, blocksize):
-    """
+    """For a given array a, returns an array of same size b, but with only the
+    constructed by keeping maximum values of a within blocks of given size.
+    ex. : if a = numpy.array([0, 1, 0, 0, 1, 3, 0]) and blocksize = 2,
+    returns b = numpy.array([0, 1, 0, 0, 0, 3, 0])
+
+    Parameters
+    ----------
+    a : numpy.array
+        array to process
+
+    blocksize : int
+        size of the block to process a with
+
+
+    Returns
+    -------
+    b : numpy.array
+        processed array, of same shape of input array a
 
     """
     if len(a) < blocksize:
@@ -392,8 +404,35 @@ def block_process_1d(a, blocksize):
 
 def filter_activation(acti, atom_to_filter='all', sfreq=150.,
                       time_interval=0.01):
-    """
+    """For an array of atoms activations values, only keeps maximum values
+    within a given time intervalle.
+    In other words, we apply a filter in order to have a minimum time
+    intervalle between two consecutives activations, and only keeping the
+    maximum values
 
+    Parameters
+    ----------
+    acti : n,umpy.array
+
+    atom_to_filter : 'all' | int | array-like of int
+        ids of atoms to apply the filter on
+        if 'all', then applied on every atom in input `acti`
+
+    sfreq = float
+        sampling frequency, allow to transform `time_interval` into a number of
+        timestamps
+        default is 150.
+
+    time_interval : float
+        in second, the time interval within which we would like to keep the
+        maximum activation values
+        default is 0.01
+
+    Returns
+    -------
+    acti : numpy.array
+        same as input, but with only maximum values within the given time
+        intervalle
     """
 
     blocksize = round(time_interval * sfreq)
@@ -442,66 +481,6 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
     return atoms_timestamps
 
 
-def get_time_array(events_timestamps, first_event=0, n_events_to_plot=6):
-    """
-
-    """
-    n_events = events_timestamps.shape[0]
-
-    last_event = first_event + n_events_to_plot
-
-    min_timestamp = min([events_timestamps[_][first_event]
-                         for _ in range(n_events)])
-    max_timestamp = max([events_timestamps[_][last_event]
-                         for _ in range(n_events)])
-
-    low_t = int(np.floor(min_timestamp))
-    up_t = int(np.ceil(max_timestamp))
-
-    time_array = np.linspace(*(low_t, up_t), (up_t-low_t)*10)
-
-    return time_array
-
-
-def get_intensity(kernels, baselines, events_timestamps, sfreq=150.,
-                  time_array=np.linspace(0, 100, int(1e4)), method='separate'):
-    """
-
-    kernels: list of kernels, one per event id
-
-    method: str, 'separate'|'add' (default 'separate')
-        if 'separate', keep the intensity function separate per event id
-        if 'add', add the intensities functions
-
-    """
-    if not isinstance(kernels, (list, np.ndarray)):
-        kernel = np.array([kernels])
-
-    if not isinstance(baselines, (list, np.ndarray)):
-        baselines = np.array([baselines])
-
-    n_events = events_timestamps.shape[0]
-
-    intensities = []  # np.empty(shape=(n_events,), dtype='object')
-    for ii in range(n_events):
-        kernel = kernels[ii]
-        baseline = baselines[ii]
-        event_times = events_timestamps[ii] / sfreq
-        n_timestamps = event_times.shape[0]
-
-        intensity = np.array([kernel.get_values(time_array - event_times[_])
-                              for _ in range(n_timestamps)])
-        # intensities[ii] = baseline + intensity.sum(axis=0)
-        intensities.append(baseline + intensity.sum(axis=0))
-
-    intensities = np.array(intensities)
-
-    if method == 'add':
-        return intensities.sum(axis=0)
-    elif method == 'separate':
-        return intensities
-
-
 ###############################################################################
 # To save variables, parameters and results into a JSON file
 ###############################################################################
@@ -532,6 +511,13 @@ def get_dict_cdl_params(cdl):
                        'n_jobs': cdl.n_jobs}
 
     return dict_cdl_params
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 def save_dict_global(dict_global, json_file_path):

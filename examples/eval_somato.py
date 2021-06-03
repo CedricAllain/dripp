@@ -4,9 +4,11 @@ Run EM on mne.somato dataset and plot the corresponding figure
 """
 
 import numpy as np
-import mne
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+
+import mne
+import mne_bids
 
 from alphacsc.datasets import somato
 from dripp.experiments.run_multiple_em_on_cdl import \
@@ -46,8 +48,10 @@ df_res.to_csv(path_df_res)
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTION
 # ================================================================
 
-fontsize = 8
+# list of atoms selection to plot (3 graphes of 3 cherry picked atoms)
+plotted_atoms_list = [[2, 7, 10], [1, 2, 4], [0, 7, 10]]
 
+fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
 plt.rcParams.update({
     "xtick.labelsize": fontsize,
@@ -68,7 +72,7 @@ t = np.arange(n_times_atom) / sfreq
 # x axis for estimate intensity
 xx = np.linspace(0, 2, 500)
 
-for plotted_atoms in [[2, 7, 10], [1, 2, 4], [0, 7, 10]]:
+for plotted_atoms in plotted_atoms_list:
     # define figure
     fig = plt.figure(figsize=(5.5, 3.5 / 3 * 2))  # , constrained_layout=True)
     ratio = 1.5  # ratio between width of atom plot and intensity plot
@@ -161,3 +165,59 @@ for plotted_atoms in [[2, 7, 10], [1, 2, 4], [0, 7, 10]]:
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.show()
     plt.close()
+
+
+# add the fit dipole plot
+fname_bem = './somato-5120-bem-sol.fif'
+data_path = mne.datasets.somato.data_path()
+subjects_dir = data_path + '/derivatives/freesurfer/subjects'
+raw_path = mne_bids.BIDSPath(subject='01', root=data_path, datatype='meg',
+                             extension='.fif', task='somato')
+trans = mne_bids.get_head_mri_trans(raw_path)
+
+u_hat_ = np.array(dict_global['dict_cdl_fit_res']['u_hat_'])
+evoked = mne.EvokedArray(u_hat_.T, info)
+dip = mne.fit_dipole(evoked, info['cov'], fname_bem, trans,
+                     n_jobs=6, verbose=False)[0]
+
+# for each of the cherry picked atoms plotted upper
+for plotted_atoms in plotted_atoms_list:
+    # define figure
+    width = 6.5
+    height = 1.8
+    figsize = (width, width * height/5.5)
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(nrows=1, ncols=len(plotted_atoms),
+                           wspace=0.02,
+                           figure=fig)
+
+    fig_name = 'dipole_fit_atom'
+    for i, i_atom in enumerate(plotted_atoms):
+        fig_name += '_' + str(i_atom)
+
+        ax = fig.add_subplot(gs[0, i], projection='3d')
+        dip.plot_locations(trans, '01', subjects_dir,
+                           idx=i_atom, ax=ax, show_all=False)
+        ax.set_title('Atom %i' % i_atom, fontsize=fontsize, pad=0)
+        # remove all ticks and associated labels to have a clear figure
+        ax.set_xticks([])
+        ax.set_xticklabels([])
+        ax.set_xlabel('')
+        ax.set_yticks([])
+        ax.set_yticklabels([])
+        ax.set_ylabel('')
+        ax.set_zticks([])
+        ax.set_zticklabels([])
+        ax.set_zlabel('')
+
+    fig.suptitle('')
+    fig.tight_layout()
+
+    fig_name += '.pdf'
+    path_fig = SAVE_RESULTS_PATH / fig_name
+    plt.savefig(path_fig, dpi=300, bbox_inches='tight')
+
+
+# ================================================================
+# PLOT ALL EXTRACTED ATOMS AND THEIR ESTIMATE INTENSITY
+# ================================================================
