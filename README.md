@@ -20,7 +20,7 @@ python eval_synthetic.py
 
 > When run in parallel with 40 CPU, takes approximately
 
-To get the results on `mne.sample` dataset
+To get the results on `mne.sample` dataset (figure 4 in paper)
 
 ```
 python eval_sample.py
@@ -28,7 +28,7 @@ python eval_sample.py
 
 > When run in parallel with 40 CPU, takes approximately
 
-To get the results on `mne.somato` dataset
+To get the results on `mne.somato` dataset (figures 5, A.3, A.4 in paper)
 
 ```
 python eval_somato.py
