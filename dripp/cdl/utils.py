@@ -10,7 +10,7 @@ import mne
 # General
 ###############################################################################
 
-def get_data_utils(data_source='sample', subject='sample', kind='passive',
+def get_data_utils(data_source='sample', subject='sample',
                    verbose=True):
     """ Returns dataset's informations such as paths, STIM channel,
     events description, etc.
@@ -21,12 +21,7 @@ def get_data_utils(data_source='sample', subject='sample', kind='passive',
         Name of the dataset, default is 'sample'
 
     subject : str
-        subject label for camcan dataset, e.g., subject = 'CC110033'
-        default is 'sample'
-
-    kind : 'passive' | 'rest' | 'task'
-        only for camcan dataset, kind of experiment done on the subject
-        default is 'passive'
+        subject label, default is 'sample'
 
     verbose : bool
         if True, print events description
@@ -76,33 +71,6 @@ def get_data_utils(data_source='sample', subject='sample', kind='passive',
         fname_cov = None
         fname_trans = None
         fname_bem = None
-
-    elif data_source == 'camcan':
-        if not subject != 'sample':
-            raise ValueError("No subject label is given while using "
-                             "camcan dataset. Please specify a label, "
-                             "such as 'CC110033'.")
-
-        data_folder = r'/storage/store/data/camcan/camcan47/cc700/meg/pipeline\
-                        /release004/data/aamod_meg_get_fif_00001/'
-        file_name = os.path.join(data_folder, subject, kind, kind + '_raw.fif')
-        # Path to BEM solution
-        subjects_dir = r'/storage/store/data/camcan-mne/freesurfer/'
-        fname_bem = os.path.join(subjects_dir, subject, 'bem',
-                                 subject + '-meg-bem.fif')
-        # Path to transformation
-        trans_folder = r'/storage/store/data/camcan-mne/trans/'
-        fname_trans = os.path.join(trans_folder,
-                                   'sub-' + subject + '-trans.fif')
-        # Path to noise covariance matrix
-        fname_cov = None
-        # Other
-        stim_channel = 'STI101'  # STIM channel
-        bads = ['MEG2113']  # bad chanels
-        add_bads = True
-        event_id = [6, 7, 8, 9]  # event id to keep for evoking
-        event_des = {"auditory/300Hz": 6, "auditory/600Hz": 7,
-                     "auditory/1200Hz": 8, "Visual Checkerboard": 9}
     else:
         raise ValueError("data source %s is unknown" % data_source)
 
@@ -335,7 +303,7 @@ def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
 
     Returns
     -------
-
+    XXX
     """
     # retrieve fitting results
     if isinstance(model, dict):
@@ -464,7 +432,7 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
 
     Returns
     -------
-
+    XXX
     """
 
     assert (sfreq is not None) or ('sfreq' in info.keys()), \
@@ -488,7 +456,7 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
 
 def get_dict_cdl_params(cdl):
     """
-
+    XXX
     """
     dict_cdl_params = {'n_atoms': cdl.n_atoms,
                        'n_times_atom': cdl.n_times_atom,
@@ -522,7 +490,7 @@ class NumpyEncoder(json.JSONEncoder):
 
 def save_dict_global(dict_global, json_file_path):
     """
-
+    XXX
     """
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
 
