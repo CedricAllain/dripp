@@ -301,7 +301,9 @@ def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
 
     Returns
     -------
-    XXX
+    acti : numpy array
+        shape (n_atoms, T * sfreq)
+        the sparse vectors of atoms' activations values
     """
     # retrieve fitting results
     if isinstance(model, dict):
@@ -419,18 +421,29 @@ def filter_activation(acti, atom_to_filter='all', sfreq=150.,
 
 
 def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
-    """ Get atoms' activation timestamps
+    """ Get atoms' activation timestamps, using a threshold on the activation
+    values to filter out unsignificant values
 
     Parameters
     ----------
-
     acti : numpy.array of shape (n_atoms, n_timestamps)
         sparse vector where
 
+    sfreq : float
+        sampling frequency used in CDL
+
+    info : dict
+        similar to mne.Info instance
+        used if sfreq is not given
+
+    threshold = int | float
+        threshold value to filter out unsignificant ativation values
+        default is 0
 
     Returns
     -------
-    XXX
+    atoms_timestamps : numpy array
+        array of timestamps
     """
 
     assert (sfreq is not None) or ('sfreq' in info.keys()), \
