@@ -17,6 +17,8 @@ from dripp.config import SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 
 
+N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
+
 cdl_params = {
     'sfreq': 150.,
     'n_iter': 100,
@@ -38,7 +40,7 @@ dict_global, df_res = run_multiple_em_on_cdl(
     list_atoms=list(range(cdl_params['n_atoms'])),
     list_tasks=[1],
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
-    n_jobs=50)
+    n_jobs=N_JOBS)
 
 # save df_res as csv
 path_df_res = SAVE_RESULTS_PATH / 'results_em_somato.csv'

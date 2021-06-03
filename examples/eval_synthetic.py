@@ -26,7 +26,7 @@ plt.rcParams.update({
 figsize = (5.5, 2)
 cmap = 'viridis_r'
 
-N_JOBS = 5  # number of jobs to run in parallel. To adjust based on machine
+N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
 
 # ===================================================
 # DARA SIMULATION PARAMETERS
