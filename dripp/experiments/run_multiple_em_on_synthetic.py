@@ -213,6 +213,6 @@ def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
     if not path_df_res.exists():
         path_df_res.mkdir(parents=True)
 
-    df_res.to_csv(path_df_res / 'results_synthetic.csv')
+    df_res.to_csv(path_df_res / 'results_em_synthetic.csv')
 
     return df_res

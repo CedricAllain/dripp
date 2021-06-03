@@ -52,7 +52,7 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
              'verbose': False}
 
 # parameters to vary for EM computation
-em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
+em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
 
 # ===================================================
 # RUN EM ON MULTIPLE COMBINATIONS
@@ -62,10 +62,6 @@ em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
     sfreq=1000, n_jobs=5)
-
-# save results
-path_df_res = SAVE_RESULTS_PATH / 'results_em_synthetic.csv'
-df_res.to_csv(path_df_res)
 
 # ===================================================
 # PLOT FIGURES
@@ -186,6 +182,12 @@ for ii in range(2):
                   fontsize=fontsize)
     ax.set_title(list_title[ii], fontsize=fontsize, pad=5)
 
+for ax in axes.ravel():
+    ax.legend([], frameon=False)
+    ax.set_xlim(df_comb['T'].min(), df_comb['T'].max())
+
+axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
+
 plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean.pdf', dpi=300, bbox_inches='tight')
 plt.show()
@@ -201,6 +203,12 @@ for ii in range(2):
     ax.set_ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
                   fontsize=fontsize)
     ax.set_title(list_title[ii], fontsize=fontsize, pad=5)
+
+for ax in axes.ravel():
+    ax.legend([], frameon=False)
+    ax.set_xlim(df_comb['T'].min(), df_comb['T'].max())
+
+axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
 
 plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_std.pdf', dpi=300, bbox_inches='tight')

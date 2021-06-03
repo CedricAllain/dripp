@@ -4,6 +4,9 @@ __cache__/
 *.py[cod]
 *$py.class
 
+#
+dripp_results/
+
 # C extensions
 *.so
 
