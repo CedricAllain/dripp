@@ -455,8 +455,16 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
 
 
 def get_dict_cdl_params(cdl):
-    """
-    XXX
+    """From a alphacsc.GreedyCDL instance, returns a dictionary with its main
+    parameters so it can be savec in a JSON file
+
+    Parameters
+    ----------
+    cdl : alphacsc.GreedyCDL instance
+
+    Returns
+    -------
+    dict_cdl_params : dict
     """
     dict_cdl_params = {'n_atoms': cdl.n_atoms,
                        'n_times_atom': cdl.n_times_atom,
@@ -486,27 +494,3 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
-
-
-def save_dict_global(dict_global, json_file_path):
-    """
-    XXX
-    """
-    now = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    sub_dir_path = os.path.join(json_file_path, now)
-    if not os.path.isdir(sub_dir_path):
-        os.mkdir(sub_dir_path)
-
-    data_source = dict_global['dict_other_params']['data_source']
-    json_file_name = 'dict_global_' + data_source + '_' + now + '.json'
-
-    json_file_path = os.path.join(sub_dir_path, json_file_name)
-
-    with open(json_file_path, 'w') as fp:
-        json.dump(dict_global, fp, sort_keys=True, indent=4, cls=NumpyEncoder)
-
-    print("To read JSON file: \nwith open(json_file_path, 'r') as fp: \
-        \n\tdict_global = json.load(fp)")
-
-    return json_file_path

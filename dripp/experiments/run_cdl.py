@@ -4,6 +4,7 @@ Run Convolutional Dictionary Learning on mne.sample or mne.somato dataset
 
 import os
 import mne
+import json
 import numpy as np
 from joblib import Memory
 
@@ -11,7 +12,7 @@ from alphacsc import GreedyCDL
 from alphacsc.utils.signal import split_signal
 
 from dripp.cdl import utils
-from dripp.config import CACHEDIR
+from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
 
 
 memory = Memory(CACHEDIR, verbose=0)
@@ -211,6 +212,12 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                    'dict_other_params': dict_other_params,
                    'dict_cdl_fit_res': dict_cdl_fit_res,
                    'dict_pair_up': dict_pair_up}
+
+    # save results in JSON file
+    json_file_path = SAVE_RESULTS_PATH / ('cdl_' + data_source + '.json')
+    with open(json_file_path, 'w') as fp:
+        json.dump(dict_global, fp, sort_keys=True, indent=4,
+                  cls=utils.NumpyEncoder)
 
     return dict_global
 
