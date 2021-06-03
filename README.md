@@ -18,7 +18,7 @@ To get the results on synthetic data (figures 2, 3, A.1 and A.2 in the paper)
 python eval_synthetic.py
 ```
 
-> When run in parallel with 40 CPU, takes approximately
+> When run in parallel with 40 CPU, takes approximately 92 minutes.
 
 To get the results on [MNE sample dataset](https://mne.tools/dev/overview/datasets_index.html#sample) (figure 4 in paper)
 

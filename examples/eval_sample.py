@@ -68,7 +68,7 @@ plotted_tasks = {'auditory': [1, 2],
                  'visual': [3, 4]}
 
 fig = plt.figure(figsize=(5.5, 2.5))
-gs = gridspec.GridSpec(nrows=3, ncols=4, hspace=0.26, wspace=0.18, igure=fig)
+gs = gridspec.GridSpec(nrows=3, ncols=4, hspace=0.26, wspace=0.18, figure=fig)
 
 # x axis for temporal pattern
 n_times_atom = dict_global['dict_cdl_params']['n_times_atom']

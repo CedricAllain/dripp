@@ -130,7 +130,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            list_atoms=None, list_tasks=None,
                            lower=30e-3, upper=500e-3,
                            n_iter=400, initializer='smart_start',
-                           early_stopping=None, early_stopping_params=None,
+                           early_stopping=None, early_stopping_params={},
                            alpha_pos=True, n_jobs=6,
                            n_bootstrap=1, p_bootstrap=1):
     """Run in parallel EM algorithm on results obtained from
@@ -220,6 +220,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
     elif data_source == 'somato':
         dict_global = run_cdl_somato(**cdl_params)
 
+    # if not given, will run the EM for every atom extracted
     if list_atoms is None:
         n_atoms = dict_global['dict_cdl_params']['n_atoms']
         list_atoms = list(range(n_atoms))
