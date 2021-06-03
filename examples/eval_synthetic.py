@@ -26,6 +26,8 @@ plt.rcParams.update({
 figsize = (5.5, 2)
 cmap = 'viridis_r'
 
+N_JOBS = 5  # number of jobs to run in parallel. To adjust based on machine
+
 # ===================================================
 # DARA SIMULATION PARAMETERS
 # ===================================================
@@ -61,7 +63,7 @@ em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
 # run RM
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
-    sfreq=1000, n_jobs=5)
+    sfreq=1000, n_jobs=N_JOBS)
 
 # ===================================================
 # PLOT FIGURES
@@ -77,7 +79,8 @@ combs = [comb1, comb2]
 
 T = 1000
 n_tasks = 0.5
-list_seeds = np.random.choice(list(range(50)), size=8, replace=False)
+rng = np.random.RandomState(0)
+list_seeds = rng.choice(list(range(50)), size=8, replace=False)
 
 fig, axes = plt.subplots(1, 2, figsize=figsize)
 
