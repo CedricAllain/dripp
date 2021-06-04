@@ -21,7 +21,7 @@ memory = Memory(CACHEDIR, verbose=0)
 @memory.cache(ignore=['n_jobs'])
 def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                   n_iter=100, eps=1e-4, n_jobs=5, n_splits=10,
-                  data_source='sample'):
+                  data_source='sample', save_results=False):
     """Run a Greedy Convolutional Dictionary Learning on mne.[data_source]
     dataset
 
@@ -213,11 +213,12 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                    'dict_cdl_fit_res': dict_cdl_fit_res,
                    'dict_pair_up': dict_pair_up}
 
-    # save results in JSON file
-    json_file_path = SAVE_RESULTS_PATH / ('cdl_' + data_source + '.json')
-    with open(json_file_path, 'w') as fp:
-        json.dump(dict_global, fp, sort_keys=True, indent=4,
-                  cls=utils.NumpyEncoder)
+    if save_results:
+        # save results in JSON file
+        json_file_path = SAVE_RESULTS_PATH / ('cdl_' + data_source + '.json')
+        with open(json_file_path, 'w') as fp:
+            json.dump(dict_global, fp, sort_keys=True, indent=4,
+                      cls=utils.NumpyEncoder)
 
     return dict_global
 

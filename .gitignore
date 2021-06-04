@@ -1,11 +1,11 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-__cache__/
 *.py[cod]
 *$py.class
 
 #
-dripp_results/
+__cache__/
+joblib/
 
 # C extensions
 *.so

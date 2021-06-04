@@ -142,7 +142,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
 @memory.cache(ignore=['n_jobs'])
 def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
                                  em_params, em_params_to_vary,
-                                 sfreq=150., n_jobs=6):
+                                 sfreq=150., n_jobs=6, save_results=False):
     """Run several EM in parallel for multiple simulation parameters
     combinations and for multiple EM parameters combinations
 
@@ -208,11 +208,12 @@ def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
     for this_new_row in new_rows:
         df_res = df_res.append(this_new_row, ignore_index=True)
 
-    # save dataframe as csv
-    path_df_res = SAVE_RESULTS_PATH
-    if not path_df_res.exists():
-        path_df_res.mkdir(parents=True)
+    if save_results:
+        # save dataframe as csv
+        path_df_res = SAVE_RESULTS_PATH
+        if not path_df_res.exists():
+            path_df_res.mkdir(parents=True)
 
-    df_res.to_csv(path_df_res / 'results_em_synthetic.csv')
+        df_res.to_csv(path_df_res / 'results_em_synthetic.csv')
 
     return df_res

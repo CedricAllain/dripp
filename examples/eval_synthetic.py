@@ -29,7 +29,7 @@ cmap = 'viridis_r'
 N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
 
 # ===================================================
-# DARA SIMULATION PARAMETERS
+# DATA SIMULATION PARAMETERS
 # ===================================================
 
 # default parameters for data simulation
@@ -69,7 +69,6 @@ df_res = run_multiple_em_on_synthetic(
 # PLOT FIGURES
 # ===================================================
 
-
 comb1 = {'sigma': 0.2, **simu_params}  # "wide" kernel scenario
 comb2 = {'sigma': 0.05, **simu_params}  # "sharp" kernel scenario
 combs = [comb1, comb2]
@@ -79,8 +78,6 @@ combs = [comb1, comb2]
 
 T = 1000
 n_tasks = 0.5
-rng = np.random.RandomState(0)
-list_seeds = rng.choice(list(range(50)), size=8, replace=False)
 
 fig, axes = plt.subplots(1, 2, figsize=figsize)
 
@@ -106,8 +103,8 @@ for i, this_comb in enumerate(combs):
     yy = this_comb['baseline'] + kernel_true.eval(xx)
     axes[i].plot(xx, yy, label='Ground truth', color='black', linestyle='--')
 
-    # define estimated kernels
-    for j, seed in enumerate(list_seeds):
+    # plot a few estimated kernels
+    for seed in range(8):
         sub_df = df_comb[df_comb['seed'] == seed]
         kernel = TruncNormKernel(this_comb['lower'], this_comb['upper'],
                                  sub_df['m_hat'].values[0],
@@ -115,7 +112,7 @@ for i, this_comb in enumerate(combs):
 
         yy = sub_df['baseline_hat'].values[0] + kernel.eval(xx)
 
-        if j == 0:
+        if seed == 0:
             axes[i].plot(xx, yy, color='blue', alpha=0.2,
                          label='Estimated')
         else:

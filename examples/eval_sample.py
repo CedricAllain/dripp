@@ -30,7 +30,7 @@ cdl_params = {
 # run CDL and EM
 lower, upper = 30e-3, 500e-3
 shift_acti = True
-threshold = 0.7e-10
+threshold = 0.6e-10
 n_iter = 400
 dict_global, df_res = run_multiple_em_on_cdl(
     data_source='sample', cdl_params=cdl_params,  # CDL
@@ -40,10 +40,6 @@ dict_global, df_res = run_multiple_em_on_cdl(
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
     n_jobs=N_JOBS)
 
-# save df_res as csv
-path_df_res = SAVE_RESULTS_PATH / 'results_em_sample.csv'
-df_res.to_csv(path_df_res)
-
 # get raw.info
 data_utils = utils.get_data_utils(data_source='sample', verbose=False)
 raw = mne.io.read_raw_fif(data_utils['file_name'])
@@ -51,9 +47,9 @@ raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
 info = raw.copy().pick_types(meg=True).info
 
 
-# ================================================================
-# PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTION
-# ================================================================
+# ==================================================================
+# PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
+# ==================================================================
 
 fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
@@ -67,7 +63,7 @@ plotted_atoms = [0, 1, 2, 6]
 plotted_tasks = {'auditory': [1, 2],
                  'visual': [3, 4]}
 
-fig = plt.figure(figsize=(5.5, 2.5))
+fig = plt.figure(figsize=(5.5, 3.5))
 gs = gridspec.GridSpec(nrows=3, ncols=4, hspace=0.26, wspace=0.18, figure=fig)
 
 # x axis for temporal pattern
@@ -99,7 +95,7 @@ for ii, kk in enumerate(plotted_atoms):
 
     if ii == 0:
         temporal_ax = ax
-        ax.set_ylabel('Temporal', fontsize=fontsize)  # , fontsize=fontsize)
+        ax.set_ylabel('Temporal', fontsize=fontsize)
 
     if ii > 0:
         ax.get_yaxis().set_visible(False)
@@ -171,7 +167,7 @@ plt.close()
 
 
 # ================================================================
-# PLOT ALL EXTRACTED ATOMS AND THEIR ESTIMATE INTENSITY
+# PLOT ALL EXTRACTED ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ================================================================
 
 plotted_atoms = range(cdl_params['n_atoms'])
@@ -205,7 +201,6 @@ for ii, kk in enumerate(plotted_atoms):
     ax = next(it_axes)
     ax.plot(t, v_k)
     ax.set_xlim(0, 1)
-    ax.set_xticklabels([0, 0.5, 1], fontsize=fontsize)
     if i_col == 0:
         ax.set_ylabel('Temporal', fontsize=fontsize)
 
@@ -234,14 +229,13 @@ for ii, kk in enumerate(plotted_atoms):
         lambda_max = baseline + alpha * kernel.max
         ratio_lambda_max = lambda_max / baseline
 
-        if ii == 0:
-            ax.plot(xx, yy, label=plot_label)
+        if i_col == 0:
+            ax.plot(xx, yy, label=label)
         else:
             ax.plot(xx, yy)
 
-    ax.set_xlim(0, 500e-3)
+    ax.set_xlim(0, 0.5)
     ax.set_xlabel('Time (s)', fontsize=fontsize)
-    ax.set_xticklabels([0, 0.25, 0.5], fontsize=fontsize)
 
     if ii == 0:
         intensity_ax = ax
@@ -251,11 +245,10 @@ for ii, kk in enumerate(plotted_atoms):
 
     if i_col == 0:
         ax.set_ylabel('Intensity', labelpad=7, fontsize=fontsize)
-    else:
-        ax.get_yaxis().set_visible(False)
-
+        ax.legend(fontsize=fontsize, handlelength=1)
 
 # save figure
+fig.tight_layout()
 path_fig = SAVE_RESULTS_PATH / 'sample_all_atoms.pdf'
 plt.savefig(path_fig, dpi=300, bbox_inches='tight')
 plt.close()

@@ -6,7 +6,7 @@ from joblib import Memory, Parallel, delayed
 from dripp.cdl import utils
 from dripp.experiments.run_cdl import run_cdl_sample, run_cdl_somato
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
-from dripp.config import CACHEDIR
+from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
 
 memory = Memory(CACHEDIR, verbose=0)
 
@@ -132,7 +132,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            n_iter=400, initializer='smart_start',
                            early_stopping=None, early_stopping_params={},
                            alpha_pos=True, n_jobs=6,
-                           n_bootstrap=1, p_bootstrap=1):
+                           n_bootstrap=1, p_bootstrap=1, save_results=False):
     """Run in parallel EM algorithm on results obtained from
     `dripp.experiments.run_cdl`, with several combination of (atoms, tasks).
     Results are returned on a pd.DataFrame object
@@ -299,5 +299,13 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         df_temp['shift_acti'] = shift_acti
         # concatenate DataFrames
         df_res = pd.concat([df_res, df_temp], ignore_index=True)
+
+    if save_results:
+        # save df_res as csv
+        path_df_res = SAVE_RESULTS_PATH
+        if not path_df_res.exists():
+            path_df_res.mkdir(parents=True)
+
+        df_res.to_csv(SAVE_RESULTS_PATH / 'results_em_sample.csv')
 
     return dict_global, df_res
