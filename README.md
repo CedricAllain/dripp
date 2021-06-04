@@ -34,4 +34,4 @@ To get the results on [MNE somatosensory dataset](https://mne.tools/dev/overview
 python eval_somato.py
 ```
 
-> When run in parallel with 40 CPU, takes approximately 16 minutes(including 8 minutes for the CDL).
+> When run in parallel with 40 CPU, takes approximately 16 minutes (including 8 minutes for the CDL).
