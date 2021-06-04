@@ -2,12 +2,14 @@
 Utils functions used in the computation of the next EM iteration
 """
 
+from re import M
 import numpy as np
 from scipy.stats import norm
 
 from dripp.trunc_norm_kernel.utils import get_last_timestamps
 
-EPS = np.finfo(float).eps
+# EPS = np.finfo(float).eps
+EPS = 1e-5
 
 
 def compute_C(m, sigma, a, b):
@@ -199,20 +201,27 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
     p_tp = compute_p_tp(intensity.acti_tt, intensity,
                         last_tt=intensity.acti_last_tt)
     sum_p_tp = p_tp.sum()
-    if sum_p_tp == 0:
-        print('sum_p_tp is null in compute_next_alpha_m_sigma')
-        print('m, sigma = ', (intensity.kernel.m, intensity.kernel.sigma))
+    # if sum_p_tp == 0:
+    #     print('sum_p_tp is null in compute_next_alpha_m_sigma')
+    #     print('m, sigma = ', (intensity.kernel.m, intensity.kernel.sigma))
+    #     import ipdb
+    #     ipdb.set_trace()
     # new value of alpha
     next_alpha = sum_p_tp / intensity.driver_tt.size
-    # new value of m
-    diff = intensity.acti_tt - intensity.acti_last_tt
-    sum_temp = np.nansum(diff * p_tp)
-    next_m = sum_temp / sum_p_tp - np.square(intensity.kernel.sigma) * C_m / C
-    # new value of sigma
-    sum_temp = np.nansum(np.square(diff - intensity.kernel.m) * p_tp)
-    next_sigma = np.cbrt(C / C_sigma * sum_temp / sum_p_tp)  # cubic root
-    # project on semi-closed set [EPS, +infty) to stay in constraint space
-    next_sigma = max(next_sigma, EPS)
+    if next_alpha == 0:
+        next_m = intensity.kernel.m
+        next_sigma = intensity.kernel.sigma
+    else:
+        # new value of m
+        diff = intensity.acti_tt - intensity.acti_last_tt
+        sum_temp = np.nansum(diff * p_tp)
+        next_m = sum_temp / sum_p_tp - \
+            np.square(intensity.kernel.sigma) * C_m / C
+        # new value of sigma
+        sum_temp = np.nansum(np.square(diff - intensity.kernel.m) * p_tp)
+        next_sigma = np.cbrt(C / C_sigma * sum_temp / sum_p_tp)  # cubic root
+        # project on semi-closed set [EPS, +infty) to stay in constraint space
+        next_sigma = max(next_sigma, EPS)
 
     return next_alpha, next_m, next_sigma
 

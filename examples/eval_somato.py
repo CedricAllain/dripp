@@ -165,7 +165,6 @@ for plotted_atoms in plotted_atoms_list:
     name = 'fig5_' + suffix + '.pdf'
     path_fig = SAVE_RESULTS_PATH / name
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
-    plt.show()
     plt.close()
 
 
@@ -218,6 +217,7 @@ for plotted_atoms in plotted_atoms_list:
     fig_name += '.pdf'
     path_fig = SAVE_RESULTS_PATH / fig_name
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 # ================================================================
