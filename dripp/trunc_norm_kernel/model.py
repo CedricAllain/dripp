@@ -221,8 +221,8 @@ class Intensity():
     kernel : instance of TruncNormKernel
         kernel function
 
-    driver_tt : array-like
-        the driver's timestamps
+    driver_tt : array-like of shape (n_drivers, )
+        the drivers' timestamps
         default is ()
 
     acti_tt : array-like
