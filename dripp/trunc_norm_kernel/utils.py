@@ -22,12 +22,24 @@ def get_last_timestamps(timestamps, t):
 
     """
 
-    timestamps = np.asarray(timestamps).astype(float)
-    timestamps = np.sort(timestamps)
+    if timestamps == []:
+        return np.array([[]])
 
-    # i such that timestamps[i-1] <= t < timestamps[i]
-    idx = np.searchsorted(timestamps, t, side='right')
-    last_tmstp = np.array(timestamps[idx - 1])
-    last_tmstp[idx == 0] = np.nan
+    if isinstance(timestamps[0], (int, float)):
+        timestamps = np.atleast_2d(timestamps)
 
-    return last_tmstp
+    last_tmstp = []
+
+    for tt in timestamps:
+        if tt == []:
+            this_last_tmstp = np.full(len(t), np.nan)
+            last_tmstp.append(this_last_tmstp)
+            continue
+        tt = np.sort(np.array(tt).astype(float))
+        # i such that tt[i-1] <= t < tt[i]
+        idx = np.searchsorted(tt, t, side='right')
+        this_last_tmstp = np.array(tt[idx - 1])
+        this_last_tmstp[idx == 0] = np.nan
+        last_tmstp.append(this_last_tmstp)
+
+    return np.array(last_tmstp)  # , dtype=object)

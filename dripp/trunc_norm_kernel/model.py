@@ -1,3 +1,4 @@
+# %%
 import numpy as np
 import math
 from scipy.stats import truncnorm
@@ -204,6 +205,8 @@ class TruncNormKernel():
 
         return integ
 
+# %%
+
 
 class Intensity():
     """Class for intensity function
@@ -221,11 +224,11 @@ class Intensity():
     kernel : instance of TruncNormKernel
         kernel function
 
-    driver_tt : array-like of shape (n_drivers, )
+    driver_tt : array-like of shape (n_drivers, n_tt)
         the drivers' timestamps
         default is ()
 
-    acti_tt : array-like
+    acti_tt : array-like of shape (n_tt, )
         the process' activation timestamps
         default is ()
 
@@ -235,15 +238,18 @@ class Intensity():
                  driver_tt=(), acti_tt=()):
 
         self.baseline = baseline
-        self.alpha = alpha
-        self.kernel = kernel
-        self.driver_tt = driver_tt
-        self.acti_tt = acti_tt
+        self.alpha = np.atleast_1d(alpha)  # set of alpha coefficients
+        self.kernel = np.atleast_1d(kernel)  # set of kernels functions
+        self.acti_tt = np.atleast_1d(acti_tt)  # ensure it is numpy array
+        # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
+        if isinstance(driver_tt[0], (int, float)):
+            driver_tt = np.atleast_2d(driver_tt)
+        self.driver_tt = np.array([np.array(x) for x in driver_tt])
 
         # compute maximum intensity
         self.lambda_max = self.get_max()
 
-        if len(acti_tt) > 0 and len(driver_tt) > 0:
+        if acti_tt.shape[0] > 0 and driver_tt.shape[0] > 0:
             # for every process activation timestamps,
             # get its corresponding driver timestamp
             self.acti_last_tt = get_last_timestamps(driver_tt, acti_tt)
@@ -259,10 +265,17 @@ class Intensity():
 
         """
 
-        if self.kernel is not None:
-            return self.baseline + self.alpha * self.kernel.max
-        else:
-            return self.baseline
+        m = self.baseline
+        if self.kernel.shape[0] > 0:  # if at least one associated kernel
+            m += np.array([alpha * kernel.max for alpha,
+                           kernel in zip(self.alpha, self.kernel)]).max()
+
+        # if self.kernel is not None:
+        #     return self.baseline + self.alpha * self.kernel.max
+        # else:
+        #     return self.baseline
+
+        return m
 
     def __call__(self, t, last_tt=()):
         """Evaluate the intensity at time(s) t
@@ -283,18 +296,21 @@ class Intensity():
 
         """
 
-        t = np.atleast_1d(t)  # XXX : t = np.array(t) | np.atleast_1d(t) ?
-        last_tt = np.atleast_1d(last_tt)
+        t = np.atleast_1d(t)
+        last_tt = np.atleast_2d(last_tt)  # from 1d to 2d
+        # with the non-overlapping assumption, only the last event on each
+        # driver matters
 
-        if (self.alpha == 0) or (len(self.driver_tt) == 0):
-            return np.full(t.size, fill_value=self.baseline)
+        # if (self.alpha == 0) or (len(self.driver_tt) == 0):
+        #   return np.full(t.size, fill_value=self.baseline)
 
-        if last_tt.size == 0:
+        if last_tt.shape[0] != self.driver_tt.shape[0]:
             last_tt = get_last_timestamps(self.driver_tt, t)
 
         intensities = self.baseline
-        if (self.kernel is not None) and (self.alpha > 0):
-            intensities += self.alpha * self.kernel(t - last_tt)
+        for alpha, kernel, tt in zip(self.alpha, self.kernel, last_tt):
+            # if (self.kernel is not None) and (self.alpha > 0):
+            intensities += alpha * kernel(t - tt)
 
         intensities[np.isnan(intensities)] = self.baseline
 
@@ -314,8 +330,10 @@ class Intensity():
             default is numpy.linspace(0, 1, 600)
 
         """
+        yy = self.baseline
+        for alpha, kernel in zip(self.alpha, self.kernel):
+            yy += alpha * kernel.eval(xx)
 
-        yy = self.baseline + self.alpha * self.kernel.eval(xx)
         plt.plot(xx, yy)
         plt.xlabel('Time (s)')
         plt.title("Intensity function at kernel")
