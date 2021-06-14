@@ -32,7 +32,7 @@ def get_last_timestamps(timestamps, t):
 
     for tt in timestamps:
         if tt == []:
-            this_last_tmstp = np.full(len(t), np.nan)
+            this_last_tmstp = np.full(len(t), fill_value=np.nan)
             last_tmstp.append(this_last_tmstp)
             continue
         tt = np.sort(np.array(tt).astype(float))
