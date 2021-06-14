@@ -1,7 +1,10 @@
+# %%
 import numpy as np
 from scipy.stats import truncnorm
 
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
+
+# %%
 
 
 def test_truncnormkernel():

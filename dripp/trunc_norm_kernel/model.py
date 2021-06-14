@@ -67,13 +67,18 @@ class TruncNormKernel():
     def sigma(self):
         return self._sigma
 
+    @sigma.setter
+    def sigma(self, value):
+        self.update(m=self.m, sigma=value)
+        self.max = self.get_max()  # recompute max
+
     @property
     def m(self):
         return self._m
 
     @m.setter
     def m(self, value):
-        self._m = value
+        self.update(m=value, sigma=self.sigma)
         self.max = self.get_max()  # recompute max
 
     def __call__(self, x):
@@ -249,7 +254,7 @@ class Intensity():
         # compute maximum intensity
         self.lambda_max = self.get_max()
 
-        if acti_tt.shape[0] > 0 and driver_tt.shape[0] > 0:
+        if self.acti_tt.shape[0] > 0 and self.driver_tt.shape[0] > 0:
             # for every process activation timestamps,
             # get its corresponding driver timestamp
             self.acti_last_tt = get_last_timestamps(driver_tt, acti_tt)
