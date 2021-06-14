@@ -4,9 +4,9 @@ from numpy.core.records import array
 from tqdm import tqdm
 
 from dripp.trunc_norm_kernel.utils import get_last_timestamps
-from .model import TruncNormKernel, Intensity
-from .metric import negative_log_likelihood
-from .em import compute_nexts, compute_Cs
+from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
+from dripp.trunc_norm_kernel.metric import negative_log_likelihood
+from dripp.trunc_norm_kernel.em import compute_nexts, compute_Cs
 
 
 EPS = np.finfo(float).eps
@@ -309,7 +309,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     ----------
     acti_tt : array-like
 
-    driver_tt : array-like
+    driver_tt : array-like of shape (n_drivers, )
 
     lower, upper : float
         kernel's truncation values
@@ -373,12 +373,16 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         value of the negative log-likelihood over all EM iterations
     """
 
-    acti_tt = np.array(acti_tt)
-    driver_tt = np.array(driver_tt)
-
+    acti_tt = np.atleast_1d(acti_tt)
     assert acti_tt.size > 0, "no activation vector was given"
 
-    if driver_tt.size == 0:
+    # driver_tt = np.array(driver_tt)
+    if isinstance(driver_tt[0], (int, float)):
+        driver_tt = np.atleast_2d(driver_tt)
+    driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
+    n_driver = driver_tt.shape[0]
+
+    if np.array([len(tt) for tt in driver_tt]).max() == 0:
         if verbose:
             print("Intensity has no driver timestamps. "
                   "Will return baseline MLE and corresponding loss "
@@ -395,9 +399,14 @@ def em_truncated_norm(acti_tt, driver_tt=(),
 
     baseline_hat, alpha_hat, m_hat, sigma_hat = init_params
 
-    # initialize kernel, intensity functions as well as nll function
-    kernel = TruncNormKernel(lower, upper, m_hat, sigma_hat, sfreq=sfreq)
+    # initialize kernels and intensity functions
+    kernel = []
+    for i in range(n_driver):
+        kernel.append(TruncNormKernel(
+            lower, upper, m_hat[i], sigma_hat[i], sfreq=sfreq))
     intensity = Intensity(baseline_hat, alpha_hat, kernel, driver_tt, acti_tt)
+
+    # define loss function
     nll = partial(negative_log_likelihood, T=T)
 
     # initializa history of parameters and loss
@@ -413,17 +422,17 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                        early_stopping, verbose,
                        **early_stopping_params)
         if stop:  # either alpha = 0, or mass is too concentrated
-            alpha_hat == 0
+            alpha_hat = np.full(n_driver, fill_value=0)
             baseline_hat = compute_baseline_mle(acti_tt, T, return_nll=False)
             break
         # compute next values of parameters
         nexts = compute_nexts(intensity, T)
         baseline_hat, alpha_hat, m_hat, sigma_hat = nexts
         # force alpha to stay non-negative
-        if alpha_pos and (alpha_hat < 0):
+        if alpha_pos and (alpha_hat.max() < 0):
             if verbose:
                 print("alpha_hat was negative, alpha_hat is thus set to 0.")
-            alpha_hat = 0
+            alpha_hat = np.full(n_driver, fill_value=0)
             baseline_hat = compute_baseline_mle(acti_tt, T, return_nll=False)
             break
 
@@ -432,8 +441,9 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         hist_alpha.append(alpha_hat)
         hist_m.append(m_hat)
         hist_sigma.append(sigma_hat)
-        # update kernel function
-        kernel.update(m=m_hat, sigma=sigma_hat)
+        # update kernel functions
+        for i in range(n_driver):
+            kernel[i].update(m=m_hat[i], sigma=sigma_hat[i])
         # update intensity function
         intensity.baseline = baseline_hat
         intensity.alpha = alpha_hat
