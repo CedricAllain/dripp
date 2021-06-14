@@ -249,7 +249,8 @@ class Intensity():
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
         if isinstance(driver_tt[0], (int, float)):
             driver_tt = np.atleast_2d(driver_tt)
-        self.driver_tt = np.array([np.array(x) for x in driver_tt])
+        self.driver_tt = np.array([np.array(x) for x in driver_tt],
+                                  dtype=object)
 
         # compute maximum intensity
         self.lambda_max = self.get_max()
