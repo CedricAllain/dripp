@@ -71,5 +71,5 @@ def test_intensity():
 
 
 if __name__ == '__main__':
-    test_truncnormkernel()
+    # test_truncnormkernel()
     test_intensity()
