@@ -4,7 +4,8 @@ import math
 from scipy.stats import truncnorm
 import matplotlib.pyplot as plt
 
-from dripp.trunc_norm_kernel.utils import get_last_timestamps
+from dripp.trunc_norm_kernel.utils import \
+    convert_variable_multi, get_last_timestamps
 
 
 class TruncNormKernel():
@@ -222,12 +223,15 @@ class Intensity():
     baseline : int | float
         baseline intensity
 
-    alpha : int | float
+    alpha : int | float | array-like
         coefficient of influence
+        if multiple drivers are taken into account, alpha must be an array-like
+        of length the number of kernels.
         default is 0
 
-    kernel : instance of TruncNormKernel
-        kernel function
+    kernel : instance of TruncNormKernel | array-like of TruncNormKernel
+        the kernel function(s) to take into account
+        default is None
 
     driver_tt : array-like of shape (n_drivers, n_tt)
         the drivers' timestamps
@@ -242,15 +246,22 @@ class Intensity():
     def __init__(self, baseline, alpha=0, kernel=None,
                  driver_tt=(), acti_tt=()):
 
-        self.baseline = baseline
-        self.alpha = np.atleast_1d(alpha)  # set of alpha coefficients
-        self.kernel = np.atleast_1d(kernel)  # set of kernels functions
-        self.acti_tt = np.atleast_1d(acti_tt)  # ensure it is numpy array
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
         if isinstance(driver_tt[0], (int, float)):
             driver_tt = np.atleast_2d(driver_tt)
         self.driver_tt = np.array([np.array(x) for x in driver_tt],
                                   dtype=object)
+
+        self.baseline = baseline
+        # set of alpha coefficients
+        self.alpha = convert_variable_multi(
+            alpha, len(self.driver_tt), repeat=True)
+        self.kernel = np.atleast_1d(kernel)  # set of kernels functions
+        self.acti_tt = np.atleast_1d(acti_tt)  # ensure it is numpy array
+
+        # make sure we have one alpha coefficient per kernel
+        assert len(self.alpha) == len(self.kernel), \
+            "alpha and kernel parameters must have the same length"
 
         # compute maximum intensity
         self.lambda_max = self.get_max()
@@ -389,3 +400,18 @@ class Intensity():
     @acti_tt.setter
     def acti_tt(self, value):
         self._acti_tt = np.array(value)
+
+
+# %%
+baseline, alpha = 1, [2, 1]
+# define 2 kernel functions
+m, sigma = 200e-3, 0.08
+lower, upper = 30e-3, 500e-3
+kernel = [TruncNormKernel(lower, upper, m, sigma),
+          TruncNormKernel(lower, upper, m, sigma)]
+driver_tt = [[3.4, 5, 5.1, 8, 10],
+             [0.5, 2, 4]]
+acti_tt = [1.2, 3, 3.6, 3.7, 4.7, 5.24, 5.5]
+intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
+
+# %%

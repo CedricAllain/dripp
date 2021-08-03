@@ -4,6 +4,39 @@ with truncated normal kernels """
 import numpy as np
 
 
+def convert_variable_multi(var, n=1, repeat=True):
+    """Take a variable and make it an array of length n
+
+    Parameters
+    ----------
+    var : int | float | array-like
+        the variable we want to convert
+
+    n : int
+        the length of the return array
+        default is 1
+
+    repeat : bool
+        if True, if var is of dimension 1 and n > 1, return an array of
+        repeated var of length n
+        default is True
+
+    Returns
+    -------
+    var
+
+    """
+
+    var = np.atleast_1d(var)
+    if repeat and (n > 1) and (len(var) == 1):
+        var = np.repeat(var, n)
+
+    assert len(var) == n, \
+        "var must be an int, float or an array of length n"
+
+    return var
+
+
 def get_last_timestamps(timestamps, t):
     """Given a time t, find its corresponding last timestamps in a given a list
     of timestamps.
