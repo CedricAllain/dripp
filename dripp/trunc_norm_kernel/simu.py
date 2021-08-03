@@ -3,6 +3,8 @@ Utils functions used for the simulation of driven point process
 with truncated Gaussian kernel
 """
 
+# %%
+
 import numpy as np
 
 from dripp.trunc_norm_kernel.utils import convert_variable_multi
@@ -173,7 +175,7 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 
 def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
                   baseline=0.8, alpha=1, T=240, isi=1, n_tasks=0.8,
-                  n_drivers=1, seed=None, verbose=False):
+                  n_drivers=1, seed=None, return_nll=True, verbose=False):
     """ Given some initial parameters, simulate driver's timestamps and
     driven process's activation timestamps, for the intensity defined with a
     truncated gaussian kernel.
@@ -239,6 +241,9 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         if n_drivers > 1, seed must be None or array-like of length n_drivers
         default is None
 
+    return_nll : bool
+        if True, compute the true negative log-likelihood
+
     verbose : bool
         if True, print some information linked to the timestamps generation
         default is False
@@ -288,16 +293,18 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
     acti_tt = simu_1d_nonhomogeneous_poisson_process(
         intensity=intensity, T=T, seed=seed[0], verbose=verbose)
 
-    # update intensity function and compute true negative log-likelihood
-    intensity.acti_tt = acti_tt
-    true_nll = negative_log_likelihood(intensity=intensity, T=T)
-
-    return driver_tt, acti_tt, true_nll
+    if return_nll:
+        # update intensity function and compute true negative log-likelihood
+        intensity.acti_tt = acti_tt
+        true_nll = negative_log_likelihood(intensity=intensity, T=T)
+        return driver_tt, acti_tt, true_nll
+    else:
+        return driver_tt, acti_tt
 
 
 if __name__ == '__main__':
     driver_tt, acti_tt, true_nll = simulate_data(
         lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         baseline=0.8, alpha=1, T=240, isi=1, n_tasks=0.8,
-        n_drivers=2, seed=None, verbose=False)
-
+        n_drivers=2, seed=None, return_nll=True, verbose=False)
+    print("true_nll: %.3f" % true_nll)

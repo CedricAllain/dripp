@@ -55,12 +55,12 @@ def negative_log_likelihood(intensity, T):
 
     """
 
-    if len(intensity.kernel) == 1:
+    n_drivers = len(intensity.kernel)
+
+    if n_drivers == 1:
         return negative_log_likelihood_1d(intensity, T)
 
     # in the case of multiple drivers
-    n_drivers = len(intensity.kernel)
-
     nll = T * intensity.baseline
     for this_alpha, this_driver_tt in zip(intensity.alpha, intensity.driver_tt):
         nll += this_alpha * len(this_driver_tt)
@@ -72,3 +72,5 @@ def negative_log_likelihood(intensity, T):
             # only take into account positive delays
             sum_temp += intensity.alpha[p] * delays[delays > 0].sum()
         nll -= np.log(sum_temp)
+
+    return nll
