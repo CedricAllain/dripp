@@ -6,7 +6,7 @@ from scipy import integrate
 
 def negative_log_likelihood_1d(intensity, T):
     """ Compute the negative log-likelihood for a given intensity function over
-    a given time duration
+    a given time duration, in the case where the intensity only have one driver
 
     Parameters
     ----------
@@ -51,8 +51,19 @@ def negative_log_likelihood_1d(intensity, T):
 
 
 def negative_log_likelihood(intensity, T):
-    """
+    """ Compute the negative log-likelihood for a given intensity function over
+    a given time duration
 
+    Parameters
+    ----------
+    intensity : model.Trun object
+
+    T : float
+        total duration
+
+    Returns
+    -------
+    float
     """
 
     n_drivers = len(intensity.kernel)
@@ -68,9 +79,10 @@ def negative_log_likelihood(intensity, T):
     for this_acti_tt in intensity.acti_tt:
         sum_temp = intensity.baseline
         for p in range(n_drivers):
+            # compute delays
             delays = this_acti_tt - intensity.driver_tt[p]
-            # only take into account positive delays
-            sum_temp += intensity.alpha[p] * delays[delays > 0].sum()
+            # compute the sum of kernel values for the delays
+            sum_temp += intensity.alpha[p] * intensity.kernel[p](delays).sum()
         nll -= np.log(sum_temp)
 
     return nll

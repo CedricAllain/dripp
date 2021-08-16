@@ -109,7 +109,7 @@ def compute_p_tk(t, intensity, last_tt=()):
     return intensity.baseline / intensity(t, last_tt=last_tt)
 
 
-def compute_p_tp(t, intensity, last_tt=()):
+def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
     r"""Compute the probability that the activation at time $t$ has been
     triggered by the driver $p$.
 
@@ -136,19 +136,29 @@ def compute_p_tp(t, intensity, last_tt=()):
     """
 
     t = np.atleast_1d(t)
-    last_tt = np.array(last_tt)
 
-    if last_tt.size == 0:
-        last_tt = get_last_timestamps(intensity.driver_tt, t)
+    list_p_tp = []
+    if non_overlapping:
+        last_tt = np.array(last_tt)
 
-    p_tp = intensity.alpha * intensity.kernel(t - last_tt)
-    p_tp /= intensity(t, last_tt=last_tt)
-    p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
+        if last_tt.size == 0:
+            last_tt = get_last_timestamps(intensity.driver_tt, t)
 
-    if t.size == 1:
-        return p_tp[0]
+        for alpha, kernel, this_last_tt in zip(intensity.alpha, intensity.kernel, last_tt):
+            p_tp = alpha * kernel(t - this_last_tt)
+            p_tp /= intensity(t, last_tt=last_tt)
+            p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
 
-    return p_tp
+            if t.size == 1:
+                list_p_tp.append(p_tp[0])
+            else:
+                list_p_tp.append(p_tp)
+
+    else:
+        # lifting of the non-overlapping assumption
+        for alpha, kernel in zip(intensity.alpha, intensity.kernel):
+
+    return list_p_tp
 
 
 def compute_next_baseline(intensity, T):

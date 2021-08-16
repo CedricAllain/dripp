@@ -41,6 +41,17 @@ def test_truncnormkernel():
     assert kernel.integrate(upper, upper + 1) == 0
     assert kernel.integrate((m + lower) / 2, (m + upper) / 2) < 1
 
+    # test call output shape
+    t = 200e-3
+    assert kernel(t).shape == ()
+
+    t = [0, m, 1]
+    assert kernel(t).shape == (3,)
+
+    t = np.array([[0, m, 1],
+                  [100e-3, 400e-3, 1]])
+    assert kernel(t).shape == (2, 3)
+
 
 def test_intensity():
 
@@ -98,5 +109,5 @@ def test_intensity():
 
 
 if __name__ == '__main__':
-    # test_truncnormkernel()
+    test_truncnormkernel()
     test_intensity()

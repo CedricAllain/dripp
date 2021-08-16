@@ -263,9 +263,6 @@ class Intensity():
         assert len(self.alpha) == len(self.kernel), \
             "alpha and kernel parameters must have the same length"
 
-        # compute maximum intensity
-        self.lambda_max = self.get_max()
-
         if self.acti_tt.shape[0] > 0 and self.driver_tt.shape[0] > 0:
             # for every process activation timestamps,
             # get its corresponding driver timestamp
@@ -273,28 +270,10 @@ class Intensity():
         else:
             self.acti_last_tt = ()
 
-    def get_max(self):
-        """Compute maximum intensity
+        # compute maximum intensity
+        self.lambda_max = self.get_max()
 
-        Returns
-        -------
-        float
-
-        """
-
-        m = self.baseline
-        if self.kernel.shape[0] > 0:  # if at least one associated kernel
-            m += np.array([alpha * kernel.max for alpha,
-                           kernel in zip(self.alpha, self.kernel)]).max()
-
-        # if self.kernel is not None:
-        #     return self.baseline + self.alpha * self.kernel.max
-        # else:
-        #     return self.baseline
-
-        return m
-
-    def __call__(self, t, last_tt=()):
+    def __call__(self, t, last_tt=(), non_overlapping=False):
         """Evaluate the intensity at time(s) t
 
         Parameters
@@ -315,24 +294,65 @@ class Intensity():
 
         t = np.atleast_1d(t)
 
-        if (last_tt == ()) or (last_tt.shape[0] != self.driver_tt.shape[0]):
-            # with the non-overlapping assumption, only the last event on each
-            # driver matters
-            last_tt = get_last_timestamps(self.driver_tt, t)
+        if non_overlapping:
+            if (last_tt == ()) or (last_tt.shape[0] != self.driver_tt.shape[0]):
+                # with the non-overlapping assumption, only the last event on each
+                # driver matters
+                last_tt = get_last_timestamps(self.driver_tt, t)
+            else:
+                last_tt = np.atleast_2d(last_tt)  # from 1d to 2d
+
+            intensities = self.baseline
+            for alpha, kernel, tt in zip(self.alpha, self.kernel, last_tt):
+                # if (self.kernel is not None) and (self.alpha > 0):
+                intensities += alpha * kernel(t - tt)
+
+            intensities[np.isnan(intensities)] = self.baseline
         else:
-            last_tt = np.atleast_2d(last_tt)  # from 1d to 2d
-
-        intensities = self.baseline
-        for alpha, kernel, tt in zip(self.alpha, self.kernel, last_tt):
-            # if (self.kernel is not None) and (self.alpha > 0):
-            intensities += alpha * kernel(t - tt)
-
-        intensities[np.isnan(intensities)] = self.baseline
+            # get number of drivers
+            n_drivers = len(self.kernel)
+            # initialize
+            intensities = self.baseline
+            for p in range(n_drivers):
+                # compute delays
+                delays = t[:, np.newaxis] - self.driver_tt[p]
+                # compute sum of kernel values for these delays
+                val = self.kernel[p](delays).sum(axis=1)
+                intensities += self.alpha[p] * val
 
         if t.size == 1:
             return intensities[0]
 
         return intensities
+
+    def get_max(self):
+        """Compute maximum intensity
+
+        Returns
+        -------
+        float
+
+        """
+
+        m = self.baseline
+
+        # lifting the non-overlapping assumption: get empirical max
+        first_xx = np.floor(intensity.acti_tt[0])
+        last_xx = np.ceil(intensity.acti_tt[-1] + intensity.kernel[0].upper)
+        xx = np.linspace(first_xx, last_xx, 600 * int(last_xx-first_xx))
+        m += np.array([intensity(x) for x in xx]).max()
+
+        # if "global" (i.e., all drivers combined) non-overlapping assumption
+        # if self.kernel.shape[0] > 0:  # if at least one associated kernel
+        #     m += np.array([alpha * kernel.max for alpha,
+        #                     kernel in zip(self.alpha, self.kernel)]).max()
+
+        # if self.kernel is not None:
+        #     return self.baseline + self.alpha * self.kernel.max
+        # else:
+        #     return self.baseline
+
+        return m
 
     def plot(self, xx=np.linspace(0, 1, 600)):
         """Plot kernel
