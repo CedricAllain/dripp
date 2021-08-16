@@ -153,10 +153,13 @@ def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
                 list_p_tp.append(p_tp[0])
             else:
                 list_p_tp.append(p_tp)
-
+    # lifting of the non-overlapping assumption
     else:
-        # lifting of the non-overlapping assumption
+        # for every driver, compute the associated P_tp
         for alpha, kernel in zip(intensity.alpha, intensity.kernel):
+            delays = t - intensity.acti_tt
+            p_tp = alpha * delays[delays > 0].sum()
+            p_tp /= intensity(t, last_tt=last_tt)
 
     return list_p_tp
 

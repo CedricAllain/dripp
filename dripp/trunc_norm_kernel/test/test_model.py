@@ -62,18 +62,22 @@ def test_intensity():
     m, sigma = 200e-3, 0.08
     lower, upper = 30e-3, 500e-3
     kernel = TruncNormKernel(lower, upper, m, sigma)
-    driver_tt = [3.4, 5, 5.1, 8, 10]  # already sorted
+    driver_tt = [3.4, 5, 8, 10]  # already sorted
     # define intensity function
     baseline, alpha = 0.8, 1.2
     acti_tt = [1.2, 3, 3.6, 3.7, 4.7, 5.24, 5.5]
     intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
 
     # test __init__()
-    acti_last_tt = np.array([[np.nan, np.nan, 3.4, 3.4, 3.4, 5.1, 5.1]])
+    acti_last_tt = np.array([[np.nan, np.nan, 3.4, 3.4, 3.4, 5, 5]])
     np.testing.assert_allclose(intensity.acti_last_tt, acti_last_tt)
 
     # test get_max()
-    assert intensity.get_max() == baseline + alpha * kernel.max
+    # print(intensity.get_max())
+    # print(baseline + alpha * kernel.max)
+    # assert intensity.get_max() == baseline + alpha * kernel.max
+    np.testing.assert_almost_equal(intensity.get_max(), baseline +
+                                   alpha * kernel.max, decimal=2)
 
     # test __call___()
     assert intensity(0) == baseline  # before activation
@@ -86,7 +90,7 @@ def test_intensity():
     lower, upper = 30e-3, 500e-3
     kernel = [TruncNormKernel(lower, upper, m, sigma),
               TruncNormKernel(lower, upper, m, sigma)]
-    driver_tt = [[3.4, 5, 5.1, 8, 10],
+    driver_tt = [[3.4, 5.1, 8, 10],
                  [0.5, 2, 4]]  # make sure it respects non-overlapping
     # define intensity function
     baseline, alpha = 0.8, [1.2, 0.5]
@@ -99,13 +103,28 @@ def test_intensity():
     np.testing.assert_allclose(intensity.acti_last_tt, acti_last_tt)
 
     # test get_max()
-    assert intensity.get_max() == baseline + alpha[0] * kernel[0].max
+    # assert intensity.get_max() == baseline + alpha[0] * kernel[0].max
+    np.testing.assert_almost_equal(intensity.get_max(),
+                                   baseline + alpha[0] * kernel[0].max,
+                                   decimal=2)
 
     # test __call___()
     assert intensity(0) == baseline  # before activation
     assert intensity(1.2) == baseline  # at an activation
     assert intensity(3.6) == baseline + alpha[0] * kernel[0](0.2)
     assert intensity(4.6) == baseline + alpha[1] * kernel[1](0.6)
+
+    # 2d lifting non-overlapping assumption
+    driver_tt = [[3.4, 5, 5.1, 8, 10],
+                 [0.5, 2, 3.6, 8.4, 9, 10.1]]
+    intensity.driver_tt = driver_tt  # update driver_tt
+
+    tt = [0, 0.7, 3.8, 10.4]
+    res = [baseline,
+           baseline + alpha[1] * kernel[1](0.2),
+           baseline + alpha[0] * kernel[0](0.4) + alpha[1] * kernel[1](0.2),
+           baseline + alpha[0] * kernel[0](0.4) + alpha[1] * kernel[1](0.3)]
+    np.testing.assert_allclose(intensity(tt), res)
 
 
 if __name__ == '__main__':

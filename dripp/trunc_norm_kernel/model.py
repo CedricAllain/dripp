@@ -317,7 +317,7 @@ class Intensity():
                 # compute delays
                 delays = t[:, np.newaxis] - self.driver_tt[p]
                 # compute sum of kernel values for these delays
-                val = self.kernel[p](delays).sum(axis=1)
+                val = self.kernel[p](delays.astype('float')).sum(axis=1)
                 intensities += self.alpha[p] * val
 
         if t.size == 1:
@@ -334,15 +334,14 @@ class Intensity():
 
         """
 
-        m = self.baseline
-
         # lifting the non-overlapping assumption: get empirical max
-        first_xx = np.floor(intensity.acti_tt[0])
-        last_xx = np.ceil(intensity.acti_tt[-1] + intensity.kernel[0].upper)
+        first_xx = np.floor(self.acti_tt[0])
+        last_xx = np.ceil(self.acti_tt[-1] + self.kernel[0].upper)
         xx = np.linspace(first_xx, last_xx, 600 * int(last_xx-first_xx))
-        m += np.array([intensity(x) for x in xx]).max()
+        m = self(xx).max()
 
         # if "global" (i.e., all drivers combined) non-overlapping assumption
+        # m = self.baseline
         # if self.kernel.shape[0] > 0:  # if at least one associated kernel
         #     m += np.array([alpha * kernel.max for alpha,
         #                     kernel in zip(self.alpha, self.kernel)]).max()
@@ -422,16 +421,14 @@ class Intensity():
         self._acti_tt = np.array(value)
 
 
-# %%
-baseline, alpha = 1, [2, 1]
-# define 2 kernel functions
-m, sigma = 200e-3, 0.08
-lower, upper = 30e-3, 500e-3
-kernel = [TruncNormKernel(lower, upper, m, sigma),
-          TruncNormKernel(lower, upper, m, sigma)]
-driver_tt = [[3.4, 5, 5.1, 8, 10],
-             [0.5, 2, 4]]
-acti_tt = [1.2, 3, 3.6, 3.7, 4.7, 5.24, 5.5]
-intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
-
-# %%
+if __name__ == '__main__':
+    baseline, alpha = 1, [2, 1]
+    # define 2 kernel functions
+    m, sigma = 200e-3, 0.08
+    lower, upper = 30e-3, 500e-3
+    kernel = [TruncNormKernel(lower, upper, m, sigma),
+              TruncNormKernel(lower, upper, m, sigma)]
+    driver_tt = [[3.4, 5, 5.1, 8, 10],
+                 [0.5, 2, 4]]
+    acti_tt = [1.2, 3, 3.6, 3.7, 4.7, 5.24, 5.5]
+    intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
