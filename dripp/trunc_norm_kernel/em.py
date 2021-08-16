@@ -157,11 +157,11 @@ def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
     else:
         # for every driver, compute the associated P_tp
         for alpha, kernel in zip(intensity.alpha, intensity.kernel):
-            delays = t - intensity.acti_tt
-            p_tp = alpha * delays[delays > 0].sum()
-            p_tp /= intensity(t, last_tt=last_tt)
+            p_tp = alpha * kernel(t[:, np.newaxis] - intensity.acti_tt).sum()
+            p_tp /= intensity(t)
+            list_p_tp.append(p_tp)
 
-    return list_p_tp
+    return np.array(list_p_tp)
 
 
 def compute_next_baseline(intensity, T):
