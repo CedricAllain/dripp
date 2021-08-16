@@ -213,28 +213,57 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
 
     p_tp = compute_p_tp(intensity.acti_tt, intensity,
                         last_tt=intensity.acti_last_tt)
-    sum_p_tp = p_tp.sum()
+    # sum over all activation timestamps
+    sum_p_tp = p_tp.sum(axis=1)
     # if sum_p_tp == 0:
     #     print('sum_p_tp is null in compute_next_alpha_m_sigma')
     #     print('m, sigma = ', (intensity.kernel.m, intensity.kernel.sigma))
     #     import ipdb
     #     ipdb.set_trace()
+
     # new value of alpha
-    next_alpha = sum_p_tp / intensity.driver_tt.size
-    if next_alpha == 0:
-        next_m = intensity.kernel.m
-        next_sigma = intensity.kernel.sigma
-    else:
-        # new value of m
-        diff = intensity.acti_tt - intensity.acti_last_tt
-        sum_temp = np.nansum(diff * p_tp)
-        next_m = sum_temp / sum_p_tp - \
-            np.square(intensity.kernel.sigma) * C_m / C
-        # new value of sigma
-        sum_temp = np.nansum(np.square(diff - intensity.kernel.m) * p_tp)
-        next_sigma = np.cbrt(C / C_sigma * sum_temp / sum_p_tp)  # cubic root
-        # project on semi-closed set [EPS, +infty) to stay in constraint space
-        next_sigma = max(next_sigma, EPS)
+    n_driver_tt = np.array(
+        [this_driver_tt.size for this_driver_tt in intensity.driver_tt.size])
+    next_alpha = sum_p_tp / n_driver_tt
+
+    n_driver = len(intensity.driver_tt)
+    next_m, next_sigma = [], []
+    for p in range(n_driver):
+        if next_alpha[p] == 0:
+            next_m.append(intensity.kernel.m)
+            next_sigma.append(intensity.kernel.sigma)
+        else:
+            diff = intensity.acti_tt - intensity.driver_tt[p]
+            # next value of m for p-th driver
+            sum_temp_m = diff * intensity.kernel[p](diff)
+            sum_temp_m *= intensity.alpha[p] / intensity(intensity.acti_tt)
+            this_next_m = sum_temp_m / sum_p_tp[p] - \
+                np.square(intensity.kernel.sigma) * C_m / C
+            next_m.append(this_next_m)
+            # next value of sigma for p-th driver
+            sum_temp_sigma = np.square(diff) * intensity.kernel[p](diff)
+            sum_temp_sigma *= intensity.alpha[p] / intensity(intensity.acti_tt)
+            # cubic root
+            this_next_sigma = np.cbrt(
+                C / C_sigma * sum_temp_sigma / sum_p_tp[p])
+            # project on semi-closed set [EPS, +infty) to stay in constraint space
+            this_next_sigma = max(this_next_sigma, EPS)
+            next_sigma.append(this_next_sigma)
+
+    # if next_alpha == 0:
+    #     next_m = intensity.kernel.m
+    #     next_sigma = intensity.kernel.sigma
+    # else:
+    #     # new value of m
+    #     diff = intensity.acti_tt - intensity.acti_last_tt
+    #     sum_temp = np.nansum(diff * p_tp)
+    #     next_m = sum_temp / sum_p_tp - \
+    #         np.square(intensity.kernel.sigma) * C_m / C
+    #     # new value of sigma
+    #     sum_temp = np.nansum(np.square(diff - intensity.kernel.m) * p_tp)
+    #     next_sigma = np.cbrt(C / C_sigma * sum_temp / sum_p_tp)  # cubic root
+    #     # project on semi-closed set [EPS, +infty) to stay in constraint space
+    #     next_sigma = max(next_sigma, EPS)
 
     return next_alpha, next_m, next_sigma
 
