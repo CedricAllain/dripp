@@ -242,7 +242,7 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         default is None
 
     return_nll : bool
-        if True, compute the true negative log-likelihood
+        if True, compute and return the true negative log-likelihood (nll)
 
     verbose : bool
         if True, print some information linked to the timestamps generation
@@ -259,8 +259,9 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         process's activation timestamps
         if n_drivers > 1, the second dimension if n_drivers
 
-    true_nll : float
-        negative log-likelihood of the process
+    if return_nll is True:
+        true_nll : float
+            negative log-likelihood of the process
 
     """
 

@@ -335,8 +335,9 @@ class Intensity():
         """
 
         # lifting the non-overlapping assumption: get empirical max
-        first_xx = np.floor(self.acti_tt[0])
-        last_xx = np.ceil(self.acti_tt[-1] + self.kernel[0].upper)
+        first_xx = np.floor(np.array([tt.min()
+                                      for tt in self.driver_tt]).min())
+        last_xx = np.ceil(np.array([tt.max() for tt in self.driver_tt]).max())
         xx = np.linspace(first_xx, last_xx, 600 * int(last_xx-first_xx))
         m = self(xx).max()
 

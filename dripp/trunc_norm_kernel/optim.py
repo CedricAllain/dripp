@@ -12,6 +12,37 @@ from dripp.trunc_norm_kernel.em import compute_nexts, compute_Cs
 EPS = np.finfo(float).eps
 
 
+def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
+                        T=60):
+    """
+
+    """
+    # compute the number of activation that lend in at least one kernel's support
+    acti_in_support = set()
+    for p in range(driver_tt.shape[0]):
+        # (n_driver_tt, n_acti_tt)
+        delays = acti_tt - driver_tt[p][:, np.newaxis]
+        mask = (delays >= lower) & (delays <= upper)
+        acti_in_support.update(*[set(acti_tt[this_mask])
+                                 for this_mask in mask])
+
+    # compute the Lebesgue measure of all kernels' supports
+    all_tt = np.sort(np.hstack(driver_tt.flatten()))
+    s = 0
+    temp = (all_tt[0] + lower, all_tt[0] + upper)
+    for i in range(all_tt.size - 1):
+        if all_tt[i+1] + lower > temp[1]:
+            s += temp[1] - temp[0]
+            temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
+        else:
+            temp = (temp[0], all_tt[i+1] + upper)
+
+    s += temp[1] - temp[0]
+
+    baseline_init = (acti_tt.size - len(acti_in_support)) / (T - s)
+    return baseline_init
+
+
 def initialize_alpha(baseline, ppt_in_support, ppt_of_support):
     """Initializa parameter alpha for the "smart start" initialization strategy
 
@@ -109,57 +140,82 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
         alpha_init = rng.uniform(low=0.15, high=1, size=n_driver)
 
     elif initializer == 'smart_start':
+        # default values
+        default_alpha = 0.05
+        default_m = (upper - lower) / 2
+        default_sigma = 0.95 * (upper - lower) / 4
+
         if acti_tt.size == 0:  # no activation at all on the process
             baseline_init = 0
             alpha_init = np.full(n_driver, fill_value=0)
-            m_init = np.full(n_driver, fill_value=np.nan)
-            sigma_init = np.full(n_driver, fill_value=EPS)
+            m_init = np.full(n_driver, fill_value=default_m)
+            sigma_init = np.full(n_driver, fill_value=default_sigma)
             return baseline_init, alpha_init, m_init, sigma_init
+
+        # ------ initialize baseline ------
+        baseline_init = initialize_baseline(
+            acti_tt, driver_tt, lower, upper, T)
 
         # set of all activations that lend in a kernel support
         diff = acti_tt - get_last_timestamps(driver_tt, acti_tt)
+        diff[np.isnan(diff)] = -1  # replace nan values
         mask = (diff < upper) * (diff > lower)
-        if n_driver == 1:
-            acti_in_support = acti_tt[mask]
-        else:
-            temp = []
-            for mask_row in mask:
-                temp.append(acti_tt[mask_row])
-            acti_in_support = np.array(temp, dtype=object)
-            # acti_tt_tiled = np.tile(acti_tt, (n_driver, 1))
-            # acti_in_support = acti_tt_tiled[mask]
-        # ------ initialize baseline ------
-        baseline_init = acti_tt.size
-        sum_support = 0
-        for aa, tt in zip(acti_in_support, driver_tt):
-            baseline_init -= len(aa)
-            sum_support += len(tt) * (upper - lower)
-        baseline_init /= (T - sum_support)
-        # ------ initialize m and sigma ------
+
+        alpha_init = []
         m_init = []
         sigma_init = []
-        for i in range(n_driver):
-            delays = diff[i][mask[i]]
+        for p in range(n_driver):
+            delays = diff[p][mask[p]]
             if delays.size == 0:
-                m_init.append(np.nan)
-                sigma_init.append(EPS)
-                continue
-                # return baseline_init, alpha_init, m_init, sigma_init
+                alpha_init.append(default_alpha)
+                m_init.append(default_m)
+                sigma_init.append(default_sigma)
+            else:
+                alpha_init.append(delays.size / len(driver_tt[p]))
+                m_init.append(np.mean(delays))
+                sigma_init.append(max(EPS, np.std(delays)))
 
-            m_init.append(np.mean(delays))
-            # project on [EPS ; +infty]
-            sigma_init.append(max(EPS, np.std(delays)))
-        m_init = np.array(m_init)
-        sigma_init = np.array(sigma_init)
-        # ----- initializa alpha ------
-        # proportion of activation that kend in kernel support
-        ppt_in_support = [len(aa) / len(acti_tt) for aa in acti_in_support]
-        # proportion of all supports over T
-        ppt_of_support = [len(tt) * (upper - lower) / T for tt in driver_tt]
-        # initializa alpha
-        alpha_init = initialize_alpha(baseline=baseline_init,
-                                      ppt_in_support=ppt_in_support,
-                                      ppt_of_support=ppt_of_support)
+        # if n_driver == 1:
+        #     acti_in_support = acti_tt[mask]
+        # else:
+        #     temp = []
+        #     for mask_row in mask:
+        #         temp.append(acti_tt[mask_row])
+        #     acti_in_support = np.array(temp, dtype=object)
+        # acti_tt_tiled = np.tile(acti_tt, (n_driver, 1))
+        # acti_in_support = acti_tt_tiled[mask]
+        # ------ initialize baseline ------
+        # baseline_init = acti_tt.size
+        # sum_support = 0
+        # for aa, tt in zip(acti_in_support, driver_tt):
+        #     baseline_init -= len(aa)
+        #     sum_support += len(tt) * (upper - lower)
+        # baseline_init /= (T - sum_support)
+        # ------ initialize m and sigma ------
+        # m_init = []
+        # sigma_init = []
+        # for i in range(n_driver):
+        #     delays = diff[i][mask[i]]
+        #     if delays.size == 0:
+        #         m_init.append(np.nan)
+        #         sigma_init.append(EPS)
+        #         continue
+        #         # return baseline_init, alpha_init, m_init, sigma_init
+
+        #     m_init.append(np.mean(delays))
+        #     # project on [EPS ; +infty]
+        #     sigma_init.append(max(EPS, np.std(delays)))
+        # m_init = np.array(m_init)
+        # sigma_init = np.array(sigma_init)
+        # # ----- initializa alpha ------
+        # # proportion of activation that kend in kernel support
+        # ppt_in_support = [len(aa) / len(acti_tt) for aa in acti_in_support]
+        # # proportion of all supports over T
+        # ppt_of_support = [len(tt) * (upper - lower) / T for tt in driver_tt]
+        # # initializa alpha
+        # alpha_init = initialize_alpha(baseline=baseline_init,
+        #                               ppt_in_support=ppt_in_support,
+        #                               ppt_of_support=ppt_of_support)
     else:
         raise ValueError("Initializer method %s is unknown" % initializer)
 
@@ -284,7 +340,7 @@ def stop_em(alpha, kernel, early_stopping=None, verbose=True,
             kernel, **early_stopping_params)
 
     C, _, C_sigma = compute_Cs(kernel)
-    stop_C = (C == 0)  # or (C_sigma <= 0)
+    stop_C = (np.array(C).max() == 0)  # or (C_sigma <= 0)
 
     if stop_sigma or stop_C:
         if verbose:
@@ -376,18 +432,17 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     acti_tt = np.atleast_1d(acti_tt)
     assert acti_tt.size > 0, "no activation vector was given"
 
-    # driver_tt = np.array(driver_tt)
-    if isinstance(driver_tt[0], (int, float)):
-        driver_tt = np.atleast_2d(driver_tt)
-    driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
-    n_driver = driver_tt.shape[0]
-
-    if np.array([len(tt) for tt in driver_tt]).max() == 0:
+    if np.array(driver_tt).size == 0:
         if verbose:
             print("Intensity has no driver timestamps. "
                   "Will return baseline MLE and corresponding loss "
                   "(negative log-likelihood).")
         return compute_baseline_mle(acti_tt, T)
+
+    if isinstance(driver_tt[0], (int, float)):
+        driver_tt = np.atleast_2d(driver_tt)
+    driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
+    n_driver = driver_tt.shape[0]
 
     # initialize parameters
     if init_params is None:

@@ -61,7 +61,7 @@ def compute_Cs(kernel):
 
     Parameters
     ----------
-    kernel : model.TruncNormKernel object
+    kernel : array-like of model.TruncNormKernel objects
 
     Returns
     -------
@@ -69,13 +69,15 @@ def compute_Cs(kernel):
         (C, C_m, C_sigma)
 
     """
-    m = kernel.m
-    sigma = kernel.sigma
-    lower, upper = kernel.lower, kernel.upper
+    C, C_m, C_sigma = [], [], []
+    for this_kernel in kernel:
+        m = this_kernel.m
+        sigma = this_kernel.sigma
+        lower, upper = this_kernel.lower, this_kernel.upper
 
-    C = compute_C(m, sigma, lower, upper)
-    C_m = compute_C_m(m, sigma, lower, upper)
-    C_sigma = compute_C_sigma(m, sigma, lower, upper)
+        C.append(compute_C(m, sigma, lower, upper))
+        C_m.append(compute_C_m(m, sigma, lower, upper))
+        C_sigma.append(compute_C_sigma(m, sigma, lower, upper))
 
     return C, C_m, C_sigma
 
@@ -238,14 +240,14 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
             sum_temp_m = diff * intensity.kernel[p](diff)
             sum_temp_m *= intensity.alpha[p] / intensity(intensity.acti_tt)
             this_next_m = sum_temp_m / sum_p_tp[p] - \
-                np.square(intensity.kernel.sigma) * C_m / C
+                np.square(intensity.kernel.sigma) * C_m[p] / C[p]
             next_m.append(this_next_m)
             # next value of sigma for p-th driver
             sum_temp_sigma = np.square(diff) * intensity.kernel[p](diff)
             sum_temp_sigma *= intensity.alpha[p] / intensity(intensity.acti_tt)
             # cubic root
             this_next_sigma = np.cbrt(
-                C / C_sigma * sum_temp_sigma / sum_p_tp[p])
+                C[p] / C_sigma[p] * sum_temp_sigma / sum_p_tp[p])
             # project on semi-closed set [EPS, +infty) to stay in constraint space
             this_next_sigma = max(this_next_sigma, EPS)
             next_sigma.append(this_next_sigma)
