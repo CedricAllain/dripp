@@ -95,6 +95,8 @@ class TruncNormKernel():
         float | numpy.array
 
         """
+        # if np.issubdtype(x[0].dtype, np.number):
+
         if self.sfreq is None:
             return truncnorm.pdf(x, self._a, self._b, loc=self.m,
                                  scale=self.sigma)
@@ -249,8 +251,7 @@ class Intensity():
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
         if isinstance(driver_tt[0], (int, float)):
             driver_tt = np.atleast_2d(driver_tt)
-        self.driver_tt = np.array([np.array(x) for x in driver_tt],
-                                  dtype=object)
+        self.driver_tt = np.array([np.array(x) for x in driver_tt])
 
         self.baseline = baseline
         # set of alpha coefficients
@@ -317,7 +318,7 @@ class Intensity():
                 # compute delays
                 delays = t[:, np.newaxis] - self.driver_tt[p]
                 # compute sum of kernel values for these delays
-                val = self.kernel[p](delays.astype('float')).sum(axis=1)
+                val = np.nansum(self.kernel[p](delays.astype('float')), axis=1)
                 intensities += self.alpha[p] * val
 
         if t.size == 1:

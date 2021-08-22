@@ -159,7 +159,7 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
         # set of all activations that lend in a kernel support
         diff = acti_tt - get_last_timestamps(driver_tt, acti_tt)
         diff[np.isnan(diff)] = -1  # replace nan values
-        mask = (diff < upper) * (diff > lower)
+        mask = (diff <= upper) * (diff >= lower)
 
         alpha_init = []
         m_init = []
@@ -439,9 +439,10 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                   "(negative log-likelihood).")
         return compute_baseline_mle(acti_tt, T)
 
-    if isinstance(driver_tt[0], (int, float)):
+    # if isinstance(driver_tt[0], (int, float)):
+    if np.issubdtype(driver_tt[0].dtype, np.number):
         driver_tt = np.atleast_2d(driver_tt)
-    driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
+    driver_tt = np.array([np.array(x) for x in driver_tt])
     n_driver = driver_tt.shape[0]
 
     # initialize parameters
@@ -473,13 +474,13 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         print("Initial loss (negative log-likelihood):", hist_loss[0])
 
     for n in tqdm(range(int(n_iter)), disable=disable_tqdm):
-        stop = stop_em(alpha_hat, kernel,
-                       early_stopping, verbose,
-                       **early_stopping_params)
-        if stop:  # either alpha = 0, or mass is too concentrated
-            alpha_hat = np.full(n_driver, fill_value=0)
-            baseline_hat = compute_baseline_mle(acti_tt, T, return_nll=False)
-            break
+        # stop = stop_em(alpha_hat, kernel,
+        #                early_stopping, verbose,
+        #                **early_stopping_params)
+        # if stop:  # either alpha = 0, or mass is too concentrated
+        #     alpha_hat = np.full(n_driver, fill_value=0)
+        #     baseline_hat = compute_baseline_mle(acti_tt, T, return_nll=False)
+        #     break
         # compute next values of parameters
         nexts = compute_nexts(intensity, T)
         baseline_hat, alpha_hat, m_hat, sigma_hat = nexts
