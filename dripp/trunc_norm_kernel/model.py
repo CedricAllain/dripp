@@ -2,6 +2,7 @@
 import numpy as np
 import math
 from scipy.stats import truncnorm
+from joblib import Memory, Parallel, delayed
 import matplotlib.pyplot as plt
 
 from dripp.trunc_norm_kernel.utils import \
@@ -343,19 +344,48 @@ class Intensity():
         # xx = np.linspace(first_xx, last_xx, int(sfreq) * int(last_xx-first_xx))
         # m = self(xx).max()
 
+        # ====================================
+
         # compute the intensity over all kernels' supports and get max
-        sfreq = self.kernel[0].sfreq
-        all_tt = np.sort(np.hstack(self.driver_tt.flatten()))
-        m = self.baseline
-        temp = (all_tt[0] + lower, all_tt[0] + upper)
-        for i in range(all_tt.size - 1):
-            if all_tt[i+1] + lower > temp[1]:
-                xx = np.linspace(
-                    temp[0], temp[1], int(sfreq*(temp[1]-temp[0])))
-                m = max(m, self(xx).max())  # update maximum value
-                temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
-            else:
-                temp = (temp[0], all_tt[i+1] + upper)
+        # sfreq = self.kernel[0].sfreq
+        # lower, upper = self.kernel[0].lower, self.kernel[0].upper
+        # all_tt = np.sort(np.hstack(self.driver_tt.flatten()))
+        # m = self.baseline
+
+        # # get all supports (where intensity > baseline)
+        # supports = []
+        # temp = (all_tt[0] + lower, all_tt[0] + upper)
+        # for i in range(all_tt.size - 1):
+        #     if all_tt[i+1] + lower > temp[1]:
+        #         # xx = np.linspace(
+        #         #     temp[0], temp[1], int(sfreq*(temp[1]-temp[0])))
+        #         # m = max(m, self(xx).max())  # update maximum value
+        #         supports.append(temp)
+        #         temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
+        #     else:
+        #         temp = (temp[0], all_tt[i+1] + upper)
+
+        # def get_sub_max(support):
+        #     """
+
+        #     """
+        #     xx = np.linspace(
+        #         support[0], support[1], int(sfreq*(support[1]-support[0])))
+        #     return self(xx).max()
+
+        # all_m = Parallel(n_jobs=40)(
+        #     delayed(get_sub_max)(this_support) for this_support in supports[:200])
+        # m = np.max(all_m)
+
+        # ====================================
+        # compute a supremum
+        m = 0
+        for p in range(len(self.kernel)):
+            m = max(m, self.alpha[p] * self.kernel[p].get_max())
+
+        m += self.baseline
+
+        # ====================================
 
         # if "global" (i.e., all drivers combined) non-overlapping assumption
         # m = self.baseline

@@ -40,18 +40,18 @@ cmap = 'viridis_r'
 # n_drivers = 2
 
 # default parameters for data simulation
-simu_params = {'lower': 30e-3, 'upper': 800e-3,
-               'baseline': 0.8,
-               'alpha': [1.2, 0.2],
-               'm': [200e-3, 50e-3],
-               'sigma': [0.1, 0.5],
-               'sfreq': 150., 'T': 10e5,  # 4 minutes
-               'isi': 1,
-               'n_tasks': 0.2}
+# simu_params = {'lower': 30e-3, 'upper': 800e-3,
+#                'baseline': 0.8,
+#                'alpha': [1.2, 0.2],
+#                'm': [200e-3, 50e-3],
+#                'sigma': [0.1, 0.5],
+#                'sfreq': 150., 'T': 10e5,  # 4 minutes
+#                'isi': 1,
+#                'n_tasks': 0.2}
 
-# simulate data with one driver
-driver_tt, acti_tt = simulate_data(
-    n_drivers=2, seed=None, return_nll=False, **simu_params)
+# # simulate data with one driver
+# driver_tt, acti_tt = simulate_data(
+#     n_drivers=2, seed=None, return_nll=False, **simu_params)
 
 # # %%
 
@@ -129,7 +129,7 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
 
 # parameters to vary for EM computation
 # em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
-em_params_to_vary = {'T': np.logspace(2, 3, num=3).astype(int)}
+em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
 
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
