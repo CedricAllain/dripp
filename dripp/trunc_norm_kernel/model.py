@@ -272,7 +272,7 @@ class Intensity():
             self.acti_last_tt = ()
 
         # compute maximum intensity
-        self.lambda_max = self.get_max()
+        # self.lambda_max = self.get_max()
 
     def __call__(self, t, last_tt=(), non_overlapping=False):
         """Evaluate the intensity at time(s) t
@@ -336,11 +336,26 @@ class Intensity():
         """
 
         # lifting the non-overlapping assumption: get empirical max
-        first_xx = np.floor(np.array([tt.min()
-                                      for tt in self.driver_tt]).min())
-        last_xx = np.ceil(np.array([tt.max() for tt in self.driver_tt]).max())
-        xx = np.linspace(first_xx, last_xx, 600 * int(last_xx-first_xx))
-        m = self(xx).max()
+        # first_xx = np.floor(np.array([tt.min()
+        #                               for tt in self.driver_tt]).min())
+        # last_xx = np.ceil(np.array([tt.max() for tt in self.driver_tt]).max())
+
+        # xx = np.linspace(first_xx, last_xx, int(sfreq) * int(last_xx-first_xx))
+        # m = self(xx).max()
+
+        # compute the intensity over all kernels' supports and get max
+        sfreq = self.kernel[0].sfreq
+        all_tt = np.sort(np.hstack(self.driver_tt.flatten()))
+        m = self.baseline
+        temp = (all_tt[0] + lower, all_tt[0] + upper)
+        for i in range(all_tt.size - 1):
+            if all_tt[i+1] + lower > temp[1]:
+                xx = np.linspace(
+                    temp[0], temp[1], int(sfreq*(temp[1]-temp[0])))
+                m = max(m, self(xx).max())  # update maximum value
+                temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
+            else:
+                temp = (temp[0], all_tt[i+1] + upper)
 
         # if "global" (i.e., all drivers combined) non-overlapping assumption
         # m = self.baseline
@@ -406,19 +421,19 @@ class Intensity():
 
         return proba
 
-    @property
+    @ property
     def driver_tt(self):
         return self._driver_tt
 
-    @driver_tt.setter
+    @ driver_tt.setter
     def driver_tt(self, value):
         self._driver_tt = np.array(value)
 
-    @property
+    @ property
     def acti_tt(self):
         return self._acti_tt
 
-    @acti_tt.setter
+    @ acti_tt.setter
     def acti_tt(self, value):
         self._acti_tt = np.array(value)
 
