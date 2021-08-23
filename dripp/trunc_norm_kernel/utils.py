@@ -28,7 +28,11 @@ def convert_variable_multi(var, n=1, repeat=True):
     """
 
     var = np.atleast_1d(var)
-    if repeat and (n > 1) and (len(var) == 1):
+
+    if len(var) == n:
+        # already at the good size
+        return var
+    elif repeat and (n > 1) and (len(var) == 1):
         var = np.repeat(var, n)
 
     assert len(var) == n, \

@@ -12,13 +12,14 @@ from joblib import Memory, Parallel, delayed
 from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
-from dripp.trunc_norm_kernel.model import TruncNormKernel
+from dripp.trunc_norm_kernel.model import Intensity, TruncNormKernel
+from dripp.trunc_norm_kernel.utils import convert_variable_multi
 
 memory = Memory(CACHEDIR, verbose=0)
 
 
 def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
-              em_params, em_params_to_vary, sfreq=150.):
+              em_params, em_params_to_vary, sfreq=150., n_drivers=1):
     """For a given set of simulation parameters, simulate the data and run the
     EM for several combination of EM parameters
 
@@ -66,13 +67,26 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         simu_params_temp[param] = comb_simu[i]
     # simulate data of duration T_max
     driver_tt_, acti_tt_, _ = simulate_data(T=T_max, sfreq=sfreq,
-                                            **simu_params_temp)
-    # define true kernel
-    kernel_simu = TruncNormKernel(simu_params_temp['lower'],
-                                  simu_params_temp['upper'],
-                                  simu_params_temp['m'],
-                                  simu_params_temp['sigma'],
-                                  sfreq)
+                                            n_drivers=n_drivers,
+                                            ** simu_params_temp)
+    # define true kernel(s)
+    # kernel_simu = TruncNormKernel(simu_params_temp['lower'],
+    #                               simu_params_temp['upper'],
+    #                               simu_params_temp['m'],
+    #                               simu_params_temp['sigma'],
+    #                               sfreq)
+    kernel_simu = []
+    lower_simu = convert_variable_multi(
+        simu_params_temp['lower'], n_drivers, repeat=True)
+    upper_simu = convert_variable_multi(
+        simu_params_temp['upper'], n_drivers, repeat=True)
+    m_simu = convert_variable_multi(
+        simu_params_temp['m'], n_drivers, repeat=True)
+    sigma_simu = convert_variable_multi(
+        simu_params_temp['sigma'], n_drivers, repeat=True)
+    for p in range(n_drivers):
+        kernel_simu.append(TruncNormKernel(
+            lower_simu[p], upper_simu[p], m_simu[p], sigma_simu[p], sfreq=sfreq))
     # for every combination of EM parameters
     new_rows = []
     for this_comb_em in combs_em:
@@ -85,11 +99,11 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         T = em_params_temp['T']
         acti_tt = acti_tt_[acti_tt_ < T]
         # respect no-overlapping assumption
-        driver_tt = driver_tt_[driver_tt_ < T - em_params_temp['upper']]
+        # driver_tt = driver_tt_[driver_tt_ < T - em_params_temp['upper']]
 
         # run EM
         start_time = time.time()
-        res_params, _, hist_loss = em_truncated_norm(acti_tt, driver_tt,
+        res_params, _, hist_loss = em_truncated_norm(acti_tt, driver_tt_,
                                                      disable_tqdm=True,
                                                      sfreq=sfreq,
                                                      **em_params_temp)
@@ -97,22 +111,46 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
 
         # define estimated kernel
-        kernel_hat = TruncNormKernel(
-            em_params_temp['lower'], em_params_temp['upper'],
-            m_hat, sigma_hat, sfreq)
+
+        # kernel_hat = TruncNormKernel(
+        #     em_params_temp['lower'], em_params_temp['upper'],
+        #     m_hat, sigma_hat, sfreq)
+        kernel_hat = []
+        lower_em = convert_variable_multi(
+            em_params_temp['lower'], n_drivers, repeat=True)
+        upper_em = convert_variable_multi(
+            em_params_temp['upper'], n_drivers, repeat=True)
+        for p in range(n_drivers):
+            kernel_hat.append(TruncNormKernel(
+                lower_em[p], upper_em[p], m_hat[p], sigma_hat[p], sfreq=sfreq))
 
         # compute infinite norm between true en estimated intensity functions
-        lower_ = min(simu_params_temp['lower'], em_params_temp['lower'])
-        upper_ = max(simu_params_temp['upper'], em_params_temp['upper'])
+        # if only on driver, the infinite norm is reduced at a kernel support
+        if n_drivers == 1:
+            lower_ = min(*lower_simu, *lower_em)
+            upper_ = max(*upper_simu, *upper_em)
 
-        xx = np.linspace(lower_ - 1, upper_ + 1, 500)
-        yy_true = simu_params_temp['baseline'] + \
-            simu_params_temp['alpha'] * kernel_simu.eval(xx)
-        yy_hat = baseline_hat + alpha_hat * kernel_hat.eval(xx)
-        inf_norm = abs(yy_true - yy_hat).max()
+            xx = np.linspace(lower_ - 1, upper_ + 1, 500)
+            yy_true = simu_params_temp['baseline'] + \
+                simu_params_temp['alpha'] * kernel_simu[0].eval(xx)
+            yy_hat = baseline_hat + alpha_hat * kernel_hat[0].eval(xx)
+            inf_norm = abs(yy_true - yy_hat).max()
 
-        lambda_max = simu_params_temp['baseline'] + \
-            simu_params_temp['alpha'] * kernel_simu.max
+            lambda_max = simu_params_temp['baseline'] + \
+                simu_params_temp['alpha'] * kernel_simu.max
+        else:  # n_drivers >= 2
+            xx = np.linspace(0, T, T * 500)
+            intensity_true = Intensity(
+                simu_params_temp['baseline'], simu_params_temp['alpha'],
+                kernel_simu, driver_tt_)
+            yy_true = intensity_true(xx)
+            intensity_hat = Intensity(
+                baseline_hat, alpha_hat, kernel_hat, driver_tt_)
+            yy_hat = intensity_hat(xx)
+            inf_norm = abs(yy_true - yy_hat).max()
+            lambda_max = yy_true.max()
+
+        # relative infinite norm (for easy EM comparisons)
         inf_norm_rel = inf_norm / lambda_max
 
         # add new row
@@ -127,7 +165,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         new_row['alpha_hat'] = alpha_hat
         new_row['m_hat'] = m_hat
         new_row['sigma_hat'] = sigma_hat
-        new_row['n_driver_tt'] = len(driver_tt)
+        new_row['n_driver_tt'] = len(driver_tt_)
         new_row['sfreq'] = sfreq
         new_row['infinite_norm_of_diff'] = inf_norm
         new_row['infinite_norm_of_diff_rel'] = inf_norm_rel
@@ -142,7 +180,8 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
 @memory.cache(ignore=['n_jobs'])
 def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
                                  em_params, em_params_to_vary,
-                                 sfreq=150., n_jobs=6, save_results=False):
+                                 sfreq=150., n_drivers=1, n_jobs=6,
+                                 save_results=False):
     """Run several EM in parallel for multiple simulation parameters
     combinations and for multiple EM parameters combinations
 
@@ -194,7 +233,7 @@ def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
         new_rows = Parallel(n_jobs=n_jobs, verbose=1)(
             delayed(procedure)(this_comb_simu, combs_em, T_max,
                                simu_params, simu_params_to_vary,
-                               em_params, em_params_to_vary, sfreq)
+                               em_params, em_params_to_vary, sfreq, n_drivers)
             for this_comb_simu in combs_simu)
     # run linearly
     else:
@@ -202,7 +241,7 @@ def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
         for this_comb_simu in tqdm(combs_simu):
             new_row = procedure(this_comb_simu, combs_em, T_max,
                                 simu_params, simu_params_to_vary,
-                                em_params, em_params_to_vary, sfreq)
+                                em_params, em_params_to_vary, sfreq, n_drivers)
             new_rows.append(new_row)
 
     for this_new_row in new_rows:
