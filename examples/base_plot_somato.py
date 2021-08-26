@@ -36,6 +36,9 @@ References
 ----------
 .. footbibliography::
 
+Source:
+- https://mne.tools/stable/auto_tutorials/time-freq/20_sensors_time_frequency.html
+
 """
 # %%
 # noqa: E501
@@ -158,7 +161,13 @@ plt.show()
 # %%
 
 ###############################################################################
+
+# =============================================
+# Frequency and time-frequency sensors analysis
+# =============================================
+
 # picks MEG gradiometers
+raw = mne.io.read_raw_fif(raw_fname)
 picks = mne.pick_types(raw.info, meg='grad', eeg=False, eog=True, stim=False)
 
 # Construct Epochs
@@ -174,6 +183,12 @@ freqs = np.logspace(*np.log10([6, 35]), num=8)
 n_cycles = freqs / 2.  # different number of cycle per frequency
 power, itc = tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True,
                         return_itc=True, decim=3, n_jobs=1)
-power.plot([82], baseline=(-0.5, 0), mode='logratio', title=power.ch_names[82])
+fig = power.plot([82], baseline=(-0.5, 0), mode='logratio',
+                 title=power.ch_names[82])
+fig_name = "time_frequency_" + power.ch_names[82].replace(' ', '_') + '.pdf'
+fig[0].savefig(SAVE_RESULTS_PATH / fig_name)
+
+power.plot_joint(baseline=(-0.5, 0), mode='mean', tmin=-.5, tmax=2,
+                 timefreqs=[(.5, 10), (1.3, 8)])
 
 # %%
