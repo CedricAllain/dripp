@@ -17,6 +17,7 @@ intense, we'll also crop the data to 60 seconds; and to save ourselves from
 repeatedly typing ``mne.preprocessing`` we'll directly import a few functions
 and classes from that submodule:
 """
+# %%
 
 import os
 import mne
@@ -29,145 +30,11 @@ sample_data_raw_file = os.path.join(sample_data_folder, 'MEG', 'sample',
 raw = mne.io.read_raw_fif(sample_data_raw_file)
 raw.crop(tmax=60.)
 
-###############################################################################
-# .. note::
-#     Before applying ICA (or any artifact repair strategy), be sure to observe
-#     the artifacts in your data to make sure you choose the right repair tool.
-#     Sometimes the right tool is no tool at all — if the artifacts are small
-#     enough you may not even need to repair them to get good analysis results.
-#     See :ref:`tut-artifact-overview` for guidance on detecting and
-#     visualizing various types of artifact.
-#
-# What is ICA?
-# ^^^^^^^^^^^^
-#
-# Independent components analysis (ICA) is a technique for estimating
-# independent source signals from a set of recordings in which the source
-# signals were mixed together in unknown ratios. A common example of this is
-# the problem of `blind source separation`_: with 3 musical instruments playing
-# in the same room, and 3 microphones recording the performance (each picking
-# up all 3 instruments, but at varying levels), can you somehow "unmix" the
-# signals recorded by the 3 microphones so that you end up with a separate
-# "recording" isolating the sound of each instrument?
-#
-# It is not hard to see how this analogy applies to EEG/MEG analysis: there are
-# many "microphones" (sensor channels) simultaneously recording many
-# "instruments" (blinks, heartbeats, activity in different areas of the brain,
-# muscular activity from jaw clenching or swallowing, etc). As long as these
-# various source signals are `statistically independent`_ and non-gaussian, it
-# is usually possible to separate the sources using ICA, and then re-construct
-# the sensor signals after excluding the sources that are unwanted.
-#
-#
-# ICA in MNE-Python
-# ~~~~~~~~~~~~~~~~~
-#
-# .. sidebar:: ICA and dimensionality reduction
-#
-#     If you want to perform ICA with *no* dimensionality reduction (other than
-#     the number of Independent Components (ICs) given in ``n_components``, and
-#     any subsequent exclusion of ICs you specify in ``ICA.exclude``), simply
-#     pass ``n_components``.
-#
-#     However, if you *do* want to reduce dimensionality, consider this
-#     example: if you have 300 sensor channels and you set ``n_components=50``
-#     during instantiation and pass ``n_pca_components=None`` to
-#     `~mne.preprocessing.ICA.apply`, then the the first 50
-#     PCs are sent to the ICA algorithm (yielding 50 ICs), and during
-#     reconstruction `~mne.preprocessing.ICA.apply` will use the 50 ICs
-#     plus PCs number 51-300 (the full PCA residual). If instead you specify
-#     ``n_pca_components=120`` in `~mne.preprocessing.ICA.apply`, it will
-#     reconstruct using the 50 ICs plus the first 70 PCs in the PCA residual
-#     (numbers 51-120), thus discarding the smallest 180 components.
-#
-#     **If you have previously been using EEGLAB**'s ``runica()`` and are
-#     looking for the equivalent of its ``'pca', n`` option to reduce
-#     dimensionality, set ``n_components=n`` during initialization and pass
-#     ``n_pca_components=n`` to `~mne.preprocessing.ICA.apply`.
-#
-# MNE-Python implements three different ICA algorithms: ``fastica`` (the
-# default), ``picard``, and ``infomax``. FastICA and Infomax are both in fairly
-# widespread use; Picard is a newer (2017) algorithm that is expected to
-# converge faster than FastICA and Infomax, and is more robust than other
-# algorithms in cases where the sources are not completely independent, which
-# typically happens with real EEG/MEG data. See
-# :footcite:`AblinEtAl2018` for more information.
-#
-# The ICA interface in MNE-Python is similar to the interface in
-# `scikit-learn`_: some general parameters are specified when creating an
-# `~mne.preprocessing.ICA` object, then the `~mne.preprocessing.ICA` object is
-# fit to the data using its `~mne.preprocessing.ICA.fit` method. The results of
-# the fitting are added to the `~mne.preprocessing.ICA` object as attributes
-# that end in an underscore (``_``), such as ``ica.mixing_matrix_`` and
-# ``ica.unmixing_matrix_``. After fitting, the ICA component(s) that you want
-# to remove must be chosen, and the ICA fit must then be applied to the
-# `~mne.io.Raw` or `~mne.Epochs` object using the `~mne.preprocessing.ICA`
-# object's `~mne.preprocessing.ICA.apply` method.
-#
-# As is typically done with ICA, the data are first scaled to unit variance and
-# whitened using principal components analysis (PCA) before performing the ICA
-# decomposition. This is a two-stage process:
-#
-# 1. To deal with different channel types having different units
-#    (e.g., Volts for EEG and Tesla for MEG), data must be pre-whitened.
-#    If ``noise_cov=None`` (default), all data of a given channel type is
-#    scaled by the standard deviation across all channels. If ``noise_cov`` is
-#    a `~mne.Covariance`, the channels are pre-whitened using the covariance.
-# 2. The pre-whitened data are then decomposed using PCA.
-#
-# From the resulting principal components (PCs), the first ``n_components`` are
-# then passed to the ICA algorithm if ``n_components`` is an integer number.
-# It can also be a float between 0 and 1, specifying the **fraction** of
-# explained variance that the PCs should capture; the appropriate number of
-# PCs (i.e., just as many PCs as are required to explain the given fraction
-# of total variance) is then passed to the ICA.
-#
-# After visualizing the Independent Components (ICs) and excluding any that
-# capture artifacts you want to repair, the sensor signal can be reconstructed
-# using the `~mne.preprocessing.ICA` object's
-# `~mne.preprocessing.ICA.apply` method. By default, signal
-# reconstruction uses all of the ICs (less any ICs listed in ``ICA.exclude``)
-# plus all of the PCs that were not included in the ICA decomposition (i.e.,
-# the "PCA residual"). If you want to reduce the number of components used at
-# the reconstruction stage, it is controlled by the ``n_pca_components``
-# parameter (which will in turn reduce the rank of your data; by default
-# ``n_pca_components=None`` resulting in no additional dimensionality
-# reduction). The fitting and reconstruction procedures and the
-# parameters that control dimensionality at various stages are summarized in
-# the diagram below:
-#
-#
-# .. raw:: html
-#
-#    <a href=
-#     "../../_images/graphviz-7483cb1cf41f06e2a4ef451b17f073dbe584ba30.png">
-#
-# .. graphviz:: ../../_static/diagrams/ica.dot
-#    :alt: Diagram of ICA procedure in MNE-Python
-#    :align: left
-#
-# .. raw:: html
-#
-#    </a>
-#
-# See the Notes section of the `~mne.preprocessing.ICA` documentation
-# for further details. Next we'll walk through an extended example that
-# illustrates each of these steps in greater detail.
-#
-# Example: EOG and ECG artifact repair
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#
-# Visualizing the artifacts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~
-#
-# Let's begin by visualizing the artifacts that we want to repair. In this
-# dataset they are big enough to see easily in the raw data:
-
 # pick some channels that clearly show heartbeats and blinks
-regexp = r'(MEG [12][45][123]1|EEG 00.)'
-artifact_picks = mne.pick_channels_regexp(raw.ch_names, regexp=regexp)
-raw.plot(order=artifact_picks, n_channels=len(artifact_picks),
-         show_scrollbars=False)
+# regexp = r'(MEG [12][45][123]1|EEG 00.)'
+# artifact_picks = mne.pick_channels_regexp(raw.ch_names, regexp=regexp)
+# raw.plot(order=artifact_picks, n_channels=len(artifact_picks),
+#          show_scrollbars=False)
 
 ###############################################################################
 # We can get a summary of how the ocular artifact manifests across each channel
@@ -185,6 +52,8 @@ eog_evoked.plot_joint()
 ecg_evoked = create_ecg_epochs(raw).average()
 ecg_evoked.apply_baseline(baseline=(None, -0.2))
 ecg_evoked.plot_joint()
+
+# %%
 
 ###############################################################################
 # Filtering to remove slow drifts

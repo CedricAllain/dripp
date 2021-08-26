@@ -52,6 +52,7 @@ import mne
 from mne.datasets import somato
 from mne.baseline import rescale
 from mne.stats import bootstrap_confidence_interval
+from mne.time_frequency import tfr_morlet
 
 from dripp.config import SAVE_RESULTS_PATH
 
@@ -81,6 +82,8 @@ baseline = None
 # get the header to extract events
 raw = mne.io.read_raw_fif(raw_fname)
 events = mne.find_events(raw, stim_channel='STI 014')
+
+# %%
 
 frequency_map = list()
 
@@ -148,7 +151,29 @@ for ((freq_name, fmin, fmax), average), color, ax in zip(
 
 axes.ravel()[-1].set_xlabel('Time [ms]')
 plt.savefig(SAVE_RESULTS_PATH / "time_frequency_global_field_power_somato.pdf")
+plt.savefig(SAVE_RESULTS_PATH / "time_frequency_global_field_power_somato.png")
 plt.show()
 
+
+# %%
+
+###############################################################################
+# picks MEG gradiometers
+picks = mne.pick_types(raw.info, meg='grad', eeg=False, eog=True, stim=False)
+
+# Construct Epochs
+event_id, tmin, tmax = 1, -1., 3.
+baseline = (None, 0)
+epochs = mne.Epochs(raw, events, event_id, tmin, tmax, picks=picks,
+                    baseline=baseline, reject=dict(grad=4000e-13, eog=350e-6),
+                    preload=True)
+
+epochs.resample(200., npad='auto')  # resample to reduce computation time
+
+freqs = np.logspace(*np.log10([6, 35]), num=8)
+n_cycles = freqs / 2.  # different number of cycle per frequency
+power, itc = tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True,
+                        return_itc=True, decim=3, n_jobs=1)
+power.plot([82], baseline=(-0.5, 0), mode='logratio', title=power.ch_names[82])
 
 # %%
