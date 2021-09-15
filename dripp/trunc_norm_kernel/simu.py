@@ -143,16 +143,17 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 
     assert T > 0, "The time duration must be stricly positive"
 
-    if lambda_max is None:
-        lambda_max = intensity.get_max()
+    # if lambda_max is None:
+    #     lambda_max = intensity.get_max()
 
     rng = np.random.RandomState(seed)
 
     tt_list = []
     s = 0.
     while s <= T:
+        lambda_max = intensity.get_next_lambda_max(s)
         u = rng.rand()
-        w = -np.log(u) / lambda_max
+        w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w
         D = rng.rand()
         if D <= intensity(s) / lambda_max:
@@ -268,6 +269,9 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
     isi = convert_variable_multi(isi, n_drivers, repeat=True)
     n_tasks = convert_variable_multi(n_tasks, n_drivers, repeat=True)
     seed = convert_variable_multi(seed, n_drivers, repeat=True)
+    if seed[0] is not None:
+        rng = np.random.RandomState(seed[0])
+        seed += rng.choice(range(100), size=n_drivers, replace=False)
 
     # simulate task timestamps
     driver_tt = []

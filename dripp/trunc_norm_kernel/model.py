@@ -2,6 +2,7 @@
 import numpy as np
 import math
 from scipy.stats import truncnorm
+from copy import deepcopy
 from joblib import Memory, Parallel, delayed
 import matplotlib.pyplot as plt
 
@@ -399,6 +400,31 @@ class Intensity():
         #     return self.baseline
 
         return m
+
+    def get_next_lambda_max(self, t):
+        """Given a point in time, compute the maximum of the intensity in the
+        near future, by taking into account only past driver events.
+
+        lambda^*(t) = max_{t'>t} lambda(t' | \mathcal{F}_t)
+
+        Parameters
+        ----------
+        t : float
+
+        Returns
+        -------
+
+        """
+
+        xx_max = t + np.array([k.upper for k in self.kernel]).max()
+        xx = np.linspace(t, xx_max, int(500 * (xx_max-t)))  # 500 points/sec
+        # make a copy of the current intensity function but filter its driver
+        # events
+        other_intensity = deepcopy(self)
+        other_intensity.driver_tt = np.array([np.array(x[x < t])
+                                              for x in self.driver_tt])
+
+        return other_intensity(xx).max()
 
     def plot(self, xx=np.linspace(0, 1, 600)):
         """Plot kernel
