@@ -33,6 +33,8 @@ figsize = (5.5, 2)
 cmap = 'viridis_r'
 
 # %%
+
+# %%
 # ======================================================
 # First, see if ok with only one driver
 # ======================================================
@@ -102,7 +104,7 @@ cmap = 'viridis_r'
 
 
 N_DRIVERS = 2
-N_JOBS = 4
+N_JOBS = 40
 
 # default parameters for data simulation
 simu_params = {'lower': 30e-3, 'upper': 800e-3,
@@ -116,7 +118,7 @@ simu_params = {'lower': 30e-3, 'upper': 800e-3,
 simu_params_to_vary = {
     # 'seed': list(range(50)),
     'seed': list(range(3)),
-    'n_tasks': [0.1, 0.2, 0.4]
+    'n_tasks': [0.1]
 }
 
 assert np.max(simu_params_to_vary['n_tasks']) * N_DRIVERS <= 1
@@ -129,7 +131,7 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
 
 # parameters to vary for EM computation
 # em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
-em_params_to_vary = {'T': np.logspace(2, 4, num=5).astype(int)}
+em_params_to_vary = {'T': np.logspace(2, 3, num=2).astype(int)}
 
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
@@ -148,34 +150,39 @@ n_tasks_str = r'$n_t$'
 df_temp = df_res.rename({'n_tasks': n_tasks_str}, axis=1)
 
 # mean
-df_mean = df_temp[['T', n_tasks_str, 'infinite_norm_of_diff_rel']].groupby(
-    ['T', n_tasks_str]).mean().unstack()
-df_mean.columns = df_mean.columns.droplevel()
+for p in range(N_DRIVERS):
+    columns = ['T', n_tasks_str, 'infinite_norm_of_diff_rel_kernel_%i' % p]
+    df_mean = df_temp[columns].groupby(
+        ['T', n_tasks_str]).mean().unstack()
+    df_mean.columns = df_mean.columns.droplevel()
+    df_mean.plot(logy=True, logx=True, cmap=cmap)
 
-df_mean.plot(logy=True, logx=True, cmap=cmap)
 plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
 plt.ylabel(r"Mean $\|\ \|_{\infty} / \lambda^*_{max}$",
            fontsize=fontsize)
 plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.pdf',
             dpi=300, bbox_inches='tight')
+plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.png',
+            dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
 # std
-df_std = df_temp[['T', n_tasks_str, 'infinite_norm_of_diff_rel']].groupby(
-    ['T', n_tasks_str]).std().unstack()
-df_std.columns = df_std.columns.droplevel()
-df_std.plot(logy=True, logx=True, cmap=cmap)
+for p in range(N_DRIVERS):
+    columns = ['T', n_tasks_str, 'infinite_norm_of_diff_rel_kernel_%i' % p]
+    df_std = df_temp[columns].groupby(
+        ['T', n_tasks_str]).std().unstack()
+    df_std.columns = df_std.columns.droplevel()
+    df_std.plot(logy=True, logx=True, cmap=cmap)
+
 plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
 plt.ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
            fontsize=fontsize)
 plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.pdf',
             dpi=300, bbox_inches='tight')
+plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.png',
+            dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
-
-# %%
-
-# %%

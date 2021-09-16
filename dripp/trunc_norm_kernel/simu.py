@@ -6,6 +6,7 @@ with truncated Gaussian kernel
 # %%
 
 import numpy as np
+import time
 
 from dripp.trunc_norm_kernel.utils import convert_variable_multi
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
@@ -264,6 +265,8 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         true_nll : float
             negative log-likelihood of the process
 
+    kernel : array of TruncNormKernel instances
+
     """
 
     isi = convert_variable_multi(isi, n_drivers, repeat=True)
@@ -289,7 +292,8 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
     sigma = convert_variable_multi(sigma, n_drivers, repeat=True)
 
     kernel = []
-    for this_lower, this_upper, this_m, this_sigma in zip(lower, upper, m, sigma):
+    for this_lower, this_upper, this_m, this_sigma in \
+        zip(lower, upper, m, sigma):
         kernel.append(TruncNormKernel(this_lower, this_upper, this_m,
                                       this_sigma, sfreq=sfreq))
     intensity = Intensity(baseline, alpha, kernel, driver_tt)
@@ -302,14 +306,20 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         # update intensity function and compute true negative log-likelihood
         intensity.acti_tt = acti_tt
         true_nll = negative_log_likelihood(intensity=intensity, T=T)
-        return driver_tt, acti_tt, true_nll
+        return driver_tt, acti_tt, true_nll, kernel
     else:
-        return driver_tt, acti_tt
+        return driver_tt, acti_tt, kernel
 
 
 if __name__ == '__main__':
-    driver_tt, acti_tt, true_nll = simulate_data(
+    N_DRIVERS = 2
+    T = 1_000  # process time, in seconds
+    start_time = time.time()
+    driver_tt, acti_tt, _ = simulate_data(
         lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
-        baseline=0.8, alpha=1, T=240, isi=1, n_tasks=0.8,
-        n_drivers=2, seed=None, return_nll=True, verbose=False)
-    print("true_nll: %.3f" % true_nll)
+        baseline=0.8, alpha=1, T=T, isi=1, n_tasks=0.2,
+        n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
+    simu_time = time.time() - start_time
+    print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
+          % (N_DRIVERS, T, simu_time))
+    

@@ -12,7 +12,8 @@ from joblib import Memory, Parallel, delayed
 from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
-from dripp.trunc_norm_kernel.model import Intensity, TruncNormKernel
+# from dripp.trunc_norm_kernel.model import Intensity, TruncNormKernel
+from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.trunc_norm_kernel.utils import convert_variable_multi
 
 memory = Memory(CACHEDIR, verbose=0)
@@ -66,27 +67,23 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
     for i, param in enumerate(simu_params_to_vary.keys()):
         simu_params_temp[param] = comb_simu[i]
     # simulate data of duration T_max
-    driver_tt_, acti_tt_, _ = simulate_data(T=T_max, sfreq=sfreq,
-                                            n_drivers=n_drivers,
-                                            ** simu_params_temp)
-    # define true kernel(s)
-    # kernel_simu = TruncNormKernel(simu_params_temp['lower'],
-    #                               simu_params_temp['upper'],
-    #                               simu_params_temp['m'],
-    #                               simu_params_temp['sigma'],
-    #                               sfreq)
-    kernel_simu = []
-    lower_simu = convert_variable_multi(
-        simu_params_temp['lower'], n_drivers, repeat=True)
-    upper_simu = convert_variable_multi(
-        simu_params_temp['upper'], n_drivers, repeat=True)
-    m_simu = convert_variable_multi(
-        simu_params_temp['m'], n_drivers, repeat=True)
-    sigma_simu = convert_variable_multi(
-        simu_params_temp['sigma'], n_drivers, repeat=True)
-    for p in range(n_drivers):
-        kernel_simu.append(TruncNormKernel(
-            lower_simu[p], upper_simu[p], m_simu[p], sigma_simu[p], sfreq=sfreq))
+    driver_tt_, acti_tt_, kernel_simu = simulate_data(
+        T=T_max, sfreq=sfreq, n_drivers=n_drivers, return_nll=False,
+        **simu_params_temp)
+    # define true kernel(s) used for data simulation
+    # kernel_simu = []
+    # lower_simu = convert_variable_multi(
+    #     simu_params_temp['lower'], n_drivers, repeat=True)
+    # upper_simu = convert_variable_multi(
+    #     simu_params_temp['upper'], n_drivers, repeat=True)
+    # m_simu = convert_variable_multi(
+    #     simu_params_temp['m'], n_drivers, repeat=True)
+    # sigma_simu = convert_variable_multi(
+    #     simu_params_temp['sigma'], n_drivers, repeat=True)
+    # for p in range(n_drivers):
+    #     kernel_simu.append(TruncNormKernel(
+    #         lower_simu[p], upper_simu[p], m_simu[p], sigma_simu[p],
+    #         sfreq=sfreq))
     # for every combination of EM parameters
     new_rows = []
     for this_comb_em in combs_em:
@@ -124,39 +121,10 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
             kernel_hat.append(TruncNormKernel(
                 lower_em[p], upper_em[p], m_hat[p], sigma_hat[p], sfreq=sfreq))
 
-        # compute infinite norm between true en estimated intensity functions
-        # if only on driver, the infinite norm is reduced at a kernel support
-        if n_drivers == 1:
-            lower_ = min(*lower_simu, *lower_em)
-            upper_ = max(*upper_simu, *upper_em)
-
-            xx = np.linspace(lower_ - 1, upper_ + 1, 500)
-            yy_true = simu_params_temp['baseline'] + \
-                simu_params_temp['alpha'] * kernel_simu[0].eval(xx)
-            yy_hat = baseline_hat + alpha_hat * kernel_hat[0].eval(xx)
-            inf_norm = abs(yy_true - yy_hat).max()
-
-            lambda_max = simu_params_temp['baseline'] + \
-                simu_params_temp['alpha'] * kernel_simu.max
-        else:  # n_drivers >= 2
-            xx = np.linspace(0, T, T * 500)
-            intensity_true = Intensity(
-                simu_params_temp['baseline'], simu_params_temp['alpha'],
-                kernel_simu, driver_tt_)
-            yy_true = intensity_true(xx)
-            intensity_hat = Intensity(
-                baseline_hat, alpha_hat, kernel_hat, driver_tt_)
-            yy_hat = intensity_hat(xx)
-            inf_norm = abs(yy_true - yy_hat).max()
-            lambda_max = yy_true.max()
-
-        # relative infinite norm (for easy EM comparisons)
-        inf_norm_rel = inf_norm / lambda_max
-
-        # add new row
+        # create new row
         new_row = simu_params_temp.copy()
         if new_row['n_tasks'] is None:
-            new_row['n_tasks'] = 1
+            new_row['n_tasks'] = 1  # 100% of kept events
 
         new_row['lower_em'] = em_params_temp['lower']
         new_row['upper_em'] = em_params_temp['upper']
@@ -165,14 +133,64 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         new_row['alpha_hat'] = alpha_hat
         new_row['m_hat'] = m_hat
         new_row['sigma_hat'] = sigma_hat
-        new_row['n_driver_tt'] = len(driver_tt_)
         new_row['sfreq'] = sfreq
-        new_row['infinite_norm_of_diff'] = inf_norm
-        new_row['infinite_norm_of_diff_rel'] = inf_norm_rel
         new_row['comput_time'] = comput_time
+        # true number of iterations
         new_row['n_iter_real'] = len(hist_loss)
 
+        # for each kernel, compute the relative infinite norm
+        for p in range(n_drivers):
+            lower_ = min(kernel_simu[p].lower, lower_em[p])
+            upper_ = max(kernel_simu[p].upper, upper_em[p])
+
+            xx = np.linspace(lower_ - 1, upper_ + 1, 500)
+            yy_true = simu_params_temp['baseline'] + \
+                simu_params_temp['alpha'][p] * kernel_simu[p].eval(xx)
+            yy_hat = baseline_hat + alpha_hat[p] * kernel_hat[p].eval(xx)
+            inf_norm = abs(yy_true - yy_hat).max()
+            lambda_max = simu_params_temp['baseline'] + \
+                simu_params_temp['alpha'][p] * kernel_simu[p].max
+            inf_norm_rel = inf_norm / lambda_max
+            new_row['infinite_norm_of_diff_kernel_%i' % p] = inf_norm
+            new_row['infinite_norm_of_diff_rel_kernel_%i' %
+                    p] = inf_norm_rel
+            # add number of events created for each driver
+            new_row['n_driver_tt_kernel_%i' % p] = len(driver_tt_[p])
+
+        # add new row
         new_rows.append(new_row)
+
+        # compute infinite norm between true en estimated intensity functions
+        # if only on driver, the infinite norm is reduced at a kernel support
+        # if n_drivers == 1:
+        #     lower_ = min(*lower_simu, *lower_em)
+        #     upper_ = max(*upper_simu, *upper_em)
+
+        #     xx = np.linspace(lower_ - 1, upper_ + 1, 500)
+        #     yy_true = simu_params_temp['baseline'] + \
+        #         simu_params_temp['alpha'] * kernel_simu[0].eval(xx)
+        #     yy_hat = baseline_hat + alpha_hat * kernel_hat[0].eval(xx)
+        #     inf_norm = abs(yy_true - yy_hat).max()
+
+        #     lambda_max = simu_params_temp['baseline'] + \
+        #         simu_params_temp['alpha'][0] * kernel_simu[0].max
+
+        #     # relative infinite norm (for easy EM comparisons)
+        #     inf_norm_rel = inf_norm / lambda_max
+        #     # add metric to new row
+        #     new_row['infinite_norm_of_diff'] = inf_norm
+        #     new_row['infinite_norm_of_diff_rel'] = inf_norm_rel
+        # else:  # n_drivers >= 2
+        # xx = np.linspace(0, T, T * 500)
+        # intensity_true = Intensity(
+        #     simu_params_temp['baseline'], simu_params_temp['alpha'],
+        #     kernel_simu, driver_tt_)
+        # yy_true = intensity_true(xx)
+        # intensity_hat = Intensity(
+        #     baseline_hat, alpha_hat, kernel_hat, driver_tt_)
+        # yy_hat = intensity_hat(xx)
+        # inf_norm = abs(yy_true - yy_hat).max()
+        # lambda_max = yy_true.max()
 
     return new_rows
 
