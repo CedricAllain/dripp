@@ -46,7 +46,6 @@ raw = mne.io.read_raw_fif(data_utils['file_name'])
 raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
 info = raw.copy().pick_types(meg=True).info
 
-
 # ==================================================================
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ==================================================================

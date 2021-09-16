@@ -439,8 +439,8 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                   "(negative log-likelihood).")
         return compute_baseline_mle(acti_tt, T)
 
-    # if isinstance(driver_tt[0], (int, float)):
-    if np.issubdtype(driver_tt[0].dtype, np.number):
+    if isinstance(driver_tt[0], (int, float)):
+        # if np.issubdtype(driver_tt[0].dtype, np.number):
         driver_tt = np.atleast_2d(driver_tt)
     driver_tt = np.array([np.array(x) for x in driver_tt])
     n_driver = driver_tt.shape[0]

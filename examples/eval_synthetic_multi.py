@@ -23,11 +23,11 @@ from dripp.trunc_norm_kernel.optim import em_truncated_norm
 # ===================================================
 
 fontsize = 9
-# plt.rcParams.update(plt.rcParamsDefault)
-# plt.rcParams.update({
-#     "text.usetex": True,
-#     "font.family": "sans-serif",
-#     "font.sans-serif": ["Helvetica"]})
+plt.rcParams.update(plt.rcParamsDefault)
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]})
 
 figsize = (5.5, 2)
 cmap = 'viridis_r'
@@ -106,19 +106,21 @@ cmap = 'viridis_r'
 N_DRIVERS = 2
 N_JOBS = 40
 
+# %%
+
 # default parameters for data simulation
 simu_params = {'lower': 30e-3, 'upper': 800e-3,
                'baseline': 0.8,
-               'alpha': [1.2, 0.2],
-               'm': [200e-3, 50e-3],
-               'sigma': [0.1, 0.5],
+               'alpha': [1.2, 0.4],
+               'm': [200e-3, 400e-3],
+               'sigma': [0.2, 0.05],
                'isi': 1}
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
     # 'seed': list(range(50)),
-    'seed': list(range(3)),
-    'n_tasks': [0.1]
+    'seed': list(range(30)),
+    'n_tasks': [0.1, 0.2, 0.4]
 }
 
 assert np.max(simu_params_to_vary['n_tasks']) * N_DRIVERS <= 1
@@ -155,11 +157,39 @@ for p in range(N_DRIVERS):
     df_mean = df_temp[columns].groupby(
         ['T', n_tasks_str]).mean().unstack()
     df_mean.columns = df_mean.columns.droplevel()
-    df_mean.plot(logy=True, logx=True, cmap=cmap)
+    # df_mean.plot(logy=True, logx=True, cmap=cmap)
+    list_df_mean.append(df_mean)
 
-plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
-plt.ylabel(r"Mean $\|\ \|_{\infty} / \lambda^*_{max}$",
-           fontsize=fontsize)
+    df_std = df_temp[columns].groupby(
+        ['T', n_tasks_str]).std().unstack()
+    df_std.columns = df_std.columns.droplevel()
+    list_df_std.append(df_std)
+
+    # title
+    title = rf"$\mu={simu_params['baseline']}$, "
+    title += rf" $\alpha={simu_params['alpha'][p]}$, "
+    title += rf" $m={simu_params['m'][p]}$, "
+    title += rf" $\sigma={simu_params['sigma'][p]}$"
+    list_title.append(title)
+
+
+fig, axes = plt.subplots(1, N_DRIVERS, sharey=True,
+                         sharex=True, figsize=figsize)
+
+for ii in range(N_DRIVERS):
+    ax = axes[ii]
+    list_df_mean[ii].plot(logy=True, logx=True, cmap=cmap, ax=ax)
+    ax.set_xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
+    ax.set_ylabel(r"Mean $\|\ \|_{\infty} / \lambda^*_{max}$",
+                  fontsize=fontsize)
+    ax.set_title(list_title[ii], fontsize=fontsize, pad=5)
+
+for ax in axes.ravel():
+    ax.legend([], frameon=False)
+    ax.set_xlim(em_params_to_vary['T'].min(), em_params_to_vary['T'].max())
+
+axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
+
 plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.pdf',
             dpi=300, bbox_inches='tight')
@@ -168,17 +198,24 @@ plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.png',
 plt.show()
 plt.close()
 
-# std
-for p in range(N_DRIVERS):
-    columns = ['T', n_tasks_str, 'infinite_norm_of_diff_rel_kernel_%i' % p]
-    df_std = df_temp[columns].groupby(
-        ['T', n_tasks_str]).std().unstack()
-    df_std.columns = df_std.columns.droplevel()
-    df_std.plot(logy=True, logx=True, cmap=cmap)
+# plot std
+fig, axes = plt.subplots(1, N_DRIVERS, sharey=True,
+                         sharex=True, figsize=figsize)
 
-plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
-plt.ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
-           fontsize=fontsize)
+for ii in range(N_DRIVERS):
+    ax = axes[ii]
+    list_df_std[ii].plot(logy=True, logx=True, cmap=cmap, ax=ax)
+    ax.set_xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
+    ax.set_ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
+                  fontsize=fontsize)
+    ax.set_title(list_title[ii], fontsize=fontsize, pad=5)
+
+for ax in axes.ravel():
+    ax.legend([], frameon=False)
+    ax.set_xlim(em_params_to_vary['T'].min(), em_params_to_vary['T'].max())
+
+axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
+
 plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.pdf',
             dpi=300, bbox_inches='tight')
@@ -186,3 +223,34 @@ plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.png',
             dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
+
+
+# plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
+# plt.ylabel(r"Mean $\|\ \|_{\infty} / \lambda^*_{max}$",
+#            fontsize=fontsize)
+# plt.tight_layout()
+# plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.pdf',
+#             dpi=300, bbox_inches='tight')
+# plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.png',
+#             dpi=300, bbox_inches='tight')
+# plt.show()
+# plt.close()
+
+# # std
+# for p in range(N_DRIVERS):
+#     columns = ['T', n_tasks_str, 'infinite_norm_of_diff_rel_kernel_%i' % p]
+#     df_std = df_temp[columns].groupby(
+#         ['T', n_tasks_str]).std().unstack()
+#     df_std.columns = df_std.columns.droplevel()
+#     df_std.plot(logy=True, logx=True, cmap=cmap)
+
+# plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
+# plt.ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
+#            fontsize=fontsize)
+# plt.tight_layout()
+# plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.pdf',
+#             dpi=300, bbox_inches='tight')
+# plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.png',
+#             dpi=300, bbox_inches='tight')
+# plt.show()
+# plt.close()

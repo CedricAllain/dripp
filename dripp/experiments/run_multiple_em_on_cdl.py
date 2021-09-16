@@ -53,14 +53,26 @@ def procedure(comb):
 
     # get and merge tasks timestamps
     events_timestamps = args['events_timestamps']  # dict
-    if isinstance(tasks, list):
-        tt = np.r_[events_timestamps[tasks[0]]]
-        for i in tasks[1:]:
-            tt = np.r_[tt, events_timestamps[i]]
-    elif isinstance(tasks, int):
-        tt = events_timestamps[tasks]
 
-    tt = np.sort(tt)
+    def proprocess_tasks(tasks):
+        """
+        XXX
+        """
+        if isinstance(tasks, int):
+            tt = np.sort(events_timestamps[tasks])
+        elif isinstance(tasks, list):
+            tt = np.r_[events_timestamps[tasks[0]]]
+            for i in tasks[1:]:
+                tt = np.r_[tt, events_timestamps[i]]
+            tt = np.sort(tt)
+
+        return tt
+
+    if isinstance(tasks, tuple):
+        # in that case, multiple drivers
+        tt = np.array([proprocess_tasks(task) for task in tasks])
+    else:
+        tt = proprocess_tasks(tasks)
 
     # base row
     base_row = {'atom': int(atom),
@@ -128,6 +140,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            atom_to_filter=None, time_interval=0.01,
                            threshold=0.6e-10,
                            list_atoms=None, list_tasks=None,
+                           n_driver=1,
                            lower=30e-3, upper=500e-3,
                            n_iter=400, initializer='smart_start',
                            early_stopping=None, early_stopping_params={},
@@ -277,7 +290,11 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                             for i in np.atleast_1d(lower)
                             for j in np.atleast_1d(upper)]
 
-        combs_atoms_tasks = list(itertools.product(list_atoms, list_tasks))
+        if n_driver == 1:
+            combs_atoms_tasks = list(itertools.product(list_atoms, list_tasks))
+        else:
+            # n_driver = len(list_tasks)
+            combs_atoms_tasks = [(kk, list_tasks) for kk in list_atoms]
         combs = list(itertools.product(combs_atoms_tasks, procedure_kwargs))
 
         if n_jobs == 1:
