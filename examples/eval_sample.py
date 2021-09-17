@@ -160,7 +160,7 @@ for ii, kk in enumerate(plotted_atoms):
         ax.legend(fontsize=fontsize, handlelength=1)
 
 # save figure
-path_fig = SAVE_RESULTS_PATH / 'fig4.pdf'
+path_fig = SAVE_RESULTS_PATH / 'fig4_bis.pdf'
 plt.savefig(path_fig, dpi=300, bbox_inches='tight')
 plt.close()
 

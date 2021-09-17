@@ -298,9 +298,10 @@ class Intensity():
         t = np.atleast_1d(t)
 
         if non_overlapping:
-            if (last_tt == ()) or (last_tt.shape[0] != self.driver_tt.shape[0]):
-                # with the non-overlapping assumption, only the last event on each
-                # driver matters
+            if (last_tt == ()) or \
+                (last_tt.shape[0] != self.driver_tt.shape[0]):
+                # with the non-overlapping assumption, only the last event on
+                # each driver matters
                 last_tt = get_last_timestamps(self.driver_tt, t)
             else:
                 last_tt = np.atleast_2d(last_tt)  # from 1d to 2d
