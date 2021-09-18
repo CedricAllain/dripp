@@ -120,10 +120,10 @@ for ii, kk in enumerate(plotted_atoms):
         n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
         df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
         # unpack parameters estimates
-        alpha = list(df_temp['alpha_hat'])[0]
+        alpha = list(df_temp['alpha_hat'])[0][0]
         baseline = list(df_temp['baseline_hat'])[0]
-        m = list(df_temp['m_hat'])[0]
-        sigma = list(df_temp['sigma_hat'])[0]
+        m = list(df_temp['m_hat'])[0][0]
+        sigma = list(df_temp['sigma_hat'])[0][0]
 
         # define kernel function
         kernel = TruncNormKernel(lower, upper, m, sigma)
@@ -217,10 +217,10 @@ for ii, kk in enumerate(plotted_atoms):
         n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
         df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
         # unpack parameters estimates
-        alpha = list(df_temp['alpha_hat'])[0]
+        alpha = list(df_temp['alpha_hat'])[0][0]
         baseline = list(df_temp['baseline_hat'])[0]
-        m = list(df_temp['m_hat'])[0]
-        sigma = list(df_temp['sigma_hat'])[0]
+        m = list(df_temp['m_hat'])[0][0]
+        sigma = list(df_temp['sigma_hat'])[0][0]
 
         # define kernel function
         kernel = TruncNormKernel(lower, upper, m, sigma)

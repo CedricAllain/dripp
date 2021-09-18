@@ -293,33 +293,37 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
 
     kernel = []
     for this_lower, this_upper, this_m, this_sigma in \
-        zip(lower, upper, m, sigma):
+            zip(lower, upper, m, sigma):
         kernel.append(TruncNormKernel(this_lower, this_upper, this_m,
                                       this_sigma, sfreq=sfreq))
+
+    alpha = convert_variable_multi(alpha, n_drivers, repeat=True)
     intensity = Intensity(baseline, alpha, kernel, driver_tt)
 
     # simulate activation timestamps
     acti_tt = simu_1d_nonhomogeneous_poisson_process(
         intensity=intensity, T=T, seed=seed[0], verbose=verbose)
+    intensity.acti_tt = acti_tt
 
     if return_nll:
         # update intensity function and compute true negative log-likelihood
         intensity.acti_tt = acti_tt
         true_nll = negative_log_likelihood(intensity=intensity, T=T)
-        return driver_tt, acti_tt, true_nll, kernel
+        return driver_tt, acti_tt, true_nll, kernel, intensity
     else:
-        return driver_tt, acti_tt, kernel
+        return driver_tt, acti_tt, kernel, intensity
 
 
 if __name__ == '__main__':
     N_DRIVERS = 2
     T = 1_000  # process time, in seconds
     start_time = time.time()
-    driver_tt, acti_tt, _ = simulate_data(
+    driver_tt, acti_tt, kernel, intensity = simulate_data(
         lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         baseline=0.8, alpha=1, T=T, isi=1, n_tasks=0.2,
         n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
     print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
           % (N_DRIVERS, T, simu_time))
-    
+
+# %%

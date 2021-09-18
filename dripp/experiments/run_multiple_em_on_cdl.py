@@ -127,8 +127,9 @@ def procedure(comb):
                        'baseline_hat': hist_baseline[n],
                        'alpha_hat': hist_alpha[n],
                        'm_hat': hist_m[n],
-                       'sigma_hat': hist_sigma[n],
-                       'nll': history_loss[n]}
+                       'sigma_hat': hist_sigma[n]}
+            if len(history_loss) > 0:
+                new_row['nll'] = history_loss[n]
             new_rows.append(new_row)
 
     return new_rows

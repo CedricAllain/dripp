@@ -255,6 +255,7 @@ class Intensity():
             driver_tt = np.atleast_2d(driver_tt)
         self.driver_tt = np.array([np.array(x) for x in driver_tt])
 
+        self.n_driver = len(self.driver_tt)
         self.baseline = baseline
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
@@ -275,6 +276,18 @@ class Intensity():
 
         # compute maximum intensity
         # self.lambda_max = self.get_max()
+
+    def update(self, baseline, alpha, m, sigma):
+        """Update the intensity function (baseline parameter as well as associated kernels and alpha) with new values.
+        In practice, this method is called once an interation of the learning
+        algorithm is computed.
+
+        """
+
+        self.baseline = baseline
+        self.alpha = alpha
+        for i in range(self.n_driver):
+            self.kernel[i].update(m=m[i], sigma=sigma[i])
 
     def __call__(self, t, last_tt=(), non_overlapping=False):
         """Evaluate the intensity at time(s) t
@@ -299,7 +312,7 @@ class Intensity():
 
         if non_overlapping:
             if (last_tt == ()) or \
-                (last_tt.shape[0] != self.driver_tt.shape[0]):
+                    (last_tt.shape[0] != self.driver_tt.shape[0]):
                 # with the non-overlapping assumption, only the last event on
                 # each driver matters
                 last_tt = get_last_timestamps(self.driver_tt, t)

@@ -1,3 +1,7 @@
+"""
+XXX
+"""
+# %%
 import numpy as np
 from functools import partial
 from numpy.core.records import array
@@ -7,6 +11,7 @@ from dripp.trunc_norm_kernel.utils import get_last_timestamps
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
 from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 from dripp.trunc_norm_kernel.em import compute_nexts, compute_Cs
+from dripp.trunc_norm_kernel.simu import simulate_data
 
 
 EPS = np.finfo(float).eps
@@ -358,7 +363,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                       init_params=None, initializer='smart_start',
                       early_stopping=None, early_stopping_params={},
                       alpha_pos=True, n_iter=80,
-                      verbose=False, disable_tqdm=False):
+                      verbose=False, disable_tqdm=False, compute_loss=False):
     """Run EM-based algorithm
 
     Parameters
@@ -416,6 +421,9 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         if True, will print a progress bar
         default is False
 
+    compute_loss : bool
+        if True, compute the initial and final loss values, as well as the loss
+        at each EM iteration, and return the history of loss during the EM
 
     Returns
     -------
@@ -462,13 +470,15 @@ def em_truncated_norm(acti_tt, driver_tt=(),
             lower, upper, m_hat[i], sigma_hat[i], sfreq=sfreq))
     intensity = Intensity(baseline_hat, alpha_hat, kernel, driver_tt, acti_tt)
 
-    # define loss function
-    nll = partial(negative_log_likelihood, T=T)
-
     # initializa history of parameters and loss
     hist_baseline, hist_alpha = [baseline_hat], [alpha_hat]
     hist_m, hist_sigma = [m_hat], [sigma_hat]
-    hist_loss = [nll(intensity)]
+    if compute_loss:
+        # define loss function
+        nll = partial(negative_log_likelihood, T=T)
+        hist_loss = [nll(intensity)]
+    else:
+        hist_loss = []
 
     if verbose:
         print("Initial loss (negative log-likelihood):", hist_loss[0])
@@ -485,27 +495,32 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         nexts = compute_nexts(intensity, T)
         baseline_hat, alpha_hat, m_hat, sigma_hat = nexts
         # force alpha to stay non-negative
-        if alpha_pos and (alpha_hat.max() < 0):
-            if verbose:
-                print("alpha_hat was negative, alpha_hat is thus set to 0.")
-            alpha_hat = np.full(n_driver, fill_value=0)
-            baseline_hat = compute_baseline_mle(acti_tt, T, return_nll=False)
-            break
+        if alpha_pos:
+            alpha_hat = (alpha_hat).clip(min=0)  # project on R+
+            if(alpha_hat.max() == 0):  # all alphas are zero
+                if verbose:
+                    print("alpha is null, compute baseline MLE.")
+                # alpha_hat = np.full(n_driver, fill_value=0)
+                baseline_hat = compute_baseline_mle(
+                    acti_tt, T, return_nll=False)
+                break
 
         # append history
         hist_baseline.append(baseline_hat)
         hist_alpha.append(alpha_hat)
         hist_m.append(m_hat)
         hist_sigma.append(sigma_hat)
-        # update kernel functions
-        for i in range(n_driver):
-            kernel[i].update(m=m_hat[i], sigma=sigma_hat[i])
+        # # update kernel functions
+        # for i in range(n_driver):
+        #     kernel[i].update(m=m_hat[i], sigma=sigma_hat[i])
         # update intensity function
-        intensity.baseline = baseline_hat
-        intensity.alpha = alpha_hat
-        intensity.kernel = kernel
+        # intensity.baseline = baseline_hat
+        # intensity.alpha = alpha_hat
+        # intensity.kernel = kernel
+        intensity.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
         # compute loss
-        hist_loss.append(nll(intensity))
+        if compute_loss:
+            hist_loss.append(nll(intensity))
 
     res_params = baseline_hat, alpha_hat, m_hat, sigma_hat
 
@@ -515,3 +530,20 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     history_params = hist_baseline, hist_alpha, hist_m, hist_sigma
 
     return res_params, np.array(history_params), np.array(hist_loss)
+
+
+if __name__ == '__main__':
+    N_DRIVERS = 2
+    T = 2_000  # process time, in seconds
+    lower, upper = 30e-3, 500e-3
+    sfreq = 150.
+    driver_tt, acti_tt, _, _ = simulate_data(
+        lower=lower, upper=upper, m=150e-3, sigma=0.1, sfreq=sfreq,
+        baseline=0.8, alpha=1, T=T, isi=1, n_tasks=0.4,
+        n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
+
+    res_params = em_truncated_norm(acti_tt, driver_tt, lower, upper, T, sfreq,
+                                   n_iter=300)[0]
+    print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)
+
+# %%
