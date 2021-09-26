@@ -67,9 +67,10 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
     for i, param in enumerate(simu_params_to_vary.keys()):
         simu_params_temp[param] = comb_simu[i]
     # simulate data of duration T_max
-    driver_tt_, acti_tt_, kernel_simu = simulate_data(
+    simu_data = simulate_data(
         T=T_max, sfreq=sfreq, n_drivers=n_drivers, return_nll=False,
         **simu_params_temp)
+    driver_tt_, acti_tt_, kernel_simu = simu_data[0:3]
     # define true kernel(s) used for data simulation
     # kernel_simu = []
     # lower_simu = convert_variable_multi(
@@ -100,10 +101,9 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
 
         # run EM
         start_time = time.time()
-        res_params, _, hist_loss = em_truncated_norm(acti_tt, driver_tt_,
-                                                     disable_tqdm=True,
-                                                     sfreq=sfreq,
-                                                     **em_params_temp)
+        res_params, history_params, _ = em_truncated_norm(
+            acti_tt, driver_tt_, disable_tqdm=True, sfreq=sfreq,
+            **em_params_temp)
         comput_time = time.time() - start_time
         baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
 
@@ -136,7 +136,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         new_row['sfreq'] = sfreq
         new_row['comput_time'] = comput_time
         # true number of iterations
-        new_row['n_iter_real'] = len(hist_loss)
+        new_row['n_iter_real'] = len(history_params[0])
 
         # for each kernel, compute the relative infinite norm
         for p in range(n_drivers):

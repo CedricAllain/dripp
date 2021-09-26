@@ -69,6 +69,14 @@ def get_data_utils(data_source='sample', subject='sample',
         fname_cov = None
         fname_trans = None
         fname_bem = None
+    elif data_source == 'camcan':
+        event_id = [1, 2, 3, 4]
+        event_des = {'audiovis/1200Hz': 1,
+                     'audiovis/300Hz': 2,
+                     'audiovis/600Hz': 3,
+                     'button': 4,
+                     'catch/0': 5,
+                     'catch/1': 6}
     else:
         raise ValueError("data source %s is unknown" % data_source)
 
@@ -76,14 +84,15 @@ def get_data_utils(data_source='sample', subject='sample',
         print("Events description:", event_des)
         print("Only consider events", event_id)
 
-    data_utils = {'file_name': file_name,
-                  'fname_bem': fname_bem,
-                  'fname_trans': fname_trans,
-                  'fname_cov': fname_cov,
-                  'stim_channel': stim_channel,
-                  'subject': subject,
-                  'bads': bads, 'add_bads': add_bads,
-                  'event_id': event_id, 'event_des': event_des}
+    data_utils = {'event_id': event_id, 'event_des': event_des}
+    if data_source in ['sample', 'somato']:
+        data_utils = dict(data_utils, **{'file_name': file_name,
+                                         'fname_bem': fname_bem,
+                                         'fname_trans': fname_trans,
+                                         'fname_cov': fname_cov,
+                                         'stim_channel': stim_channel,
+                                         'subject': subject,
+                                         'bads': bads, 'add_bads': add_bads})
 
     return data_utils
 
@@ -91,6 +100,7 @@ def get_data_utils(data_source='sample', subject='sample',
 ###############################################################################
 # On driver's events
 ###############################################################################
+
 
 def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
                            verbose=True):

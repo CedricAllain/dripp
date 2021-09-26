@@ -133,7 +133,7 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
 
 # parameters to vary for EM computation
 # em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
-em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
+em_params_to_vary = {'T': np.logspace(2, 4, num=10).astype(int)}
 T_max = em_params_to_vary['T'].max()
 
 df_res = run_multiple_em_on_synthetic(

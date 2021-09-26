@@ -4,7 +4,8 @@ import pandas as pd
 from joblib import Memory, Parallel, delayed
 
 from dripp.cdl import utils
-from dripp.experiments.run_cdl import run_cdl_sample, run_cdl_somato
+from dripp.experiments.run_cdl import run_cdl_sample, run_cdl_somato,\
+    run_cdl_camcan
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
 from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
 
@@ -135,7 +136,7 @@ def procedure(comb):
     return new_rows
 
 
-@memory.cache(ignore=['n_jobs'])
+# @memory.cache(ignore=['n_jobs'])
 def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            shift_acti=True,
                            atom_to_filter=None, time_interval=0.01,
@@ -233,6 +234,8 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         dict_global = run_cdl_sample(**cdl_params)
     elif data_source == 'somato':
         dict_global = run_cdl_somato(**cdl_params)
+    elif data_source == 'camcan':
+        dict_global = run_cdl_camcan(**cdl_params)
 
     # if not given, will run the EM for every atom extracted
     if list_atoms is None:
@@ -324,6 +327,6 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         if not path_df_res.exists():
             path_df_res.mkdir(parents=True)
 
-        df_res.to_csv(SAVE_RESULTS_PATH / 'results_em_sample.csv')
+        df_res.to_csv(SAVE_RESULTS_PATH / 'results_em_sample_multi.csv')
 
     return dict_global, df_res

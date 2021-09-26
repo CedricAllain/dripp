@@ -316,7 +316,7 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 1_000  # process time, in seconds
+    T = 10_000  # process time, in seconds
     start_time = time.time()
     driver_tt, acti_tt, kernel, intensity = simulate_data(
         lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
