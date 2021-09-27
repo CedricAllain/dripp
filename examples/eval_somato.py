@@ -38,7 +38,7 @@ dict_global, df_res = run_multiple_em_on_cdl(
     data_source='somato', cdl_params=cdl_params,  # CDL
     shift_acti=shift_acti, atom_to_filter='all', threshold=threshold,
     list_atoms=list(range(cdl_params['n_atoms'])),
-    list_tasks=[1],
+    list_tasks=[1], n_driver=1,
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
     n_jobs=N_JOBS)
 
@@ -139,10 +139,10 @@ for plotted_atoms in plotted_atoms_list:
         list_yy = []
         for i in df_temp.index:
             # unpack parameters estimates
-            alpha = df_temp['alpha_hat'][i]
+            alpha = df_temp['alpha_hat'][i][0]
             baseline = df_temp['baseline_hat'][i]
-            m = df_temp['m_hat'][i]
-            sigma = df_temp['sigma_hat'][i]
+            m = df_temp['m_hat'][i][0]
+            sigma = df_temp['sigma_hat'][i][0]
 
             # define kernel function
             kernel = TruncNormKernel(lower, upper, m, sigma)
@@ -162,7 +162,7 @@ for plotted_atoms in plotted_atoms_list:
     suffix = 'atom'
     for kk in plotted_atoms:
         suffix += '_' + str(kk)
-    name = 'fig5_' + suffix + '.pdf'
+    name = 'fig5_' + suffix + '_bis.pdf'
     path_fig = SAVE_RESULTS_PATH / name
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.close()
@@ -215,7 +215,7 @@ for plotted_atoms in plotted_atoms_list:
     fig.suptitle('')
     fig.tight_layout()
 
-    fig_name += '.pdf'
+    fig_name += '_bis.pdf'
     path_fig = SAVE_RESULTS_PATH / fig_name
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.close()
@@ -274,10 +274,10 @@ for ii, kk in enumerate(plotted_atoms):
     n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
     df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
     # unpack parameters estimates
-    alpha = list(df_temp['alpha_hat'])[0]
+    alpha = list(df_temp['alpha_hat'])[0][0]
     baseline = list(df_temp['baseline_hat'])[0]
-    m = list(df_temp['m_hat'])[0]
-    sigma = list(df_temp['sigma_hat'])[0]
+    m = list(df_temp['m_hat'])[0][0]
+    sigma = list(df_temp['sigma_hat'])[0][0]
 
     # define kernel function
     kernel = TruncNormKernel(lower, upper, m, sigma)
@@ -301,7 +301,7 @@ for ii, kk in enumerate(plotted_atoms):
 
 # save figure
 fig.tight_layout()
-path_fig = SAVE_RESULTS_PATH / 'somato_all_atoms.pdf'
+path_fig = SAVE_RESULTS_PATH / 'somato_all_atoms_bis.pdf'
 plt.savefig(path_fig, dpi=300, bbox_inches='tight')
 plt.savefig(str(path_fig).replace('pdf', 'png'), dpi=300, bbox_inches='tight')
 plt.close()

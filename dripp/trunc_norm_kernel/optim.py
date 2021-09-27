@@ -181,7 +181,7 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
                 sigma_init.append(max(EPS, np.std(delays)))
 
         # if n_driver == 1:
-        #     acti_in_support = acti_tt[mask]
+        #     acti_in_support = acti_tt[mask[0]]
         # else:
         #     temp = []
         #     for mask_row in mask:
@@ -480,7 +480,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     else:
         hist_loss = []
 
-    if verbose:
+    if verbose and compute_loss:
         print("Initial loss (negative log-likelihood):", hist_loss[0])
 
     for n in tqdm(range(int(n_iter)), disable=disable_tqdm):

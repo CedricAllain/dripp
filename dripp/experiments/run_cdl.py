@@ -171,6 +171,7 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
         stim_channel = data_utils['stim_channel']
         events = mne.find_events(raw, stim_channel=stim_channel)
     elif data_source == 'camcan':
+        raw.pick(['grad', 'stim'])
         events, event_id = mne.events_from_annotations(raw)
         # event_id = {'audiovis/1200Hz': 1,
         #             'audiovis/300Hz': 2,
@@ -250,16 +251,18 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
     # Construct parameters dictionaries and save the model
     dict_cdl_params = utils.get_dict_cdl_params(cdl)
 
-    dict_other_params = {'data_source': 'sample',
-                         'file_name': file_name,
-                         'subject': 'sample',
-                         'stim_channel': stim_channel,
+    dict_other_params = {'data_source': data_source,
                          'sfreq': sfreq,
                          'n_splits': n_splits,
                          'event_id': event_id}
     if data_source == 'camcan':
         dict_other_params = dict(dict_other_params, **{'age': age,
-                                                       'sex': sex})
+                                                       'sex': sex,
+                                                       'subject': subject_id})
+    elif data_source in ['sample', 'somato']:
+        dict_other_params = dict(dict_other_params,
+                                 **{'file_name': file_name,
+                                    'stim_channel': stim_channel})
 
     dict_cdl_fit_res = {'u_hat_': cdl.u_hat_.tolist(),
                         'v_hat_': cdl.v_hat_.tolist(),

@@ -133,7 +133,7 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
 
 # parameters to vary for EM computation
 # em_params_to_vary = {'T': np.logspace(2, 5, num=10).astype(int)}
-em_params_to_vary = {'T': np.logspace(2, 4, num=10).astype(int)}
+em_params_to_vary = {'T': np.logspace(2, 4, num=8).astype(int)}
 T_max = em_params_to_vary['T'].max()
 
 df_res = run_multiple_em_on_synthetic(
@@ -192,9 +192,9 @@ for ax in axes.ravel():
 axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
 
 plt.tight_layout()
-plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi_%i.pdf' % T_max,
+plt.savefig(SAVE_RESULTS_PATH / ('fig3_mean_multi_%i.pdf' % T_max),
             dpi=300, bbox_inches='tight')
-plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi_%i.png' % T_max,
+plt.savefig(SAVE_RESULTS_PATH / ('fig3_mean_multi_%i.png' % T_max),
             dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
@@ -218,9 +218,9 @@ for ax in axes.ravel():
 axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
 
 plt.tight_layout()
-plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi_%i.pdf' % T_max,
+plt.savefig(SAVE_RESULTS_PATH / ('fig3_std_multi_%i.pdf' % T_max),
             dpi=300, bbox_inches='tight')
-plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi_%i.png' % T_max,
+plt.savefig(SAVE_RESULTS_PATH / ('fig3_std_multi_%i.png' % T_max),
             dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()

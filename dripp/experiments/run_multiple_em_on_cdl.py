@@ -299,6 +299,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         else:
             # n_driver = len(list_tasks)
             combs_atoms_tasks = [(kk, list_tasks) for kk in list_atoms]
+
         combs = list(itertools.product(combs_atoms_tasks, procedure_kwargs))
 
         if n_jobs == 1:
