@@ -70,13 +70,13 @@ def get_data_utils(data_source='sample', subject='sample',
         fname_trans = None
         fname_bem = None
     elif data_source == 'camcan':
-        event_id = [1, 2, 3, 4]
-        event_des = {'audiovis/1200Hz': 1,
-                     'audiovis/300Hz': 2,
-                     'audiovis/600Hz': 3,
+        event_id = [1, 2, 3, 4, 5, 6]
+        event_des = {'audiovis/1200Hz': 1,  # bimodal
+                     'audiovis/300Hz': 2,   # bimodal
+                     'audiovis/600Hz': 3,   # bimodal
                      'button': 4,
-                     'catch/0': 5,
-                     'catch/1': 6}
+                     'catch/0': 5,          # unimodal
+                     'catch/1': 6}          # unimodal
     else:
         raise ValueError("data source %s is unknown" % data_source)
 

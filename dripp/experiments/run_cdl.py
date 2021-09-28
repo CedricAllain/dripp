@@ -256,9 +256,10 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                          'n_splits': n_splits,
                          'event_id': event_id}
     if data_source == 'camcan':
-        dict_other_params = dict(dict_other_params, **{'age': age,
-                                                       'sex': sex,
-                                                       'subject': subject_id})
+        dict_other_params = dict(dict_other_params,
+                                 **{'age': age,
+                                    'sex': sex,
+                                    'subject': subject_id})
     elif data_source in ['sample', 'somato']:
         dict_other_params = dict(dict_other_params,
                                  **{'file_name': file_name,

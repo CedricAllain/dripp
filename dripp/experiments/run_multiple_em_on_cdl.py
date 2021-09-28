@@ -248,7 +248,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         elif data_source == 'camcan':
             list_tasks = [6, 7, 8, 9, [6, 7, 8]]
         elif data_source == 'somato':
-            list_tasks = [1]
+            list_tasks = [[1, 2, 3], 4]
         else:
             raise ValueError('list_tasks is None and data source is '
                              'unknown. '

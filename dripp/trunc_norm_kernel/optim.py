@@ -176,7 +176,8 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
                 m_init.append(default_m)
                 sigma_init.append(default_sigma)
             else:
-                alpha_init.append(delays.size / len(driver_tt[p]))
+                alpha_init.append(
+                    delays.size / len(driver_tt[p] - baseline_init))
                 m_init.append(np.mean(delays))
                 sigma_init.append(max(EPS, np.std(delays)))
 
