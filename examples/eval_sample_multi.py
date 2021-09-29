@@ -56,6 +56,7 @@ plotted_tasks = {'auditory': [1, 2],
 fig_name = 'fig4_top_5_atoms.pdf'
 plot_cdl_atoms(dict_global, cdl_params, info,
                n_top_atoms=5, plot_intensity=True,
+               alpha_threshold=-100,
                df_res_dripp=df_res, plotted_tasks=plotted_tasks,
                save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
 

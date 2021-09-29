@@ -50,12 +50,12 @@ dict_global, df_res = run_multiple_em_on_cdl(
 sfreq = cdl_params['sfreq']
 _, info = somato.load_data(sfreq=sfreq)
 
-# plotted_tasks = {'somatosensory': [1]}
-# fig_name = "somato_top_5_atoms.pdf"
-# plot_cdl_atoms(dict_global, cdl_params, info,
-#                n_top_atoms=5, plot_intensity=True,
-#                df_res_dripp=df_res, plotted_tasks=plotted_tasks,
-#                save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
+plotted_tasks = {'somatosensory': [1]}
+fig_name = "somato_top_5_atoms.pdf"
+plot_cdl_atoms(dict_global, cdl_params, info,
+               n_top_atoms=5, plot_intensity=True,
+               df_res_dripp=df_res, plotted_tasks=plotted_tasks,
+               save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
 
 # %%
 
@@ -168,7 +168,7 @@ for plotted_atoms in plotted_atoms_list:
         ax.set_xlim(0, 2)
         ax.set_xlabel('Time (s)', fontsize=fontsize)
         ax.yaxis.set_ticks_position("right")
-        ax.set_yscale('log')
+        # ax.set_yscale('log')
         ax.legend(fontsize=fontsize, handlelength=1, title='Atom')
 
     # save figure

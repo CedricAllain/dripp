@@ -26,14 +26,14 @@ subject_id = "CC620264"  # 76.33 Female
 
 N_JOBS = 10  # number of jobs to run in parallel. To adjust based on machine
 
-atom_duration = 0.7
+atom_duration = 0.5
 sfreq = 150.
 
 # CDL parameters
 cdl_params = {
     'subject_id': subject_id,
     'use_greedy': True,
-    'n_atoms': 30,
+    'n_atoms': 20,
     'n_times_atom': int(np.round(atom_duration * sfreq)),
     'sfreq': sfreq,
     'n_iter': 100,
