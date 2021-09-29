@@ -47,21 +47,24 @@ info = raw.copy().pick_types(meg=True).info
 
 # %%
 # ==================================================================
-# PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
+# PLOT THE TOP 5 ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ==================================================================
-# atoms and tasks to plot
-plotted_atoms = [0, 1, 2, 6]
+# tasks to plot
 plotted_tasks = {'auditory': [1, 2],
                  'visual': [3, 4]}
 
-fig_name = 'fig4_multi_bis.pdf'
+fig_name = 'fig4_top_5_atoms.pdf'
 plot_cdl_atoms(dict_global, cdl_params, info,
-               plotted_atoms=plotted_atoms, plot_intensity=True,
+               n_top_atoms=5, plot_intensity=True,
                df_res_dripp=df_res, plotted_tasks=plotted_tasks,
                save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
 
 # %%
-
+# ==================================================================
+# PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
+# ==================================================================
+# atoms to plot
+plotted_atoms = [0, 1, 2, 6]
 
 fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
@@ -137,7 +140,8 @@ for ii, kk in enumerate(plotted_atoms):
         kernel = TruncNormKernel(lower, upper, m, sigma)
         yy = baseline + alpha * kernel.eval(xx)
         lambda_max = baseline + alpha * kernel.max
-        ratio_lambda_max = lambda_max / baseline
+        # ratio_lambda_max = lambda_max / baseline
+        ratio_lambda_max = alpha / baseline
 
         if ii > 0:
             plot_label = None
@@ -170,6 +174,7 @@ for ii, kk in enumerate(plotted_atoms):
 # save figure
 path_fig = SAVE_RESULTS_PATH / 'fig4_multi_bis.pdf'
 plt.savefig(path_fig, dpi=300, bbox_inches='tight')
+plt.show()
 plt.close()
 
 # %%
