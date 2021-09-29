@@ -230,7 +230,9 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
     # new value of alpha
     n_driver_tt = np.array(
         [this_driver_tt.size for this_driver_tt in intensity.driver_tt])
-    next_alpha = (sum_p_tp / n_driver_tt).clip(min=0)  # project on R+
+
+    # next_alpha = (sum_p_tp / n_driver_tt).clip(min=0)  # project on R+
+    next_alpha = sum_p_tp / n_driver_tt
 
     # n_driver = len(intensity.driver_tt)
     next_m, next_sigma = [], []

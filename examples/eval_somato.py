@@ -3,6 +3,7 @@ Run EM on mne.somato dataset and plot the corresponding figure
 (Figures 5, A.3, A.4 in paper)
 """
 
+# %%
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -41,6 +42,8 @@ dict_global, df_res = run_multiple_em_on_cdl(
     list_tasks=[1], n_driver=1,
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
     n_jobs=N_JOBS)
+
+# %%
 
 # ==================================================================
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
@@ -167,6 +170,7 @@ for plotted_atoms in plotted_atoms_list:
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.close()
 
+# %%
 # ==================================================================
 # PLOT THE DIPOLE FIT FOR THE SELECTED ATOMS
 # ==================================================================

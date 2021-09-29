@@ -17,6 +17,23 @@ from dripp.trunc_norm_kernel.simu import simulate_data
 EPS = np.finfo(float).eps
 
 
+def compute_lebesgue_support(all_tt, lower, upper):
+    """Compute the Lebesgue measure
+
+    """
+    s = 0
+    temp = (all_tt[0] + lower, all_tt[0] + upper)
+    for i in range(all_tt.size - 1):
+        if all_tt[i+1] + lower > temp[1]:
+            s += temp[1] - temp[0]
+            temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
+        else:
+            temp = (temp[0], all_tt[i+1] + upper)
+
+    s += temp[1] - temp[0]
+    return s
+
+
 def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
                         T=60):
     """
@@ -33,16 +50,17 @@ def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
 
     # compute the Lebesgue measure of all kernels' supports
     all_tt = np.sort(np.hstack(driver_tt.flatten()))
-    s = 0
-    temp = (all_tt[0] + lower, all_tt[0] + upper)
-    for i in range(all_tt.size - 1):
-        if all_tt[i+1] + lower > temp[1]:
-            s += temp[1] - temp[0]
-            temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
-        else:
-            temp = (temp[0], all_tt[i+1] + upper)
+    # s = 0
+    # temp = (all_tt[0] + lower, all_tt[0] + upper)
+    # for i in range(all_tt.size - 1):
+    #     if all_tt[i+1] + lower > temp[1]:
+    #         s += temp[1] - temp[0]
+    #         temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
+    #     else:
+    #         temp = (temp[0], all_tt[i+1] + upper)
 
-    s += temp[1] - temp[0]
+    # s += temp[1] - temp[0]
+    s = compute_lebesgue_support(all_tt, lower, upper)
 
     baseline_init = (acti_tt.size - len(acti_in_support)) / (T - s)
     return baseline_init
@@ -176,8 +194,11 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
                 m_init.append(default_m)
                 sigma_init.append(default_sigma)
             else:
-                alpha_init.append(
-                    delays.size / len(driver_tt[p] - baseline_init))
+                # compute Lebesgue measure of driver p supports
+                s = compute_lebesgue_support(driver_tt[p], lower, upper)
+                alpha_init.append(delays.size / s - baseline_init)
+                    # delays.size / (len(driver_tt[p]) * (upper - lower))
+                    # - baseline_init)
                 m_init.append(np.mean(delays))
                 sigma_init.append(max(EPS, np.std(delays)))
 
@@ -463,6 +484,8 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                   init_params)
 
     baseline_hat, alpha_hat, m_hat, sigma_hat = init_params
+    if alpha_pos:
+        alpha_hat = np.array(alpha_hat).clip(min=0)
 
     # initialize kernels and intensity functions
     kernel = []
@@ -493,11 +516,10 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         #     baseline_hat = compute_baseline_mle(acti_tt, T, return_nll=False)
         #     break
         # compute next values of parameters
-        nexts = compute_nexts(intensity, T)
-        baseline_hat, alpha_hat, m_hat, sigma_hat = nexts
+        baseline_hat, alpha_hat, m_hat, sigma_hat = compute_nexts(intensity, T)
         # force alpha to stay non-negative
         if alpha_pos:
-            alpha_hat = (alpha_hat).clip(min=0)  # project on R+
+            alpha_hat = alpha_hat.clip(min=0)  # project on R+
             if(alpha_hat.max() == 0):  # all alphas are zero
                 if verbose:
                     print("alpha is null, compute baseline MLE.")

@@ -45,8 +45,9 @@ def procedure(comb):
     n_bootstrap = args['n_bootstrap']
     p_bootstrap = args['p_bootstrap']
 
-    n_iter = np.atleast_1d(args['n_iter'])
-    n_iter_max = max(n_iter)
+    # n_iter = np.atleast_1d(args['n_iter'])
+    # n_iter_max = max(n_iter)
+    n_iter = args['n_iter']
 
     # get activation timestamps
     atoms_timestamps = np.array(args['atoms_timestamps'])
@@ -83,6 +84,7 @@ def procedure(comb):
                 'initializer': args['initializer'],
                 'n_bootstrap': n_bootstrap,
                 'p_bootstrap': p_bootstrap}
+
     # create new DataFrame rows
     new_rows = []
 
@@ -106,34 +108,44 @@ def procedure(comb):
             early_stopping=args['early_stopping'],
             early_stopping_params=args['early_stopping_params'],
             alpha_pos=args['alpha_pos'],
-            n_iter=n_iter_max,
-            verbose=False,
+            # n_iter=n_iter_max,
+            n_iter=n_iter,
+            verbose=True,
             disable_tqdm=True)
 
         # get results
         res_params, history_params, history_loss = res_em
 
         # unpack parameters history
-        hist_baseline, hist_alpha, hist_m, hist_sigma = history_params
+        # hist_baseline, hist_alpha, hist_m, hist_sigma = history_params
         # list of values for n_iter that exist
         # list_n_iter = [n for n in n_iter if n < hist_baseline.size]
-        list_n_iter = n_iter[n_iter < hist_baseline.size]
+        # list_n_iter = n_iter[n_iter < hist_baseline.size]
         # make sure the last iteration will be added
-        if not (hist_baseline.size - 1) in list_n_iter:
-            list_n_iter = np.append(list_n_iter, hist_baseline.size - 1)
+        # if not (hist_baseline.size - 1) in list_n_iter:
+        #     list_n_iter = np.append(list_n_iter, hist_baseline.size - 1)
 
-        for n in list_n_iter:
-            new_row = {**base_row,
-                       'n_iter': n,
-                       'baseline_hat': hist_baseline[n],
-                       'alpha_hat': hist_alpha[n],
-                       'm_hat': hist_m[n],
-                       'sigma_hat': hist_sigma[n]}
-            if len(history_loss) > 0:
-                new_row['nll'] = history_loss[n]
-            new_rows.append(new_row)
+        # for n in list_n_iter:
+        #     new_row = {**base_row,
+        #                'n_iter': n,
+        #                'baseline_hat': hist_baseline[n],
+        #                'alpha_hat': hist_alpha[n],
+        #                'm_hat': hist_m[n],
+        #                'sigma_hat': hist_sigma[n]}
+        #     if len(history_loss) > 0:
+        #         new_row['nll'] = history_loss[n]
+        #     new_rows.append(new_row)
 
-    return new_rows
+        baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
+        new_row = {**base_row,
+                   'n_iter': n_iter,
+                   'baseline_hat': baseline_hat,
+                   'alpha_hat': alpha_hat,
+                   'm_hat': m_hat,
+                   'sigma_hat': sigma_hat}
+
+    # return new_rows
+    return [new_row]
 
 
 # @memory.cache(ignore=['n_jobs'])
