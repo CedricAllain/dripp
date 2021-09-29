@@ -10,6 +10,7 @@ from dripp.experiments.run_multiple_em_on_cdl import \
 from dripp.cdl import utils
 from dripp.config import SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.model import TruncNormKernel
+from dripp.experiments.utils_plot import plot_cdl_atoms
 
 
 N_JOBS = 10  # number of jobs to run in parallel. To adjust based on machine
@@ -48,6 +49,19 @@ info = raw.copy().pick_types(meg=True).info
 # ==================================================================
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ==================================================================
+# atoms and tasks to plot
+plotted_atoms = [0, 1, 2, 6]
+plotted_tasks = {'auditory': [1, 2],
+                 'visual': [3, 4]}
+
+fig_name = 'fig4_multi_bis.pdf'
+plot_cdl_atoms(dict_global, cdl_params, info,
+               plotted_atoms=plotted_atoms, plot_intensity=True,
+               df_res_dripp=df_res, plotted_tasks=plotted_tasks,
+               save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
+
+# %%
+
 
 fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
@@ -56,10 +70,6 @@ plt.rcParams.update({
     'ytick.labelsize': fontsize,
 })
 
-# atoms and tasks to plot
-plotted_atoms = [0, 1, 2, 6]
-plotted_tasks = {'auditory': [1, 2],
-                 'visual': [3, 4]}
 
 fig = plt.figure(figsize=(5.5, 3.5))
 gs = gridspec.GridSpec(nrows=3, ncols=4, hspace=0.26, wspace=0.18, figure=fig)

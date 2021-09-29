@@ -16,6 +16,7 @@ from dripp.experiments.run_multiple_em_on_cdl import \
     run_multiple_em_on_cdl
 from dripp.config import SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.model import TruncNormKernel
+from dripp.experiments.utils_plot import plot_cdl_atoms
 
 
 N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
@@ -45,6 +46,19 @@ dict_global, df_res = run_multiple_em_on_cdl(
 
 # %%
 
+# get raw.info
+sfreq = cdl_params['sfreq']
+_, info = somato.load_data(sfreq=sfreq)
+
+# plotted_tasks = {'somatosensory': [1]}
+# fig_name = "somato_top_5_atoms.pdf"
+# plot_cdl_atoms(dict_global, cdl_params, info,
+#                n_top_atoms=5, plot_intensity=True,
+#                df_res_dripp=df_res, plotted_tasks=plotted_tasks,
+#                save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
+
+# %%
+
 # ==================================================================
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ==================================================================
@@ -61,10 +75,6 @@ plt.rcParams.update({
 })
 
 colors = ['blue', 'green', 'orange']
-
-# get raw.info
-sfreq = cdl_params['sfreq']
-_, info = somato.load_data(sfreq=sfreq)
 
 n_times_atom = cdl_params['n_times_atom']
 
