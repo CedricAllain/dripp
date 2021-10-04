@@ -142,7 +142,9 @@ def procedure(comb):
                    'baseline_hat': baseline_hat,
                    'alpha_hat': alpha_hat,
                    'm_hat': m_hat,
-                   'sigma_hat': sigma_hat}
+                   'sigma_hat': sigma_hat,
+                   'baseline_init': history_params[0][0],
+                   'alpha_init': history_params[1][0]}
 
     # return new_rows
     return [new_row]

@@ -319,8 +319,11 @@ if __name__ == '__main__':
     T = 10_000  # process time, in seconds
     start_time = time.time()
     driver_tt, acti_tt, kernel, intensity = simulate_data(
-        lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
-        baseline=0.8, alpha=1, T=T, isi=1, n_tasks=0.2,
+        lower=30e-3, upper=500e-3,
+        m=[200e-3, 400e-3], sigma=[0.2, 0.05],
+        sfreq=1000.,
+        baseline=0.5, alpha=[0.8, 0.8],
+        T=T, isi=1, n_tasks=0.2,
         n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
     print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"

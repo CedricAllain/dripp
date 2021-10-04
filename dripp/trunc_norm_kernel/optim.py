@@ -190,15 +190,15 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
         for p in range(n_driver):
             delays = diff[p][mask[p]]
             if delays.size == 0:
-                alpha_init.append(default_alpha)
+                alpha_init.append(- baseline_init)
                 m_init.append(default_m)
                 sigma_init.append(default_sigma)
             else:
                 # compute Lebesgue measure of driver p supports
                 s = compute_lebesgue_support(driver_tt[p], lower, upper)
                 alpha_init.append(delays.size / s - baseline_init)
-                    # delays.size / (len(driver_tt[p]) * (upper - lower))
-                    # - baseline_init)
+                # delays.size / (len(driver_tt[p]) * (upper - lower))
+                # - baseline_init)
                 m_init.append(np.mean(delays))
                 sigma_init.append(max(EPS, np.std(delays)))
 
@@ -507,6 +507,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     if verbose and compute_loss:
         print("Initial loss (negative log-likelihood):", hist_loss[0])
 
+    stop = False
     for n in tqdm(range(int(n_iter)), disable=disable_tqdm):
         # stop = stop_em(alpha_hat, kernel,
         #                early_stopping, verbose,
@@ -517,8 +518,8 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         #     break
         # compute next values of parameters
         baseline_hat, alpha_hat, m_hat, sigma_hat = compute_nexts(intensity, T)
-        # force alpha to stay non-negative
         if alpha_pos:
+            # force alpha to stay non-negative
             alpha_hat = alpha_hat.clip(min=0)  # project on R+
             if(alpha_hat.max() == 0):  # all alphas are zero
                 if verbose:
@@ -526,7 +527,8 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                 # alpha_hat = np.full(n_driver, fill_value=0)
                 baseline_hat = compute_baseline_mle(
                     acti_tt, T, return_nll=False)
-                break
+                stop = True
+                # break
 
         # append history
         hist_baseline.append(baseline_hat)
@@ -544,6 +546,9 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         # compute loss
         if compute_loss:
             hist_loss.append(nll(intensity))
+
+        if stop:
+            break
 
     res_params = baseline_hat, alpha_hat, m_hat, sigma_hat
 

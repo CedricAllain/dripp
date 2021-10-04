@@ -96,13 +96,21 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         # crop process for the given length of T
         T = em_params_temp['T']
         acti_tt = acti_tt_[acti_tt_ < T]
+        mask = driver_tt_ < T
+        list_tt = []
+        n_tt = []
+        for i, this_mask in enumerate(mask):
+            this_driver_tt = list(driver_tt_[i][this_mask])
+            n_tt.append(len(this_driver_tt))
+            list_tt.append(this_driver_tt)
+        driver_tt = np.array([tt[:min(n_tt)] for tt in list_tt])
         # respect no-overlapping assumption
         # driver_tt = driver_tt_[driver_tt_ < T - em_params_temp['upper']]
 
         # run EM
         start_time = time.time()
         res_params, history_params, _ = em_truncated_norm(
-            acti_tt, driver_tt_, disable_tqdm=True, sfreq=sfreq,
+            acti_tt, driver_tt, disable_tqdm=True, sfreq=sfreq,
             **em_params_temp)
         comput_time = time.time() - start_time
         baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
@@ -137,6 +145,14 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         new_row['comput_time'] = comput_time
         # true number of iterations
         new_row['n_iter_real'] = len(history_params[0])
+        # percentage of common timestamps
+        if n_drivers > 1:
+            common_tt = set(driver_tt[0])
+            for p in range(1, n_drivers):
+                common_tt = common_tt.intersection(driver_tt[1])
+            ppt_common = len(common_tt) / driver_tt.shape[1]
+            new_row['n_common'] = len(common_tt)
+            new_row['ppt_common'] = ppt_common
 
         # for each kernel, compute the relative infinite norm
         for p in range(n_drivers):
