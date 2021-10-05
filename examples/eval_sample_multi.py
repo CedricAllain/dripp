@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import mne
+from scipy.spatial.distance import cosine
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
@@ -85,7 +86,7 @@ t = np.arange(n_times_atom) / cdl_params['sfreq']
 # x axis for estimated intensity function
 xx = np.linspace(0, 500e-3, 500)
 
-u_hat_ = np.array(dict_global['dict_cdl_fit_res']['u_hat_'])
+u_hat_ = np.array(dict_global['dict_cdl_fit_res']['u_hat_'])  # (n_atoms, 203)
 v_hat_ = np.array(dict_global['dict_cdl_fit_res']['v_hat_'])
 
 for ii, kk in enumerate(plotted_atoms):
@@ -179,7 +180,7 @@ plt.savefig(path_fig, dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
-# %% Compare to classical method
+# %% Compare to classical method of evoked responses
 sample_data_folder = mne.datasets.sample.data_path()
 sample_data_evk_file = os.path.join(sample_data_folder, 'MEG', 'sample',
                                     'sample_audvis-ave.fif')
@@ -199,7 +200,10 @@ for this_cond, v_k in zip(['aud', 'vis'], [v_hat_[2], v_hat_[6]]):
     figs[1].savefig(SAVE_RESULTS_PATH /
                     (this_cond + '_evoked_joint.pdf'), dpi=300)
 
-# %% ICA
+# %% Compute cosine similarity between artifacts from CDL and from ICA
+
+# get ICA components
+sample_data_folder = mne.datasets.sample.data_path()
 sample_data_raw_file = os.path.join(sample_data_folder, 'MEG', 'sample',
                                     'sample_audvis_raw.fif')
 raw = mne.io.read_raw_fif(sample_data_raw_file)
@@ -211,5 +215,25 @@ filt_raw = raw.copy()
 filt_raw.load_data().filter(l_freq=1., h_freq=None)
 ica = mne.preprocessing.ICA(n_components=15, max_iter='auto', random_state=97)
 ica.fit(filt_raw)
+ica.get_components().shape  # (203, n_components)
 
-ica.get_components()
+# identify ICA components link to artifact
+ica.plot_components(picks=[0, 1], ch_type='grad')
+ica_heartbeat = ica.get_components()[:, 0]
+ica_eye_blink = ica.get_components()[:, 1]
+
+# compute cosine distance between heartbeat artifacts
+u_heartbeat = u_hat_[0]
+mne.viz.plot_topomap(u_heartbeat, info, show=True)
+ica.plot_components(picks=[0], ch_type='grad')
+print("cosine distance between heartbeat artifacts",
+      cosine(u_heartbeat, ica_heartbeat))
+
+# compute cosine distance between eye-blink artifacts
+u_eye_blink = u_hat_[1]
+mne.viz.plot_topomap(u_eye_blink, info, show=True)
+ica.plot_components(picks=[1], ch_type='grad')
+print("cosine distance between eye-blink artifacts",
+      cosine(u_eye_blink, ica_eye_blink))
+
+# %%

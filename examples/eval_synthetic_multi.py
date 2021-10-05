@@ -61,7 +61,7 @@ simu_params = {'lower': 30e-3, 'upper': 800e-3,
 # parameters to vary for data simulation
 simu_params_to_vary = {
     # 'seed': list(range(30)),
-    'seed': list(range(15)),
+    'seed': list(range(15, 45)),
     'n_tasks': [0.1, 0.3, 0.6]
     # 'n_tasks': [0.3]
     # 'seed': list(range(8)),
