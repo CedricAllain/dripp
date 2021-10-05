@@ -18,7 +18,7 @@ from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 # =======================================
 
 def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
-                        verbose=False):
+                        add_jitter=True, verbose=False):
     """ Simulate regular timestamps over the interval
     [start + 2 * isi ; start + T - 2 * isi],
     with a inter stimuli interval of `isi`,
@@ -90,7 +90,11 @@ def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
 
         # sample timestamps
         rng = np.random.RandomState(seed)
-        timestamps = rng.choice(timestamps, size=n_tasks, replace=False)
+        timestamps = rng.choice(timestamps, size=n_tasks,
+                                replace=False).astype(float)
+        if add_jitter:
+            jitters = rng.uniform(low=-isi*0.4, high=isi*0.4, size=n_tasks)
+            timestamps += jitters
         timestamps.sort()
 
     if verbose:

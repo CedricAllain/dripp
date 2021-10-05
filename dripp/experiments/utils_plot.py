@@ -1,11 +1,11 @@
 """
 
 """
-
 import numpy as np
-import matplotlib.pyplot as plt
-
 import mne
+
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 
@@ -46,14 +46,6 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
 
     """
 
-    #
-    fontsize = 8
-    plt.rcParams.update(plt.rcParamsDefault)
-    plt.rcParams.update({
-        "xtick.labelsize": fontsize,
-        'ytick.labelsize': fontsize,
-    })
-
     if plotted_atoms == 'all':
         plotted_atoms = range(cdl_params['n_atoms'])
 
@@ -88,10 +80,27 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
     else:
         n_atoms = len(plotted_atoms)
     # shape of the final figure
-    n_columns = min(6, n_atoms)
+    n_columns = min(5, n_atoms)
     split = int(np.ceil(n_atoms / n_columns))
-    figsize = (4 * n_columns, 3 * n_plots * split)
-    fig, axes = plt.subplots(n_plots * split, n_columns, figsize=figsize)
+
+    if split > 1:
+        paper = False  # not for paper
+        fontsize = 12
+        plt.rcParams.update(plt.rcParamsDefault)
+        figsize = (4 * n_columns, 3 * n_plots * split)
+        fig, axes = plt.subplots(n_plots * split, n_columns, figsize=figsize)
+    else:
+        paper = True
+        fontsize = 8
+        plt.rcParams.update(plt.rcParamsDefault)
+        plt.rcParams.update({
+            "xtick.labelsize": fontsize,
+            'ytick.labelsize': fontsize,
+        })
+        fig = plt.figure(figsize=(5.5, 3.5 * split))
+        gs = gridspec.GridSpec(nrows=n_plots * split, ncols=n_columns,
+                               hspace=0.26, wspace=0.2, figure=fig)
+
     # get CDL results
     u_hat_ = np.array(dict_global['dict_cdl_fit_res']['u_hat_'])  # spatial
     v_hat_ = np.array(dict_global['dict_cdl_fit_res']['v_hat_'])  # temporal
@@ -112,31 +121,48 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
 
         # Select the axes to display the current atom
         i_row, i_col = ii // n_columns, ii % n_columns
-        it_axes = iter(axes[i_row * n_plots:(i_row + 1) * n_plots, i_col])
+        if not paper:
+            it_axes = iter(axes[i_row * n_plots:(i_row + 1) * n_plots, i_col])
 
         # Select the current atom
         u_k = u_hat_[kk]
         v_k = v_hat_[kk]
 
         # next atom to plot
-        ax = next(it_axes)
+        if paper:
+            ax = fig.add_subplot(gs[i_row * n_plots, i_col])
+        else:
+            ax = next(it_axes)
+
         ax.set_title('Atom % d' % kk, fontsize=fontsize, pad=0)
 
         # Plot the spatial map of the atom using mne topomap
         mne.viz.plot_topomap(data=u_k, pos=info, axes=ax, show=False)
         if i_col == 0:
-            ax.set_ylabel('Spatial', labelpad=58, fontsize=fontsize)
+            ax.set_ylabel('Spatial', labelpad=30, fontsize=fontsize)
 
         # Plot the temporal pattern of the atom
-        ax = next(it_axes)
+        if paper:
+            ax = fig.add_subplot(gs[i_row * n_plots + 1, i_col])
+        else:
+            ax = next(it_axes)
         ax.plot(t, v_k)
         ax.set_xlim(0, atom_duration)
         if i_col == 0:
+            temporal_ax = ax
             ax.set_ylabel('Temporal', fontsize=fontsize)
+
+        if i_col > 0:
+            ax.get_yaxis().set_visible(False)
+            temporal_ax.get_shared_y_axes().join(temporal_ax, ax)
+            ax.autoscale()
 
         # Power Spectral Density (PSD)
         if plot_psd:
-            ax = next(it_axes)
+            if paper:
+                ax = fig.add_subplot(gs[i_row * n_plots + 2, i_col])
+            else:
+                ax = next(it_axes)
             psd = np.abs(np.fft.rfft(v_k, n=256)) ** 2
             frequencies = np.linspace(0, sfreq / 2.0, len(psd))
             ax.semilogy(frequencies, psd, label="PSD", color="k")
@@ -144,7 +170,7 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
             ax.set_xlabel("Frequencies (Hz)", fontsize=fontsize)
             ax.grid(True)
             if i_col == 0:
-                ax.set_ylabel("Power Spectral Density", labelpad=13,
+                ax.set_ylabel("Power Spectral Density", labelpad=8,
                               fontsize=fontsize)
 
         # plot the estimate intensity function
@@ -160,7 +186,11 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
             # n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
             # df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
 
-            ax = next(it_axes)
+            if paper:
+                ax = fig.add_subplot(gs[i_row * n_plots + 2 + plot_psd, i_col])
+            else:
+                ax = next(it_axes)
+
             for jj, label in enumerate(plotted_tasks.keys()):
                 # unpack parameters estimates
                 alpha = list(df_atom['alpha_hat'])[0][jj]
@@ -174,27 +204,33 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
                 # lambda_max = baseline + alpha * kernel.max
                 # ratio_lambda_max = lambda_max / baseline
 
-                if i_col == 0:
+                if i_col == n_columns - 1:
                     ax.plot(xx, yy, label=label)
                 else:
                     ax.plot(xx, yy)
 
-            ax.set_xlim(0, upper)
-            ax.set_xlabel('Time (s)', fontsize=fontsize)
-
             # share y scale
-            if ii == 0:
+            if i_col == 0:
                 intensity_ax = ax
+                ax.set_ylabel('Intensity', labelpad=15, fontsize=fontsize)
             else:
+                ax.get_yaxis().set_visible(False)
                 intensity_ax.get_shared_y_axes().join(intensity_ax, ax)
                 ax.autoscale()
 
-            if i_col == 0:
-                ax.set_ylabel('Intensity', labelpad=15, fontsize=fontsize)
+            if i_col == n_columns - 1:
                 ax.legend(fontsize=fontsize, handlelength=1)
+
+            ax.set_xlim(0, upper)
+            ax.set_xlabel('Time (s)', fontsize=fontsize)
+            ax.set_xticklabels([0, np.round(upper/2, 2), np.round(upper, 1)],
+                               fontsize=fontsize)
 
     fig.tight_layout()
     # save figure
     if save_fig:
         plt.savefig(path_fig, dpi=300, bbox_inches='tight')
+        if 'pdf' in str(path_fig):
+            plt.savefig(str(path_fig).replace('pdf', 'png'), dpi=300,
+                        bbox_inches='tight')
     return fig

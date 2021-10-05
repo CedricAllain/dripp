@@ -14,6 +14,9 @@ from dripp.config import SAVE_RESULTS_PATH
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.experiments.utils_plot import plot_cdl_atoms
 
+SAVE_RESULTS_PATH /= 'results_sample'
+if not SAVE_RESULTS_PATH.exists():
+    SAVE_RESULTS_PATH.mkdir(parents=True)
 
 N_JOBS = 10  # number of jobs to run in parallel. To adjust based on machine
 
@@ -217,8 +220,13 @@ ica = mne.preprocessing.ICA(n_components=15, max_iter='auto', random_state=97)
 ica.fit(filt_raw)
 ica.get_components().shape  # (203, n_components)
 
-# identify ICA components link to artifact
-ica.plot_components(picks=[0, 1], ch_type='grad')
+# Plot and save some figures
+fig = ica.plot_sources(raw, picks=[0, 1], show_scrollbars=False)
+fig.savefig(SAVE_RESULTS_PATH / 'ica_sources.pdf', dpi=300)
+fig = ica.plot_components(picks=[0, 1], ch_type='grad')
+fig.savefig(SAVE_RESULTS_PATH / 'ica_components.pdf', dpi=300)
+
+# identify ICA components link to artifact (manually from previous plot)
 ica_heartbeat = ica.get_components()[:, 0]
 ica_eye_blink = ica.get_components()[:, 1]
 
@@ -226,14 +234,16 @@ ica_eye_blink = ica.get_components()[:, 1]
 u_heartbeat = u_hat_[0]
 mne.viz.plot_topomap(u_heartbeat, info, show=True)
 ica.plot_components(picks=[0], ch_type='grad')
-print("cosine distance between heartbeat artifacts",
-      cosine(u_heartbeat, ica_heartbeat))
+cos_simi_heartbeat = 1 - cosine(u_heartbeat, ica_heartbeat)
+print("cosine distance between heartbeat artifacts: %.2f%%" %
+      (cos_simi_heartbeat * 100))
 
 # compute cosine distance between eye-blink artifacts
 u_eye_blink = u_hat_[1]
 mne.viz.plot_topomap(u_eye_blink, info, show=True)
 ica.plot_components(picks=[1], ch_type='grad')
-print("cosine distance between eye-blink artifacts",
-      cosine(u_eye_blink, ica_eye_blink))
+cos_simi_eye_blink = 1 - cosine(u_eye_blink, ica_eye_blink)
+print("cosine similarity between eye-blink artifacts: %.2f%%" %
+      (cos_simi_eye_blink * 100))
 
 # %%

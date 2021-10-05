@@ -3,7 +3,7 @@ Evaluate DriPP in the multivariate (i.e., multiple drivers) case
 """
 
 # %%
-
+import pandas as pd
 from dripp.trunc_norm_kernel.em import compute_nexts
 from dripp.trunc_norm_kernel.optim import initialize
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
@@ -54,16 +54,17 @@ simu_params = {'lower': 30e-3, 'upper': 800e-3,
                'alpha': [0.8, 0.8],
                #    'm': [200e-3, 400e-3],
                #    'm': [300e-3, 300e-3],
-               'm': [400e-3, 400e-3],
+               'm': [300e-3, 300e-3],
                'sigma': [0.2, 0.05],
-               'isi': [1, 1.4]}
+               'isi': [1.2, 1.2]
+               }
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
     # 'seed': list(range(30)),
-    'seed': list(range(15, 45)),
+    'seed': list(range(20)),
     'n_tasks': [0.1, 0.3, 0.6]
-    # 'n_tasks': [0.3]
+    # 'n_tasks': [0.3],
     # 'seed': list(range(8)),
     # 'n_tasks': [0.4]
 }
@@ -89,8 +90,8 @@ df_res = run_multiple_em_on_synthetic(
 # %% ------ PLOT KERNEL RETRIEVAL ------
 # (Figure 2 in paper)
 
-T = 1_000
-n_tasks = 0.6
+T = em_params_to_vary['T'][-1]
+n_tasks = simu_params_to_vary['n_tasks'][-1]
 
 fig, axes = plt.subplots(1, 2, figsize=figsize)
 

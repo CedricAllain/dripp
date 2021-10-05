@@ -109,7 +109,7 @@ def eval_camcan(subject_id):
         method = "batch"
 
     for n_top_atoms in [5, None]:
-        fig_name = DATA_SOURCE + '_' + subject_id + '_' + method + '_'
+        fig_name = DATA_SOURCE + '_' + subject_id + '_'  # + method + '_'
         if n_top_atoms is not None:
             fig_name += str(n_top_atoms) + '_top_atoms.pdf'
         else:
@@ -124,14 +124,6 @@ def eval_camcan(subject_id):
 
 
 def get_info_camcan(subject_id):
-    bp = BIDSPath(
-        root=BIDS_ROOT,
-        subject=subject_id,
-        task="smt",
-        datatype="meg",
-        extension=".fif",
-        session="smt",
-    )
     # get age and sex of the subject
     participants = pd.read_csv(PARTICIPANTS_FILE, sep='\t', header=0)
     age, sex = participants[participants['participant_id']

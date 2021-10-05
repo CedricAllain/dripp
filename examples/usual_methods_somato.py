@@ -8,11 +8,17 @@
 import os.path as op
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 import mne
-from mne.time_frequency import tfr_morlet, psd_multitaper, psd_welch
+from mne.time_frequency import tfr_morlet
 from mne.datasets import somato
+
+from dripp.config import SAVE_RESULTS_PATH
+
+
+SAVE_RESULTS_PATH /= 'usual_methods_somato'
+if not SAVE_RESULTS_PATH.exists():
+    SAVE_RESULTS_PATH.mkdir(parents=True)
 
 data_path = somato.data_path()
 subject = '01'
@@ -39,7 +45,7 @@ freqs = np.logspace(*np.log10([6, 35]), num=8)
 n_cycles = freqs / 2.  # different number of cycle per frequency
 power, itc = tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True,
                         return_itc=True, decim=3, n_jobs=1)
-power.plot_joint(baseline=(-0.5, 0), mode='mean', tmin=-.5, tmax=2,
-                 timefreqs=[(.5, 10), (1.3, 8)])
-
+figs = power.plot_joint(baseline=(-0.5, 0), mode='mean', tmin=-.5, tmax=2,
+                        timefreqs=[(1, 7), (1.3, 8)])
+figs.savefig(SAVE_RESULTS_PATH / ('somato_time_freq.pdf'), dpi=300)
 # %%
