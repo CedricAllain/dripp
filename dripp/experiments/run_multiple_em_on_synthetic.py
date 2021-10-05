@@ -96,16 +96,17 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         # crop process for the given length of T
         T = em_params_temp['T']
         acti_tt = acti_tt_[acti_tt_ < T]
-        mask = driver_tt_ < T
-        list_tt = []
-        n_tt = []
-        for i, this_mask in enumerate(mask):
-            this_driver_tt = list(driver_tt_[i][this_mask])
-            n_tt.append(len(this_driver_tt))
-            list_tt.append(this_driver_tt)
-        driver_tt = np.array([tt[:min(n_tt)] for tt in list_tt])
+        # mask = driver_tt_ < T
+        # list_tt = []
+        # n_tt = []
+        # for i, this_mask in enumerate(mask):
+        #     this_driver_tt = list(driver_tt_[i][this_mask])
+        #     n_tt.append(len(this_driver_tt))
+        #     list_tt.append(this_driver_tt)
+        # driver_tt = np.array([tt[:min(n_tt)] for tt in list_tt])
         # respect no-overlapping assumption
         # driver_tt = driver_tt_[driver_tt_ < T - em_params_temp['upper']]
+        driver_tt = [tt[tt < T] for tt in driver_tt_]
 
         # run EM
         start_time = time.time()
@@ -150,9 +151,9 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
             common_tt = set(driver_tt[0])
             for p in range(1, n_drivers):
                 common_tt = common_tt.intersection(driver_tt[1])
-            ppt_common = len(common_tt) / driver_tt.shape[1]
+            # ppt_common = len(common_tt) / driver_tt.shape[1]
             new_row['n_common'] = len(common_tt)
-            new_row['ppt_common'] = ppt_common
+            # new_row['ppt_common'] = ppt_common
 
         # for each kernel, compute the relative infinite norm
         for p in range(n_drivers):
@@ -171,7 +172,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
             new_row['infinite_norm_of_diff_rel_kernel_%i' %
                     p] = inf_norm_rel
             # add number of events created for each driver
-            new_row['n_driver_tt_kernel_%i' % p] = len(driver_tt_[p])
+            new_row['n_driver_tt_kernel_%i' % p] = len(driver_tt[p])
 
         # add new row
         new_rows.append(new_row)

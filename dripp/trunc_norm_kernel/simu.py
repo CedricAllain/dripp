@@ -320,7 +320,7 @@ if __name__ == '__main__':
     start_time = time.time()
     driver_tt, acti_tt, kernel, intensity = simulate_data(
         lower=30e-3, upper=500e-3,
-        m=[200e-3, 400e-3], sigma=[0.2, 0.05],
+        m=[400e-3, 400e-3], sigma=[0.2, 0.05],
         sfreq=1000.,
         baseline=0.5, alpha=[0.8, 0.8],
         T=T, isi=1, n_tasks=0.2,

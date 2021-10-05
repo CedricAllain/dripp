@@ -64,7 +64,8 @@ plot_cdl_atoms(dict_global, cdl_params, info,
 # ==================================================================
 
 # list of atoms selection to plot (3 graphes of 3 cherry picked atoms)
-plotted_atoms_list = [[2, 7, 10], [1, 2, 4], [0, 7, 10]]
+# plotted_atoms_list = [[2, 7, 10], [1, 2, 4], [0, 7, 10]]
+plotted_atoms_list = [[0, 2, 7]]
 
 fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
@@ -234,6 +235,7 @@ for plotted_atoms in plotted_atoms_list:
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.close()
 
+# %%
 
 # ================================================================
 # PLOT ALL EXTRACTED ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS

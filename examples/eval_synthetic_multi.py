@@ -49,32 +49,37 @@ SFREQ = 1000
 
 # default parameters for data simulation
 simu_params = {'lower': 30e-3, 'upper': 800e-3,
-               'baseline': 0.5,
+               #    'baseline': 0.5,
+               'baseline': 0.8,
                'alpha': [0.8, 0.8],
                #    'm': [200e-3, 400e-3],
-               'm': [300e-3, 300e-3],
+               #    'm': [300e-3, 300e-3],
+               'm': [400e-3, 400e-3],
                'sigma': [0.2, 0.05],
-               'isi': 1}
+               'isi': [1, 1.4]}
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
     # 'seed': list(range(30)),
-    # 'n_tasks': [0.2, 0.4, 0.8]
-    'seed': list(range(8)),
-    'n_tasks': [0.4]
+    'seed': list(range(15)),
+    'n_tasks': [0.1, 0.3, 0.6]
+    # 'n_tasks': [0.3]
+    # 'seed': list(range(8)),
+    # 'n_tasks': [0.4]
 }
 
 # assert np.max(simu_params_to_vary['n_tasks']) * N_DRIVERS <= 1
 
 
 # default parameters for EM computation
+N_ITER = 50
 em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
-             'initializer': 'smart_start', 'n_iter': 200, 'alpha_pos': True,
+             'initializer': 'smart_start', 'n_iter': N_ITER, 'alpha_pos': True,
              'verbose': False}
 
 # parameters to vary for EM computation
-# em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
-em_params_to_vary = {'T': np.array([3000])}
+em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
+# em_params_to_vary = {'T': np.array([10_000])}
 T_max = em_params_to_vary['T'].max()
 
 df_res = run_multiple_em_on_synthetic(
@@ -84,8 +89,8 @@ df_res = run_multiple_em_on_synthetic(
 # %% ------ PLOT KERNEL RETRIEVAL ------
 # (Figure 2 in paper)
 
-T = 3000
-n_tasks = 0.4
+T = 1_000
+n_tasks = 0.6
 
 fig, axes = plt.subplots(1, 2, figsize=figsize)
 
@@ -93,10 +98,6 @@ start, stop = 0, 1
 xx = np.linspace(start, stop, (stop - start) * 300)
 
 for i in range(N_DRIVERS):
-    # filter resulsts dataframe
-    df_comb = df_res[(df_res['T'] == T) &
-                     (df_res['n_tasks'] == n_tasks)]
-
     # define true kernel
     kernel_true = TruncNormKernel(
         simu_params['lower'], simu_params['upper'],
@@ -132,8 +133,10 @@ for i in range(N_DRIVERS):
     axes[i].set_title(title, fontsize=fontsize)
 
 plt.tight_layout()
-plt.savefig(SAVE_RESULTS_PATH / ('fig2_multi_%i.pdf' % T), dpi=300)
-plt.savefig(SAVE_RESULTS_PATH / ('fig2_multi_%i.png' % T), dpi=300)
+fig_name = 'fig2_multi_%i_%s_n_iter_%i.pdf' % (
+    T, str(n_tasks).replace('.', '_'), N_ITER)
+plt.savefig(SAVE_RESULTS_PATH / fig_name, dpi=300)
+plt.savefig(SAVE_RESULTS_PATH / (fig_name.replace('pdf', 'png')), dpi=300)
 plt.show()
 plt.close()
 # %%
@@ -224,32 +227,19 @@ plt.show()
 plt.close()
 
 
-# plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
-# plt.ylabel(r"Mean $\|\ \|_{\infty} / \lambda^*_{max}$",
-#            fontsize=fontsize)
-# plt.tight_layout()
-# plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.pdf',
-#             dpi=300, bbox_inches='tight')
-# plt.savefig(SAVE_RESULTS_PATH / 'fig3_mean_multi.png',
-#             dpi=300, bbox_inches='tight')
-# plt.show()
-# plt.close()
+# ------ PLOT COMPUTATION TIME OF THE RELATIVE NORM ------
+# (Figure A.2 in paper)
 
-# # std
-# for p in range(N_DRIVERS):
-#     columns = ['T', n_tasks_str, 'infinite_norm_of_diff_rel_kernel_%i' % p]
-#     df_std = df_temp[columns].groupby(
-#         ['T', n_tasks_str]).std().unstack()
-#     df_std.columns = df_std.columns.droplevel()
-#     df_std.plot(logy=True, logx=True, cmap=cmap)
+plt.figure(figsize=figsize)
 
-# plt.xlabel(r"$T$ (s)", fontsize=fontsize, labelpad=0)
-# plt.ylabel(r"STD $\|\ \|_{\infty} / \lambda^*_{max}$",
-#            fontsize=fontsize)
-# plt.tight_layout()
-# plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.pdf',
-#             dpi=300, bbox_inches='tight')
-# plt.savefig(SAVE_RESULTS_PATH / 'fig3_std_multi.png',
-#             dpi=300, bbox_inches='tight')
-# plt.show()
-# plt.close()
+ax = sns.lineplot(data=df_res, x="T", y="comput_time",
+                  markers=["."], estimator='mean', ci=95)
+ax.set_xlim(em_params_to_vary['T'].min(), em_params_to_vary['T'].max())
+ax.set_xlabel(r"$T$ (s)", fontsize=fontsize)
+ax.set_ylabel('CPU time (s)', fontsize=fontsize)
+ax.set_xscale('log')
+
+plt.tight_layout()
+plt.savefig(SAVE_RESULTS_PATH / 'fig3_computation_time_multi.pdf', dpi=300)
+plt.show()
+plt.close()

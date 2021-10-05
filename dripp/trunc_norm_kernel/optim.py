@@ -3,6 +3,7 @@ XXX
 """
 # %%
 import numpy as np
+import time
 from functools import partial
 from numpy.core.records import array
 from tqdm import tqdm
@@ -562,16 +563,25 @@ def em_truncated_norm(acti_tt, driver_tt=(),
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 2_000  # process time, in seconds
-    lower, upper = 30e-3, 500e-3
-    sfreq = 150.
+    T = 10_000  # process time, in seconds
+    lower, upper = 30e-3, 800e-3
+    sfreq = 1000.
+    start_time = time.time()
     driver_tt, acti_tt, _, _ = simulate_data(
-        lower=lower, upper=upper, m=150e-3, sigma=0.1, sfreq=sfreq,
-        baseline=0.8, alpha=1, T=T, isi=1, n_tasks=0.4,
-        n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
+        lower=lower, upper=upper,
+        m=[400e-3, 400e-3], sigma=[0.2, 0.05],
+        sfreq=sfreq,
+        baseline=0.8, alpha=[0.8, 0.8],
+        T=T, isi=[1, 1.2], n_tasks=0.3,
+        n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
+    simu_time = time.time() - start_time
+    print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
+          % (N_DRIVERS, T, simu_time))
 
     res_params = em_truncated_norm(acti_tt, driver_tt, lower, upper, T, sfreq,
                                    n_iter=300)[0]
+    em_time = time.time() - start_time
+    print('EM time', em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)
 
 # %%

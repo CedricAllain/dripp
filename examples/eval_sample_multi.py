@@ -1,5 +1,6 @@
 # %%
 
+import os
 import numpy as np
 import mne
 import matplotlib.pyplot as plt
@@ -178,4 +179,37 @@ plt.savefig(path_fig, dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
-# %%
+# %% Compare to classical method
+sample_data_folder = mne.datasets.sample.data_path()
+sample_data_evk_file = os.path.join(sample_data_folder, 'MEG', 'sample',
+                                    'sample_audvis-ave.fif')
+evokeds_list = mne.read_evokeds(sample_data_evk_file, baseline=(None, 0),
+                                proj=True, verbose=False)
+conds = ('aud/left', 'aud/right', 'vis/left', 'vis/right')
+evks = dict(zip(conds, evokeds_list))
+
+for this_cond, v_k in zip(['aud', 'vis'], [v_hat_[2], v_hat_[6]]):
+    evoked = mne.combine_evoked(
+        [evks[this_cond + '/left'], evks[this_cond + '/right']],
+        weights='nave')
+    figs = evoked.plot_joint()
+    fig = figs[1]
+    ax = fig.axes[0].twinx()
+    ax.plot(t, v_k)
+    figs[1].savefig(SAVE_RESULTS_PATH /
+                    (this_cond + '_evoked_joint.pdf'), dpi=300)
+
+# %% ICA
+sample_data_raw_file = os.path.join(sample_data_folder, 'MEG', 'sample',
+                                    'sample_audvis_raw.fif')
+raw = mne.io.read_raw_fif(sample_data_raw_file)
+raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
+raw.crop(tmax=60.)
+
+# Compute and plot ICA
+filt_raw = raw.copy()
+filt_raw.load_data().filter(l_freq=1., h_freq=None)
+ica = mne.preprocessing.ICA(n_components=15, max_iter='auto', random_state=97)
+ica.fit(filt_raw)
+
+ica.get_components()
