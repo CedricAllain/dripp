@@ -343,13 +343,16 @@ class Intensity():
         return intensities
 
     def get_max(self):
-        """Compute maximum intensity
+        """Compute maximum intensity at every kernel
 
         Returns
         -------
-        float
+        array-like
 
         """
+
+        m = np.array([self.baseline + self.alpha[p] * self.kernel[p].max
+                      for p in range(self.n_driver)])
 
         # lifting the non-overlapping assumption: get empirical max
         # first_xx = np.floor(np.array([tt.min()
@@ -394,11 +397,11 @@ class Intensity():
 
         # ====================================
         # compute a supremum
-        m = 0
-        for p in range(len(self.kernel)):
-            m = max(m, self.alpha[p] * self.kernel[p].get_max())
+        # m = 0
+        # for p in range(len(self.kernel)):
+        #     m = max(m, self.alpha[p] * self.kernel[p].get_max())
 
-        m += self.baseline
+        # m += self.baseline
 
         # ====================================
 
