@@ -77,8 +77,9 @@ def eval_camcan(subject_id):
     #                  'button': [4]}
 
     plotted_tasks = {'audivis_catch0': [1, 2, 3, 5],
-                     'audivis_catch1': [1, 2, 3, 6]}
-    #  'button': [4]}
+                     'audivis_catch1': [1, 2, 3, 6]
+                     #  'button': [4]
+                     }
     n_top_atoms = 5
 
     # get raw info

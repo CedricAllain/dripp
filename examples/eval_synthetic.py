@@ -13,7 +13,7 @@ import seaborn as sns
 
 from dripp.experiments.run_multiple_em_on_synthetic import \
     run_multiple_em_on_synthetic
-from dripp.config import SAVE_RESULTS_PATH
+from dripp.config import SAVE_RESULTS_PATH, N_JOBS
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
@@ -37,23 +37,15 @@ plt.rcParams.update({
 figsize = (5.5, 2)
 cmap = 'viridis_r'
 
-# %%
-# ===================================================
-# DATA SIMULATION PARAMETERS
-# ===================================================
-
+# %% ------ Set data simulation parameters and run EM ------
 
 N_DRIVERS = 2
-N_JOBS = 50
 SFREQ = 1000
 
 # default parameters for data simulation
 simu_params = {'lower': 30e-3, 'upper': 800e-3,
-               #    'baseline': 0.5,
                'baseline': 0.8,
                'alpha': [0.8, 0.8],
-               #    'm': [200e-3, 400e-3],
-               #    'm': [300e-3, 300e-3],
                'm': [300e-3, 300e-3],
                'sigma': [0.2, 0.05],
                'isi': [1.2, 1.2]
@@ -61,16 +53,9 @@ simu_params = {'lower': 30e-3, 'upper': 800e-3,
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
-    # 'seed': list(range(30)),
     'seed': list(range(20)),
     'n_tasks': [0.1, 0.3, 0.6]
-    # 'n_tasks': [0.3],
-    # 'seed': list(range(8)),
-    # 'n_tasks': [0.4]
 }
-
-# assert np.max(simu_params_to_vary['n_tasks']) * N_DRIVERS <= 1
-
 
 # default parameters for EM computation
 N_ITER = 50
@@ -80,7 +65,6 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
 
 # parameters to vary for EM computation
 em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
-# em_params_to_vary = {'T': np.array([10_000])}
 T_max = em_params_to_vary['T'].max()
 
 df_res = run_multiple_em_on_synthetic(
@@ -140,8 +124,8 @@ plt.savefig(SAVE_RESULTS_PATH / fig_name, dpi=300)
 plt.savefig(SAVE_RESULTS_PATH / (fig_name.replace('pdf', 'png')), dpi=300)
 plt.show()
 plt.close()
-# %%
-# ------ PLOT MEAN/STD OF THE RELATIVE NORM ------
+
+# %% ------ PLOT MEAN/STD OF THE RELATIVE NORM ------
 # (Figure 3 and A.1 in paper)
 
 list_df_mean = []
@@ -228,7 +212,7 @@ plt.show()
 plt.close()
 
 
-# ------ PLOT COMPUTATION TIME OF THE RELATIVE NORM ------
+# %% ------ PLOT COMPUTATION TIME OF THE RELATIVE NORM ------
 # (Figure A.2 in paper)
 
 plt.figure(figsize=figsize)

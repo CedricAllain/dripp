@@ -19,7 +19,22 @@ EPS = np.finfo(float).eps
 
 
 def compute_lebesgue_support(all_tt, lower, upper):
-    """Compute the Lebesgue measure
+    """Compute the Lebesgue measure of the union of the kernels supports
+    following a set of timestamps
+    Compute lebesgue_measure(Union{[tt + lower, tt + upper] for tt in all_tt})
+
+    Parameters
+    ----------
+    all_tt : array-like
+        the set of all timestamps that induce a kernel support
+
+    lower, upper : float
+        lower and upper bounds of the truncated gaussian kernel
+
+
+    Returns
+    -------
+    float, the Lesbegue measure of the supports union.
 
     """
     s = 0
@@ -67,48 +82,48 @@ def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
     return baseline_init
 
 
-def initialize_alpha(baseline, ppt_in_support, ppt_of_support):
-    """Initializa parameter alpha for the "smart start" initialization strategy
+# def initialize_alpha(baseline, ppt_in_support, ppt_of_support):
+#     """Initializa parameter alpha for the "smart start" initialization strategy
 
-    Parameters
-    ----------
-    baseline : float
-        intensity baseline parameter
+#     Parameters
+#     ----------
+#     baseline : float
+#         intensity baseline parameter
 
-    ppt_in_support : float | array-like
-        proportion of activation that kend in kernel support
+#     ppt_in_support : float | array-like
+#         proportion of activation that kend in kernel support
 
-    ppt_of_support : float | array-like
-        proportion of all kernel supports over T
+#     ppt_of_support : float | array-like
+#         proportion of all kernel supports over T
 
 
-    Returns
-    -------
-    array-like
+#     Returns
+#     -------
+#     array-like
 
-    """
+#     """
 
-    ppt_in_support_list = np.atleast_1d(ppt_in_support)
-    ppt_of_support_list = np.atleast_1d(ppt_of_support)
+#     ppt_in_support_list = np.atleast_1d(ppt_in_support)
+#     ppt_of_support_list = np.atleast_1d(ppt_of_support)
 
-    assert len(ppt_in_support_list) == len(ppt_of_support_list)
+#     assert len(ppt_in_support_list) == len(ppt_of_support_list)
 
-    alpha_init_list = []
-    for ppt_in_support, ppt_of_support in zip(ppt_in_support_list,
-                                              ppt_of_support_list):
+#     alpha_init_list = []
+#     for ppt_in_support, ppt_of_support in zip(ppt_in_support_list,
+#                                               ppt_of_support_list):
 
-        if ppt_in_support == 1 or baseline == 0:
-            alpha_init_list.append(1)
-            continue
+#         if ppt_in_support == 1 or baseline == 0:
+#             alpha_init_list.append(1)
+#             continue
 
-        a = np.exp(baseline)
-        lim = ((a-1) / 5 + 1 / (1 - ppt_of_support)) ** (-1) + ppt_of_support
-        alpha_init = -a * \
-            np.log((lim - ppt_in_support) / (lim - ppt_of_support))
+#         a = np.exp(baseline)
+#         lim = ((a-1) / 5 + 1 / (1 - ppt_of_support)) ** (-1) + ppt_of_support
+#         alpha_init = -a * \
+#             np.log((lim - ppt_in_support) / (lim - ppt_of_support))
 
-        alpha_init_list.append(max(alpha_init, 0))  # project on [0 ; +infty]
+#         alpha_init_list.append(max(alpha_init, 0))  # project on [0 ; +infty]
 
-    return np.array(alpha_init_list)
+#     return np.array(alpha_init_list)
 
 
 def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
@@ -176,7 +191,7 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
             sigma_init = np.full(n_driver, fill_value=default_sigma)
             return baseline_init, alpha_init, m_init, sigma_init
 
-        # ------ initialize baseline ------
+        # initialize baseline
         baseline_init = initialize_baseline(
             acti_tt, driver_tt, lower, upper, T)
 
