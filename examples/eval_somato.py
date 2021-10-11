@@ -15,7 +15,7 @@ import mne_bids
 from alphacsc.datasets import somato
 from dripp.experiments.run_multiple_em_on_cdl import \
     run_multiple_em_on_cdl
-from dripp.config import SAVE_RESULTS_PATH
+from dripp.config import SAVE_RESULTS_PATH, N_JOBS
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.experiments.utils_plot import plot_cdl_atoms
 
@@ -25,8 +25,6 @@ from mne.time_frequency import tfr_morlet
 SAVE_RESULTS_PATH /= 'results_somato'
 if not SAVE_RESULTS_PATH.exists():
     SAVE_RESULTS_PATH.mkdir(parents=True)
-
-N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
 
 cdl_params = {
     'sfreq': 150.,
