@@ -13,5 +13,3 @@ if not SAVE_RESULTS_PATH.exists():
 # if not CACHEDIR.exists():
 #     CACHEDIR.mkdir(parents=True)
 CACHEDIR = Path('./__cache__')
-
-N_JOBS = 10  # number of jobs to run in parallel. To adjust based on machine

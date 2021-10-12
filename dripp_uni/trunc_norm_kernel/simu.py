@@ -3,12 +3,8 @@ Utils functions used for the simulation of driven point process
 with truncated Gaussian kernel
 """
 
-# %%
-
 import numpy as np
-import time
 
-from dripp.trunc_norm_kernel.utils import convert_variable_multi
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
 from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 
@@ -18,7 +14,7 @@ from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 # =======================================
 
 def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
-                        add_jitter=True, verbose=False):
+                        verbose=False):
     """ Simulate regular timestamps over the interval
     [start + 2 * isi ; start + T - 2 * isi],
     with a inter stimuli interval of `isi`,
@@ -90,11 +86,7 @@ def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
 
         # sample timestamps
         rng = np.random.RandomState(seed)
-        timestamps = rng.choice(timestamps, size=n_tasks,
-                                replace=False).astype(float)
-        if add_jitter:
-            jitters = rng.uniform(low=-isi*0.4, high=isi*0.4, size=n_tasks)
-            timestamps += jitters
+        timestamps = rng.choice(timestamps, size=n_tasks, replace=False)
         timestamps.sort()
 
     if verbose:
@@ -148,17 +140,16 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 
     assert T > 0, "The time duration must be stricly positive"
 
-    # if lambda_max is None:
-    #     lambda_max = intensity.get_max()
+    if lambda_max is None:
+        lambda_max = intensity.get_max()
 
     rng = np.random.RandomState(seed)
 
     tt_list = []
     s = 0.
     while s <= T:
-        lambda_max = intensity.get_next_lambda_max(s)
         u = rng.rand()
-        w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
+        w = -np.log(u) / lambda_max
         s += w
         D = rng.rand()
         if D <= intensity(s) / lambda_max:
@@ -181,24 +172,19 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 
 def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
                   baseline=0.8, alpha=1, T=240, isi=1, n_tasks=0.8,
-                  n_drivers=1, seed=None, return_nll=True, verbose=False):
+                  seed=None, verbose=False):
     """ Given some initial parameters, simulate driver's timestamps and
     driven process's activation timestamps, for the intensity defined with a
     truncated gaussian kernel.
 
     Parameters
     ----------
-    lower, upper : int | float | array-like
+    lower, upper : int | float
         kernel's truncation values
-        if lower and upper are int or float with n_drivers > 1, their values 
-        are shared accross all generated driver; if they are array-like, they
-        must be of length n_drivers
         default is 30e-3, 500e-3
 
-    m, sigma : int | float | array-like
+    m, sigma : int | float
         kernel's shape parameters: mean and stadard deviation, respectively
-        similarly to lower, upper, either the values are shared accross all
-        kernels, or they must be arrays of length n_drivers
         default is 150e-3, 0.1
 
     sfreq : int | None
@@ -213,42 +199,28 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         baseline intensity
         default is 0.8
 
-    alpha : int | float | array-like
+    alpha : int | float
         coefficient of influence of the driver on the process
-        similarly to lower, upper, either the value is shared accross all
-        kernels, or it must be an array of length n_drivers
         default is 1
 
     T : int | float
-        duration of the process, in seconds (same duration for all drivers)
+        duration of the process, in seconds
         default is 240
 
-    isi : int | float | array-like
+    isi : int | float
         inter stimuli interval
-        similarly to lower, upper, either the value is shared accross all
-        kernels, or it must be an array of length n_drivers
         default is 1
 
-    n_tasks : float | int | array-like | None
+    n_tasks: float | int | None
         number or percentage of timestamps to keep
         if None, keep them all
         if float between 0 and 1, act as a percentage
         if float > 1, then it is converted in int
-        similarly to lower, upper, either the value is shared accross all
-        kernels, or it must be an array of length n_drivers
         default is None
 
-    n_drivers : int
-        number of driver to simulate
-        default is 1
-
-    seed : int | array-like
+    seed : int
         the seed used for ramdom sampling
-        if n_drivers > 1, seed must be None or array-like of length n_drivers
         default is None
-
-    return_nll : bool
-        if True, compute and return the true negative log-likelihood (nll)
 
     verbose : bool
         if True, print some information linked to the timestamps generation
@@ -257,80 +229,31 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
 
     Returns
     -------
-    driver_tt : 1d | 2d numpy.array
+    driver_tt : 1d numpy.array
         driver's timestamps
-        if n_drivers > 1, the second dimension if n_drivers
 
-    acti_tt : 1d | 2d numpy.array
+    acti_tt : 1d numpy.array
         process's activation timestamps
-        if n_drivers > 1, the second dimension if n_drivers
 
-    if return_nll is True:
-        true_nll : float
-            negative log-likelihood of the process
-
-    kernel : array of TruncNormKernel instances
+    true_nll : float
+        negative log-likelihood of the process
 
     """
 
-    isi = convert_variable_multi(isi, n_drivers, repeat=True)
-    n_tasks = convert_variable_multi(n_tasks, n_drivers, repeat=True)
-    seed = convert_variable_multi(seed, n_drivers, repeat=True)
-    if seed[0] is not None:
-        rng = np.random.RandomState(seed[0])
-        seed += rng.choice(range(100), size=n_drivers, replace=False)
-
     # simulate task timestamps
-    driver_tt = []
-    for this_isi, this_n_tasks, this_seed in zip(isi, n_tasks, seed):
-        this_driver_tt = simu_timestamps_reg(
-            T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
-            verbose=verbose)
-        driver_tt.append(this_driver_tt)
-    driver_tt = np.array([np.array(x) for x in driver_tt])
+    driver_tt = simu_timestamps_reg(
+        T=T, isi=isi, n_tasks=n_tasks, seed=seed, verbose=verbose)
 
     # define kernel and intensity functions
-    lower = convert_variable_multi(lower, n_drivers, repeat=True)
-    upper = convert_variable_multi(upper, n_drivers, repeat=True)
-    m = convert_variable_multi(m, n_drivers, repeat=True)
-    sigma = convert_variable_multi(sigma, n_drivers, repeat=True)
-
-    kernel = []
-    for this_lower, this_upper, this_m, this_sigma in \
-            zip(lower, upper, m, sigma):
-        kernel.append(TruncNormKernel(this_lower, this_upper, this_m,
-                                      this_sigma, sfreq=sfreq))
-
-    alpha = convert_variable_multi(alpha, n_drivers, repeat=True)
+    kernel = TruncNormKernel(lower, upper, m, sigma, sfreq=sfreq)
     intensity = Intensity(baseline, alpha, kernel, driver_tt)
 
     # simulate activation timestamps
     acti_tt = simu_1d_nonhomogeneous_poisson_process(
-        intensity=intensity, T=T, seed=seed[0], verbose=verbose)
+        intensity=intensity, T=T, seed=seed, verbose=verbose)
+
+    # update intensity function and compute true negative log-likelihood
     intensity.acti_tt = acti_tt
+    true_nll = negative_log_likelihood(intensity=intensity, T=T)
 
-    if return_nll:
-        # update intensity function and compute true negative log-likelihood
-        intensity.acti_tt = acti_tt
-        true_nll = negative_log_likelihood(intensity=intensity, T=T)
-        return driver_tt, acti_tt, true_nll, kernel, intensity
-    else:
-        return driver_tt, acti_tt, kernel, intensity
-
-
-if __name__ == '__main__':
-    N_DRIVERS = 2
-    T = 10_000  # process time, in seconds
-    start_time = time.time()
-    driver_tt, acti_tt, kernel, intensity = simulate_data(
-        lower=30e-3, upper=500e-3,
-        m=[400e-3, 400e-3], sigma=[0.2, 0.05],
-        sfreq=1000.,
-        baseline=0.5, alpha=[0.8, 0.8],
-        T=T, isi=1, n_tasks=0.2,
-        n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
-    simu_time = time.time() - start_time
-    print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
-          % (N_DRIVERS, T, simu_time))
-
-# %%
+    return driver_tt, acti_tt, true_nll

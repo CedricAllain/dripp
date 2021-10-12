@@ -61,7 +61,7 @@ def compute_Cs(kernel):
 
     Parameters
     ----------
-    kernel : array-like of model.TruncNormKernel objects
+    kernel : model.TruncNormKernel object
 
     Returns
     -------
@@ -69,15 +69,13 @@ def compute_Cs(kernel):
         (C, C_m, C_sigma)
 
     """
-    C, C_m, C_sigma = [], [], []
-    for this_kernel in kernel:
-        m = this_kernel.m
-        sigma = this_kernel.sigma
-        lower, upper = this_kernel.lower, this_kernel.upper
+    m = kernel.m
+    sigma = kernel.sigma
+    lower, upper = kernel.lower, kernel.upper
 
-        C.append(compute_C(m, sigma, lower, upper))
-        C_m.append(compute_C_m(m, sigma, lower, upper))
-        C_sigma.append(compute_C_sigma(m, sigma, lower, upper))
+    C = compute_C(m, sigma, lower, upper)
+    C_m = compute_C_m(m, sigma, lower, upper)
+    C_sigma = compute_C_sigma(m, sigma, lower, upper)
 
     return C, C_m, C_sigma
 
@@ -111,7 +109,7 @@ def compute_p_tk(t, intensity, last_tt=()):
     return intensity.baseline / intensity(t, last_tt=last_tt)
 
 
-def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
+def compute_p_tp(t, intensity, last_tt=()):
     r"""Compute the probability that the activation at time $t$ has been
     triggered by the driver $p$.
 
@@ -138,34 +136,19 @@ def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
     """
 
     t = np.atleast_1d(t)
+    last_tt = np.array(last_tt)
 
-    list_p_tp = []
-    if non_overlapping:
-        last_tt = np.array(last_tt)
+    if last_tt.size == 0:
+        last_tt = get_last_timestamps(intensity.driver_tt, t)
 
-        if last_tt.size == 0:
-            last_tt = get_last_timestamps(intensity.driver_tt, t)
+    p_tp = intensity.alpha * intensity.kernel(t - last_tt)
+    p_tp /= intensity(t, last_tt=last_tt)
+    p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
 
-        for alpha, kernel, this_last_tt in zip(intensity.alpha, intensity.kernel, last_tt):
-            p_tp = alpha * kernel(t - this_last_tt)
-            p_tp /= intensity(t, last_tt=last_tt)
-            p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
+    if t.size == 1:
+        return p_tp[0]
 
-            if t.size == 1:
-                list_p_tp.append(p_tp[0])
-            else:
-                list_p_tp.append(p_tp)
-    # lifting of the non-overlapping assumption (default)
-    else:
-        # for every driver, compute the associated P_tp
-        for p in range(intensity.n_driver):
-            alpha, kernel = intensity.alpha[p], intensity.kernel[p]
-            p_tp = alpha * kernel(t[:, np.newaxis] -
-                                  intensity.driver_tt[p]).sum(axis=1)
-            p_tp /= intensity(t)
-            list_p_tp.append(p_tp)
-
-    return np.array(list_p_tp)
+    return p_tp
 
 
 def compute_next_baseline(intensity, T):
@@ -215,54 +198,30 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
 
     """
 
-    # sum over all activation timestamps
-    sum_p_tp = compute_p_tp(intensity.acti_tt, intensity,
-                            last_tt=intensity.acti_last_tt).sum(axis=1)
-
+    p_tp = compute_p_tp(intensity.acti_tt, intensity,
+                        last_tt=intensity.acti_last_tt)
+    sum_p_tp = p_tp.sum()
+    # if sum_p_tp == 0:
+    #     print('sum_p_tp is null in compute_next_alpha_m_sigma')
+    #     print('m, sigma = ', (intensity.kernel.m, intensity.kernel.sigma))
+    #     import ipdb
+    #     ipdb.set_trace()
     # new value of alpha
-    n_driver_tt = np.array(
-        [this_driver_tt.size for this_driver_tt in intensity.driver_tt])
-
-    # project on R+ is eventually done after
-    next_alpha = sum_p_tp / n_driver_tt
-
-    # n_driver = len(intensity.driver_tt)
-    next_m, next_sigma = [], []
-    for p in range(intensity.n_driver):
-        if next_alpha[p] == 0:
-            next_m.append(intensity.kernel[p].m)
-            next_sigma.append(intensity.kernel[p].sigma)
-        else:
-            # shape: (n_acti_tt, n_driver_p_tt)
-            diff = intensity.acti_tt[:, np.newaxis] - intensity.driver_tt[p]
-            # next value of m for p-th driver
-            if C[p] > 0:  # avoid division by 0
-                # sum over the driver events
-                sum_temp_m = (diff * intensity.kernel[p](diff)).sum(axis=1)
-                sum_temp_m *= intensity.alpha[p] / intensity(intensity.acti_tt)
-                this_next_m = sum_temp_m.sum() / sum_p_tp[p] - \
-                    np.square(intensity.kernel[p].sigma) * C_m[p] / C[p]
-            else:
-                this_next_m = intensity.kernel[p].m
-            next_m.append(this_next_m)
-            # next value of sigma for p-th driver
-            if C_sigma[p] > 0:  # avoid division by 0
-                # compute diff from the current kernel mean
-                diff_m = diff - intensity.kernel[p].m
-                # sum over the driver events
-                sum_temp_sigma = (np.square(diff_m) *
-                                  intensity.kernel[p](diff)).sum(axis=1)
-                sum_temp_sigma *= intensity.alpha[p] / \
-                    intensity(intensity.acti_tt)
-                # cubic root
-                this_next_sigma = np.cbrt(
-                    C[p] / C_sigma[p] * sum_temp_sigma.sum() / sum_p_tp[p])
-                # project on semi-closed set [EPS, +infty) to stay in
-                # constraint space
-                this_next_sigma = max(this_next_sigma, EPS)
-            else:
-                this_next_sigma = intensity.kernel[p].sigma
-            next_sigma.append(this_next_sigma)
+    next_alpha = sum_p_tp / intensity.driver_tt.size
+    if next_alpha == 0:
+        next_m = intensity.kernel.m
+        next_sigma = intensity.kernel.sigma
+    else:
+        # new value of m
+        diff = intensity.acti_tt - intensity.acti_last_tt
+        sum_temp = np.nansum(diff * p_tp)
+        next_m = sum_temp / sum_p_tp - \
+            np.square(intensity.kernel.sigma) * C_m / C
+        # new value of sigma
+        sum_temp = np.nansum(np.square(diff - intensity.kernel.m) * p_tp)
+        next_sigma = np.cbrt(C / C_sigma * sum_temp / sum_p_tp)  # cubic root
+        # project on semi-closed set [EPS, +infty) to stay in constraint space
+        next_sigma = max(next_sigma, EPS)
 
     return next_alpha, next_m, next_sigma
 

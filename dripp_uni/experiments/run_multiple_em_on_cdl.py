@@ -4,8 +4,7 @@ import pandas as pd
 from joblib import Memory, Parallel, delayed
 
 from dripp.cdl import utils
-from dripp.experiments.run_cdl import run_cdl_sample, run_cdl_somato,\
-    run_cdl_camcan
+from dripp.experiments.run_cdl import run_cdl_sample, run_cdl_somato
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
 from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
 
@@ -45,9 +44,8 @@ def procedure(comb):
     n_bootstrap = args['n_bootstrap']
     p_bootstrap = args['p_bootstrap']
 
-    # n_iter = np.atleast_1d(args['n_iter'])
-    # n_iter_max = max(n_iter)
-    n_iter = args['n_iter']
+    n_iter = np.atleast_1d(args['n_iter'])
+    n_iter_max = max(n_iter)
 
     # get activation timestamps
     atoms_timestamps = np.array(args['atoms_timestamps'])
@@ -55,26 +53,14 @@ def procedure(comb):
 
     # get and merge tasks timestamps
     events_timestamps = args['events_timestamps']  # dict
+    if isinstance(tasks, list):
+        tt = np.r_[events_timestamps[tasks[0]]]
+        for i in tasks[1:]:
+            tt = np.r_[tt, events_timestamps[i]]
+    elif isinstance(tasks, int):
+        tt = events_timestamps[tasks]
 
-    def proprocess_tasks(tasks):
-        """
-        XXX
-        """
-        if isinstance(tasks, int):
-            tt = np.sort(events_timestamps[tasks])
-        elif isinstance(tasks, list):
-            tt = np.r_[events_timestamps[tasks[0]]]
-            for i in tasks[1:]:
-                tt = np.r_[tt, events_timestamps[i]]
-            tt = np.sort(tt)
-
-        return tt
-
-    if isinstance(tasks, tuple):
-        # in that case, multiple drivers
-        tt = np.array([proprocess_tasks(task) for task in tasks])
-    else:
-        tt = proprocess_tasks(tasks)
+    tt = np.sort(tt)
 
     # base row
     base_row = {'atom': int(atom),
@@ -84,7 +70,6 @@ def procedure(comb):
                 'initializer': args['initializer'],
                 'n_bootstrap': n_bootstrap,
                 'p_bootstrap': p_bootstrap}
-
     # create new DataFrame rows
     new_rows = []
 
@@ -108,55 +93,41 @@ def procedure(comb):
             early_stopping=args['early_stopping'],
             early_stopping_params=args['early_stopping_params'],
             alpha_pos=args['alpha_pos'],
-            # n_iter=n_iter_max,
-            n_iter=n_iter,
-            verbose=True,
+            n_iter=n_iter_max,
+            verbose=False,
             disable_tqdm=True)
 
         # get results
         res_params, history_params, history_loss = res_em
 
         # unpack parameters history
-        # hist_baseline, hist_alpha, hist_m, hist_sigma = history_params
+        hist_baseline, hist_alpha, hist_m, hist_sigma = history_params
         # list of values for n_iter that exist
         # list_n_iter = [n for n in n_iter if n < hist_baseline.size]
-        # list_n_iter = n_iter[n_iter < hist_baseline.size]
+        list_n_iter = n_iter[n_iter < hist_baseline.size]
         # make sure the last iteration will be added
-        # if not (hist_baseline.size - 1) in list_n_iter:
-        #     list_n_iter = np.append(list_n_iter, hist_baseline.size - 1)
+        if not (hist_baseline.size - 1) in list_n_iter:
+            list_n_iter = np.append(list_n_iter, hist_baseline.size - 1)
 
-        # for n in list_n_iter:
-        #     new_row = {**base_row,
-        #                'n_iter': n,
-        #                'baseline_hat': hist_baseline[n],
-        #                'alpha_hat': hist_alpha[n],
-        #                'm_hat': hist_m[n],
-        #                'sigma_hat': hist_sigma[n]}
-        #     if len(history_loss) > 0:
-        #         new_row['nll'] = history_loss[n]
-        #     new_rows.append(new_row)
+        for n in list_n_iter:
+            new_row = {**base_row,
+                       'n_iter': n,
+                       'baseline_hat': hist_baseline[n],
+                       'alpha_hat': hist_alpha[n],
+                       'm_hat': hist_m[n],
+                       'sigma_hat': hist_sigma[n],
+                       'nll': history_loss[n]}
+            new_rows.append(new_row)
 
-        baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
-        new_row = {**base_row,
-                   'n_iter': n_iter,
-                   'baseline_hat': baseline_hat,
-                   'alpha_hat': alpha_hat,
-                   'm_hat': m_hat,
-                   'sigma_hat': sigma_hat,
-                   'baseline_init': history_params[0][0],
-                   'alpha_init': history_params[1][0]}
-
-    # return new_rows
-    return [new_row]
+    return new_rows
 
 
-# @memory.cache(ignore=['n_jobs'])
+@memory.cache(ignore=['n_jobs'])
 def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            shift_acti=True,
                            atom_to_filter=None, time_interval=0.01,
                            threshold=0.6e-10,
                            list_atoms=None, list_tasks=None,
-                           n_driver=1,
                            lower=30e-3, upper=500e-3,
                            n_iter=400, initializer='smart_start',
                            early_stopping=None, early_stopping_params={},
@@ -248,8 +219,6 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         dict_global = run_cdl_sample(**cdl_params)
     elif data_source == 'somato':
         dict_global = run_cdl_somato(**cdl_params)
-    elif data_source == 'camcan':
-        dict_global = run_cdl_camcan(**cdl_params)
 
     # if not given, will run the EM for every atom extracted
     if list_atoms is None:
@@ -262,7 +231,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         elif data_source == 'camcan':
             list_tasks = [6, 7, 8, 9, [6, 7, 8]]
         elif data_source == 'somato':
-            list_tasks = [[1, 2, 3], 4]
+            list_tasks = [1]
         else:
             raise ValueError('list_tasks is None and data source is '
                              'unknown. '
@@ -308,12 +277,7 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                             for i in np.atleast_1d(lower)
                             for j in np.atleast_1d(upper)]
 
-        if n_driver == 1:
-            combs_atoms_tasks = list(itertools.product(list_atoms, list_tasks))
-        else:
-            # n_driver = len(list_tasks)
-            combs_atoms_tasks = [(kk, list_tasks) for kk in list_atoms]
-
+        combs_atoms_tasks = list(itertools.product(list_atoms, list_tasks))
         combs = list(itertools.product(combs_atoms_tasks, procedure_kwargs))
 
         if n_jobs == 1:
@@ -342,6 +306,6 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
         if not path_df_res.exists():
             path_df_res.mkdir(parents=True)
 
-        df_res.to_csv(SAVE_RESULTS_PATH / 'results_em_sample_multi.csv')
+        df_res.to_csv(SAVE_RESULTS_PATH / 'results_em_sample.csv')
 
     return dict_global, df_res

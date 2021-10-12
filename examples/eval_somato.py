@@ -3,6 +3,8 @@ Run EM on mne.somato dataset and plot the corresponding figure
 (Figures 5, A.3, A.4 in paper)
 """
 
+# %%
+import os.path as op
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -13,11 +15,16 @@ import mne_bids
 from alphacsc.datasets import somato
 from dripp.experiments.run_multiple_em_on_cdl import \
     run_multiple_em_on_cdl
-from dripp.config import SAVE_RESULTS_PATH
+from dripp.config import SAVE_RESULTS_PATH, N_JOBS
 from dripp.trunc_norm_kernel.model import TruncNormKernel
+from dripp.experiments.utils_plot import plot_cdl_atoms
+
+from mne.time_frequency import tfr_morlet
 
 
-N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
+SAVE_RESULTS_PATH /= 'results_somato'
+if not SAVE_RESULTS_PATH.exists():
+    SAVE_RESULTS_PATH.mkdir(parents=True)
 
 cdl_params = {
     'sfreq': 150.,
@@ -38,16 +45,32 @@ dict_global, df_res = run_multiple_em_on_cdl(
     data_source='somato', cdl_params=cdl_params,  # CDL
     shift_acti=shift_acti, atom_to_filter='all', threshold=threshold,
     list_atoms=list(range(cdl_params['n_atoms'])),
-    list_tasks=[1],
+    list_tasks=[1], n_driver=1,
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
     n_jobs=N_JOBS)
+
+# %%
+
+# get raw.info
+sfreq = cdl_params['sfreq']
+_, info = somato.load_data(sfreq=sfreq)
+
+plotted_tasks = {'somatosensory': [1]}
+fig_name = "somato_top_5_atoms.pdf"
+plot_cdl_atoms(dict_global, cdl_params, info,
+               n_top_atoms=5, plot_intensity=True,
+               df_res_dripp=df_res, plotted_tasks=plotted_tasks,
+               save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
+
+# %%
 
 # ==================================================================
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ==================================================================
 
 # list of atoms selection to plot (3 graphes of 3 cherry picked atoms)
-plotted_atoms_list = [[2, 7, 10], [1, 2, 4], [0, 7, 10]]
+# plotted_atoms_list = [[2, 7, 10], [1, 2, 4], [0, 7, 10]]
+plotted_atoms_list = [[0, 2, 7]]
 
 fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
@@ -58,10 +81,6 @@ plt.rcParams.update({
 })
 
 colors = ['blue', 'green', 'orange']
-
-# get raw.info
-sfreq = cdl_params['sfreq']
-_, info = somato.load_data(sfreq=sfreq)
 
 n_times_atom = cdl_params['n_times_atom']
 
@@ -139,10 +158,10 @@ for plotted_atoms in plotted_atoms_list:
         list_yy = []
         for i in df_temp.index:
             # unpack parameters estimates
-            alpha = df_temp['alpha_hat'][i]
+            alpha = df_temp['alpha_hat'][i][0]
             baseline = df_temp['baseline_hat'][i]
-            m = df_temp['m_hat'][i]
-            sigma = df_temp['sigma_hat'][i]
+            m = df_temp['m_hat'][i][0]
+            sigma = df_temp['sigma_hat'][i][0]
 
             # define kernel function
             kernel = TruncNormKernel(lower, upper, m, sigma)
@@ -155,18 +174,19 @@ for plotted_atoms in plotted_atoms_list:
         ax.set_xlim(0, 2)
         ax.set_xlabel('Time (s)', fontsize=fontsize)
         ax.yaxis.set_ticks_position("right")
-        ax.set_yscale('log')
+        # ax.set_yscale('log')
         ax.legend(fontsize=fontsize, handlelength=1, title='Atom')
 
     # save figure
     suffix = 'atom'
     for kk in plotted_atoms:
         suffix += '_' + str(kk)
-    name = 'fig5_' + suffix + '.pdf'
+    name = 'fig5_' + suffix + '_bis.pdf'
     path_fig = SAVE_RESULTS_PATH / name
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.close()
 
+# %%
 # ==================================================================
 # PLOT THE DIPOLE FIT FOR THE SELECTED ATOMS
 # ==================================================================
@@ -215,11 +235,12 @@ for plotted_atoms in plotted_atoms_list:
     fig.suptitle('')
     fig.tight_layout()
 
-    fig_name += '.pdf'
+    fig_name += '_bis.pdf'
     path_fig = SAVE_RESULTS_PATH / fig_name
     plt.savefig(path_fig, dpi=300, bbox_inches='tight')
     plt.close()
 
+# %%
 
 # ================================================================
 # PLOT ALL EXTRACTED ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
@@ -274,10 +295,10 @@ for ii, kk in enumerate(plotted_atoms):
     n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
     df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
     # unpack parameters estimates
-    alpha = list(df_temp['alpha_hat'])[0]
+    alpha = list(df_temp['alpha_hat'])[0][0]
     baseline = list(df_temp['baseline_hat'])[0]
-    m = list(df_temp['m_hat'])[0]
-    sigma = list(df_temp['sigma_hat'])[0]
+    m = list(df_temp['m_hat'])[0][0]
+    sigma = list(df_temp['sigma_hat'])[0][0]
 
     # define kernel function
     kernel = TruncNormKernel(lower, upper, m, sigma)
@@ -301,7 +322,43 @@ for ii, kk in enumerate(plotted_atoms):
 
 # save figure
 fig.tight_layout()
-path_fig = SAVE_RESULTS_PATH / 'somato_all_atoms.pdf'
+path_fig = SAVE_RESULTS_PATH / 'somato_all_atoms_bis.pdf'
 plt.savefig(path_fig, dpi=300, bbox_inches='tight')
 plt.savefig(str(path_fig).replace('pdf', 'png'), dpi=300, bbox_inches='tight')
 plt.close()
+
+
+# %% Compare to usual time/frequency analysis
+# Authors: Alexandre Gramfort <alexandre.gramfort@inria.fr>
+#          Stefan Appelhoff <stefan.appelhoff@mailbox.org>
+#          Richard Höchenberger <richard.hoechenberger@gmail.com>
+#
+# License: BSD (3-clause)
+data_path = mne.datasets.somato.data_path()
+subject = '01'
+task = 'somato'
+raw_fname = op.join(data_path, 'sub-{}'.format(subject), 'meg',
+                    'sub-{}_task-{}_meg.fif'.format(subject, task))
+
+# Setup for reading the raw data
+raw = mne.io.read_raw_fif(raw_fname)
+events = mne.find_events(raw, stim_channel='STI 014')
+
+# picks MEG gradiometers
+picks = mne.pick_types(raw.info, meg='grad', eeg=False, eog=True, stim=False)
+
+# Construct Epochs
+event_id, tmin, tmax = 1, -1., 3.
+baseline = (None, 0)
+epochs = mne.Epochs(raw, events, event_id, tmin, tmax, picks=picks,
+                    baseline=baseline, reject=dict(grad=4000e-13, eog=350e-6),
+                    preload=True)
+
+epochs.resample(200., npad='auto')  # resample to reduce computation time
+freqs = np.logspace(*np.log10([6, 35]), num=8)
+n_cycles = freqs / 2.  # different number of cycle per frequency
+power, itc = tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True,
+                        return_itc=True, decim=3, n_jobs=1)
+figs = power.plot_joint(baseline=(-0.5, 0), mode='mean', tmin=-.5, tmax=2,
+                        timefreqs=[(1, 7), (1.3, 8)])
+figs.savefig(SAVE_RESULTS_PATH / ('somato_time_freq.pdf'), dpi=300)

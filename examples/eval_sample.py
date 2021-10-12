@@ -1,21 +1,22 @@
-"""
-Run EM on mne.sample dataset and plot the corresponding figure
-(Figure 4 in paper)
-"""
+# %%
 
+import os
 import numpy as np
 import mne
+from scipy.spatial.distance import cosine
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from dripp.experiments.run_multiple_em_on_cdl import \
     run_multiple_em_on_cdl
 from dripp.cdl import utils
-from dripp.config import SAVE_RESULTS_PATH
+from dripp.config import SAVE_RESULTS_PATH, N_JOBS
 from dripp.trunc_norm_kernel.model import TruncNormKernel
+from dripp.experiments.utils_plot import plot_cdl_atoms
 
-
-N_JOBS = 40  # number of jobs to run in parallel. To adjust based on machine
+SAVE_RESULTS_PATH /= 'results_sample'
+if not SAVE_RESULTS_PATH.exists():
+    SAVE_RESULTS_PATH.mkdir(parents=True)
 
 # CDL parameters
 cdl_params = {
@@ -36,7 +37,8 @@ dict_global, df_res = run_multiple_em_on_cdl(
     data_source='sample', cdl_params=cdl_params,  # CDL
     shift_acti=shift_acti, atom_to_filter='all', threshold=threshold,
     list_atoms=list(range(cdl_params['n_atoms'])),
-    list_tasks=[[1, 2], [3, 4]],  # auditory and visual stimuli
+    list_tasks=([1, 2], [3, 4]),  # auditory and visual stimuli, in two drivers
+    n_driver=2,
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
     n_jobs=N_JOBS)
 
@@ -46,10 +48,27 @@ raw = mne.io.read_raw_fif(data_utils['file_name'])
 raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
 info = raw.copy().pick_types(meg=True).info
 
+# %%
+# ==================================================================
+# PLOT THE TOP 5 ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
+# ==================================================================
+# tasks to plot
+plotted_tasks = {'auditory': [1, 2],
+                 'visual': [3, 4]}
 
+fig_name = 'fig4_top_5_atoms.pdf'
+plot_cdl_atoms(dict_global, cdl_params, info,
+               n_top_atoms=5, plot_intensity=True,
+               alpha_threshold=-100,
+               df_res_dripp=df_res, plotted_tasks=plotted_tasks,
+               save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
+
+# %%
 # ==================================================================
 # PLOT A SELECTION OF ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
 # ==================================================================
+# atoms to plot
+plotted_atoms = [0, 1, 2, 6]
 
 fontsize = 8
 plt.rcParams.update(plt.rcParamsDefault)
@@ -58,10 +77,6 @@ plt.rcParams.update({
     'ytick.labelsize': fontsize,
 })
 
-# atoms and tasks to plot
-plotted_atoms = [0, 1, 2, 6]
-plotted_tasks = {'auditory': [1, 2],
-                 'visual': [3, 4]}
 
 fig = plt.figure(figsize=(5.5, 3.5))
 gs = gridspec.GridSpec(nrows=3, ncols=4, hspace=0.26, wspace=0.18, figure=fig)
@@ -72,7 +87,7 @@ t = np.arange(n_times_atom) / cdl_params['sfreq']
 # x axis for estimated intensity function
 xx = np.linspace(0, 500e-3, 500)
 
-u_hat_ = np.array(dict_global['dict_cdl_fit_res']['u_hat_'])
+u_hat_ = np.array(dict_global['dict_cdl_fit_res']['u_hat_'])  # (n_atoms, 203)
 v_hat_ = np.array(dict_global['dict_cdl_fit_res']['v_hat_'])
 
 for ii, kk in enumerate(plotted_atoms):
@@ -109,28 +124,28 @@ for ii, kk in enumerate(plotted_atoms):
     ax = fig.add_subplot(gs[2, ii])
 
     has_m_line = False
-    for label, tasks in plotted_tasks.items():
+    df_temp = df_res[(df_res['atom'] == kk)
+                     & (df_res['lower'] == lower)
+                     & (df_res['upper'] == upper)
+                     & (df_res['threshold'] == threshold)
+                     & (df_res['shift_acti'] == shift_acti)]
+    for jj, label in enumerate(plotted_tasks.keys()):
         # select sub-df of interest
-        df_temp = df_res[(df_res['atom'] == kk)
-                         & (df_res['tasks'].apply(str) == str(tasks))
-                         & (df_res['lower'] == lower)
-                         & (df_res['upper'] == upper)
-                         & (df_res['threshold'] == threshold)
-                         & (df_res['shift_acti'] == shift_acti)]
         # in case that there has been an early stopping
         n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
         df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
         # unpack parameters estimates
-        alpha = list(df_temp['alpha_hat'])[0]
+        alpha = list(df_temp['alpha_hat'])[0][jj]
         baseline = list(df_temp['baseline_hat'])[0]
-        m = list(df_temp['m_hat'])[0]
-        sigma = list(df_temp['sigma_hat'])[0]
+        m = list(df_temp['m_hat'])[0][jj]
+        sigma = list(df_temp['sigma_hat'])[0][jj]
 
         # define kernel function
         kernel = TruncNormKernel(lower, upper, m, sigma)
         yy = baseline + alpha * kernel.eval(xx)
         lambda_max = baseline + alpha * kernel.max
-        ratio_lambda_max = lambda_max / baseline
+        # ratio_lambda_max = lambda_max / baseline
+        ratio_lambda_max = alpha / baseline
 
         if ii > 0:
             plot_label = None
@@ -161,94 +176,72 @@ for ii, kk in enumerate(plotted_atoms):
         ax.legend(fontsize=fontsize, handlelength=1)
 
 # save figure
-path_fig = SAVE_RESULTS_PATH / 'fig4.pdf'
+path_fig = SAVE_RESULTS_PATH / 'fig4_multi_bis.pdf'
 plt.savefig(path_fig, dpi=300, bbox_inches='tight')
+plt.show()
 plt.close()
 
+# %% Compare to classical method of evoked responses
+sample_data_folder = mne.datasets.sample.data_path()
+sample_data_evk_file = os.path.join(sample_data_folder, 'MEG', 'sample',
+                                    'sample_audvis-ave.fif')
+evokeds_list = mne.read_evokeds(sample_data_evk_file, baseline=(None, 0),
+                                proj=True, verbose=False)
+conds = ('aud/left', 'aud/right', 'vis/left', 'vis/right')
+evks = dict(zip(conds, evokeds_list))
 
-# ================================================================
-# PLOT ALL EXTRACTED ATOMS AND THEIR ESTIMATED INTENSITY FUNCTIONS
-# ================================================================
-
-plotted_atoms = range(cdl_params['n_atoms'])
-
-# number of plots by atom
-n_plots = 3
-n_columns = min(6, len(plotted_atoms))
-split = int(np.ceil(len(plotted_atoms) / n_columns))
-figsize = (4 * n_columns, 3 * n_plots * split)
-fig, axes = plt.subplots(n_plots * split, n_columns, figsize=figsize)
-
-for ii, kk in enumerate(plotted_atoms):
-
-    # Select the axes to display the current atom
-    i_row, i_col = ii // n_columns, ii % n_columns
-    it_axes = iter(axes[i_row * n_plots:(i_row + 1) * n_plots, i_col])
-
-    # Select the current atom
-    u_k = u_hat_[kk]
-    v_k = v_hat_[kk]
-
-    # Plot the spatial map of the atom using mne topomap
-    ax = next(it_axes)
-    ax.set_title('Atom % d' % kk, fontsize=fontsize, pad=0)
-
-    mne.viz.plot_topomap(data=u_k, pos=info, axes=ax, show=False)
-    if i_col == 0:
-        ax.set_ylabel('Spatial', labelpad=28, fontsize=fontsize)
-
-    # Plot the temporal pattern of the atom
-    ax = next(it_axes)
+for this_cond, v_k in zip(['aud', 'vis'], [v_hat_[2], v_hat_[6]]):
+    evoked = mne.combine_evoked(
+        [evks[this_cond + '/left'], evks[this_cond + '/right']],
+        weights='nave')
+    figs = evoked.plot_joint()
+    fig = figs[1]
+    ax = fig.axes[0].twinx()
     ax.plot(t, v_k)
-    ax.set_xlim(0, 1)
-    if i_col == 0:
-        ax.set_ylabel('Temporal', fontsize=fontsize)
+    figs[1].savefig(SAVE_RESULTS_PATH /
+                    (this_cond + '_evoked_joint.pdf'), dpi=300)
 
-    # plot the estimate intensity function
-    ax = next(it_axes)
-    for label, tasks in plotted_tasks.items():
-        # select sub-df of interest
-        df_temp = df_res[(df_res['atom'] == kk)
-                         & (df_res['tasks'].apply(str) == str(tasks))
-                         & (df_res['lower'] == lower)
-                         & (df_res['upper'] == upper)
-                         & (df_res['threshold'] == threshold)
-                         & (df_res['shift_acti'] == shift_acti)]
-        # in case that there has been an early stopping
-        n_iter_temp = min(n_iter, df_temp['n_iter'].values.max())
-        df_temp = df_temp[df_temp['n_iter'] == n_iter_temp]
-        # unpack parameters estimates
-        alpha = list(df_temp['alpha_hat'])[0]
-        baseline = list(df_temp['baseline_hat'])[0]
-        m = list(df_temp['m_hat'])[0]
-        sigma = list(df_temp['sigma_hat'])[0]
+# %% Compute cosine similarity between artifacts from CDL and from ICA
 
-        # define kernel function
-        kernel = TruncNormKernel(lower, upper, m, sigma)
-        yy = baseline + alpha * kernel.eval(xx)
-        lambda_max = baseline + alpha * kernel.max
-        ratio_lambda_max = lambda_max / baseline
+# get ICA components
+sample_data_folder = mne.datasets.sample.data_path()
+sample_data_raw_file = os.path.join(sample_data_folder, 'MEG', 'sample',
+                                    'sample_audvis_raw.fif')
+raw = mne.io.read_raw_fif(sample_data_raw_file)
+raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
+raw.crop(tmax=60.)
 
-        if i_col == 0:
-            ax.plot(xx, yy, label=label)
-        else:
-            ax.plot(xx, yy)
+# Compute and plot ICA
+filt_raw = raw.copy()
+filt_raw.load_data().filter(l_freq=1., h_freq=None)
+ica = mne.preprocessing.ICA(n_components=15, max_iter='auto', random_state=97)
+ica.fit(filt_raw)
+ica.get_components().shape  # (203, n_components)
 
-    ax.set_xlim(0, 0.5)
-    ax.set_xlabel('Time (s)', fontsize=fontsize)
+# Plot and save some figures
+fig = ica.plot_sources(raw, picks=[0, 1], show_scrollbars=False)
+fig.savefig(SAVE_RESULTS_PATH / 'ica_sources.pdf', dpi=300)
+fig = ica.plot_components(picks=[0, 1], ch_type='grad')
+fig.savefig(SAVE_RESULTS_PATH / 'ica_components.pdf', dpi=300)
 
-    if ii == 0:
-        intensity_ax = ax
-    else:
-        intensity_ax.get_shared_y_axes().join(intensity_ax, ax)
-        ax.autoscale()
+# identify ICA components link to artifact (manually from previous plot)
+ica_heartbeat = ica.get_components()[:, 0]
+ica_eye_blink = ica.get_components()[:, 1]
 
-    if i_col == 0:
-        ax.set_ylabel('Intensity', labelpad=7, fontsize=fontsize)
-        ax.legend(fontsize=fontsize, handlelength=1)
+# compute cosine distance between heartbeat artifacts
+u_heartbeat = u_hat_[0]
+mne.viz.plot_topomap(u_heartbeat, info, show=True)
+ica.plot_components(picks=[0], ch_type='grad')
+cos_simi_heartbeat = 1 - cosine(u_heartbeat, ica_heartbeat)
+print("cosine distance between heartbeat artifacts: %.2f%%" %
+      (cos_simi_heartbeat * 100))
 
-# save figure
-fig.tight_layout()
-path_fig = SAVE_RESULTS_PATH / 'sample_all_atoms.pdf'
-plt.savefig(path_fig, dpi=300, bbox_inches='tight')
-plt.close()
+# compute cosine distance between eye-blink artifacts
+u_eye_blink = u_hat_[1]
+mne.viz.plot_topomap(u_eye_blink, info, show=True)
+ica.plot_components(picks=[1], ch_type='grad')
+cos_simi_eye_blink = 1 - cosine(u_eye_blink, ica_eye_blink)
+print("cosine similarity between eye-blink artifacts: %.2f%%" %
+      (cos_simi_eye_blink * 100))
+
+# %%
