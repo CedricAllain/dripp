@@ -5,8 +5,8 @@ with truncated Gaussian kernel
 
 import numpy as np
 
-from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
-from dripp.trunc_norm_kernel.metric import negative_log_likelihood
+from .model import TruncNormKernel, Intensity
+from .metric import negative_log_likelihood
 
 
 # =======================================

@@ -4,7 +4,7 @@ from pathlib import Path
 # path to directory where to save multiple results from dripp/example
 # and dripp/benchmarks
 # SAVE_RESULTS_PATH = Path(os.getenv('DRIPP_RESULTS', './dripp_results'))
-SAVE_RESULTS_PATH = Path('./dripp_results')
+SAVE_RESULTS_PATH = Path('./dripp_uni_results')
 if not SAVE_RESULTS_PATH.exists():
     SAVE_RESULTS_PATH.mkdir(parents=True)
 

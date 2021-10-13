@@ -363,8 +363,10 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     nll = partial(negative_log_likelihood, T=T)
 
     # initializa history of parameters and loss
-    hist_baseline, hist_alpha = [baseline_hat], [alpha_hat]
-    hist_m, hist_sigma = [m_hat], [sigma_hat]
+    history_params = {'baseline': [baseline_hat],
+                      'alpha': [alpha_hat],
+                      'm': [m_hat],
+                      'sigma': [sigma_hat]}
     hist_loss = [nll(intensity)]
 
     if verbose:
@@ -390,10 +392,10 @@ def em_truncated_norm(acti_tt, driver_tt=(),
             break
 
         # append history
-        hist_baseline.append(baseline_hat)
-        hist_alpha.append(alpha_hat)
-        hist_m.append(m_hat)
-        hist_sigma.append(sigma_hat)
+        history_params['baseline'].append(baseline_hat)
+        history_params['alpha'].append(alpha_hat)
+        history_params['m'].append(m_hat)
+        history_params['sigma'].append(sigma_hat)
         # update kernel function
         kernel.update(m=m_hat, sigma=sigma_hat)
         # update intensity function
@@ -408,6 +410,4 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     if verbose:
         print("Optimal parameters:\n(mu, alpha, m, sigma) = ", res_params)
 
-    history_params = hist_baseline, hist_alpha, hist_m, hist_sigma
-
-    return res_params, np.array(history_params), np.array(hist_loss)
+    return res_params, history_params, np.array(hist_loss)

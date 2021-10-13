@@ -6,7 +6,7 @@ from re import M
 import numpy as np
 from scipy.stats import norm
 
-from dripp.trunc_norm_kernel.utils import get_last_timestamps
+from .utils import get_last_timestamps
 
 # EPS = np.finfo(float).eps
 EPS = 1e-5

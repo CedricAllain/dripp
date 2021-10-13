@@ -11,8 +11,8 @@ from joblib import Memory
 from alphacsc import GreedyCDL
 from alphacsc.utils.signal import split_signal
 
-from dripp.cdl import utils
-from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
+from dripp_uni.cdl import utils
+from dripp_uni.config import CACHEDIR, SAVE_RESULTS_PATH
 
 
 memory = Memory(CACHEDIR, verbose=0)

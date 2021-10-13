@@ -180,7 +180,8 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 # =======================================
 
 def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
-                  baseline=0.8, alpha=1, T=240, isi=1, n_tasks=0.8,
+                  baseline=0.8, alpha=1, T=240, isi=1, add_jitter=False,
+                  n_tasks=0.8,
                   n_drivers=1, seed=None, return_nll=True, verbose=False):
     """ Given some initial parameters, simulate driver's timestamps and
     driven process's activation timestamps, for the intensity defined with a
@@ -285,7 +286,7 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
     for this_isi, this_n_tasks, this_seed in zip(isi, n_tasks, seed):
         this_driver_tt = simu_timestamps_reg(
             T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
-            verbose=verbose)
+            add_jitter=add_jitter, verbose=verbose)
         driver_tt.append(this_driver_tt)
     driver_tt = np.array([np.array(x) for x in driver_tt])
 

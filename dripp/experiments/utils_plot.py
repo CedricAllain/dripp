@@ -234,3 +234,12 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
             plt.savefig(str(path_fig).replace('pdf', 'png'), dpi=300,
                         bbox_inches='tight')
     return fig
+
+
+def plot_history_params(history_params):
+    """
+
+    Parameters
+    ----------
+    history_params : dict
+    """

@@ -9,10 +9,10 @@ import time
 from tqdm import tqdm
 from joblib import Memory, Parallel, delayed
 
-from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
-from dripp.trunc_norm_kernel.simu import simulate_data
-from dripp.trunc_norm_kernel.optim import em_truncated_norm
-from dripp.trunc_norm_kernel.model import TruncNormKernel
+from dripp_uni.config import CACHEDIR, SAVE_RESULTS_PATH
+from dripp_uni.trunc_norm_kernel.simu import simulate_data
+from dripp_uni.trunc_norm_kernel.optim import em_truncated_norm
+from dripp_uni.trunc_norm_kernel.model import TruncNormKernel
 
 memory = Memory(CACHEDIR, verbose=0)
 

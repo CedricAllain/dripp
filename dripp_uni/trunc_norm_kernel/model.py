@@ -3,7 +3,7 @@ import math
 from scipy.stats import truncnorm
 import matplotlib.pyplot as plt
 
-from dripp.trunc_norm_kernel.utils import get_last_timestamps
+from .utils import get_last_timestamps
 
 
 class TruncNormKernel():

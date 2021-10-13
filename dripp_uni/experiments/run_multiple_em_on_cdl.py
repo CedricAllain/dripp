@@ -3,10 +3,10 @@ import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
 
-from dripp.cdl import utils
-from dripp.experiments.run_cdl import run_cdl_sample, run_cdl_somato
-from dripp.trunc_norm_kernel.optim import em_truncated_norm
-from dripp.config import CACHEDIR, SAVE_RESULTS_PATH
+from dripp_uni.cdl import utils
+from dripp_uni.experiments.run_cdl import run_cdl_sample, run_cdl_somato
+from dripp_uni.trunc_norm_kernel.optim import em_truncated_norm
+from dripp_uni.config import CACHEDIR, SAVE_RESULTS_PATH
 
 memory = Memory(CACHEDIR, verbose=0)
 
