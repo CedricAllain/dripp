@@ -1,6 +1,7 @@
 """ Utils functions used for driven point process
 with truncated normal kernels """
 
+import itertools
 import numpy as np
 
 
@@ -80,3 +81,67 @@ def get_last_timestamps(timestamps, t):
         last_tmstp.append(this_last_tmstp)
 
     return np.array(last_tmstp)  # , dtype=object)
+
+
+def get_driver_tt_of_influence(intensity, t):
+    """For a given time and a intensity function, find, for all of its driver, 
+    the timestamsp that may still have an influence at that time.
+    For a kernels that are truncated gaussians, that means finding all the t_i
+    among a driver's timestamps such that t_i + a <= t <= t_i + b
+
+    Parameters
+    ----------
+    t : int | float 
+
+    intensity : instance of Intensity
+
+
+    Returns
+    -------
+    numpy 2d array, filled with np.nan values
+    """
+
+    driver_tt_of_influence = []
+    for p in range(intensity.n_driver):
+        driver_tt = intensity.driver_tt[p]
+        lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
+        this_driver_tt_of_influence = driver_tt[(
+            driver_tt >= t - upper) & ((driver_tt <= t - lower))]
+        driver_tt_of_influence.append(this_driver_tt_of_influence)
+
+    driver_tt_of_influence = np.array(
+        list(itertools.zip_longest(*driver_tt_of_influence, fillvalue=0))).T
+
+    return driver_tt_of_influence
+
+
+def get_driver_delays(intensity, t):
+    """
+    For each driver, compute the delays with t that are on support
+
+
+    Returns
+    -------
+    list of 2D numpy.array
+
+    """
+
+    t = np.atleast_1d(t)
+
+    delays = []
+    for p in range(intensity.n_driver):
+        driver_tt = intensity.driver_tt[p]
+        lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
+        this_driver_delays = []
+        for this_t in t:
+            this_t_delays = this_t - driver_tt[(
+                driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))]
+            this_driver_delays.append(this_t_delays)
+        # transform into 2D numpy.array with a 0 padding
+        this_driver_delays = np.array(
+            list(itertools.zip_longest(*this_driver_delays, fillvalue=np.nan))).T
+        this_driver_delays = np.atleast_2d(this_driver_delays)
+        # append to list of delays
+        delays.append(this_driver_delays)
+
+    return delays

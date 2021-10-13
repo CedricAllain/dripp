@@ -1,3 +1,6 @@
+"""
+Compare estimated values between DriPP univariate and DriPP multivariate
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -30,7 +33,7 @@ def test_compare_uni_multi():
         sfreq=SFREQ,
         baseline=true_params['baseline'], alpha=true_params['alpha'],
         T=T, isi=ISI, n_tasks=N_TASKS,
-        n_drivers=N_DRIVERS, seed=42, return_nll=False, verbose=False)
+        n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
 
     # ------ Initiate parameters (with multi method) ------
     init_params = initialize(acti_tt, driver_tt, lower, upper, T)
