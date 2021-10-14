@@ -116,7 +116,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
         new_row['sigma_hat'] = sigma_hat
         new_row['comput_time'] = comput_time
         # true number of iterations
-        new_row['n_iter_real'] = len(history_params[0])
+        new_row['n_iter_real'] = len(history_params['baseline'])
 
         # convert lower and upper values used in EM into lists if necessary
         lower_em = convert_variable_multi(

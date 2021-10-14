@@ -1,3 +1,6 @@
+"""
+Compare estimated values between DriPP univariate and DriPP multivariate
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -9,7 +12,20 @@ from dripp.trunc_norm_kernel.optim import initialize, em_truncated_norm
 from dripp_uni.trunc_norm_kernel.optim import initialize as initialize_uni
 from dripp_uni.trunc_norm_kernel.optim import em_truncated_norm as em_truncated_norm_uni
 
+import cProfile
 
+
+def profile_this(fn):
+    def profiled_fn(*args, **kwargs):
+        filename = fn.__name__ + '.profile'
+        prof = cProfile.Profile()
+        ret = prof.runcall(fn, *args, **kwargs)
+        prof.dump_stats(filename)
+        return ret
+    return profiled_fn
+
+
+@profile_this
 def test_compare_uni_multi():
 
     # ------ Simulate data (with multi method) ------
@@ -30,7 +46,7 @@ def test_compare_uni_multi():
         sfreq=SFREQ,
         baseline=true_params['baseline'], alpha=true_params['alpha'],
         T=T, isi=ISI, n_tasks=N_TASKS,
-        n_drivers=N_DRIVERS, seed=42, return_nll=False, verbose=False)
+        n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
 
     # ------ Initiate parameters (with multi method) ------
     init_params = initialize(acti_tt, driver_tt, lower, upper, T)
@@ -59,3 +75,5 @@ def test_compare_uni_multi():
 
 if __name__ == '__main__':
     test_compare_uni_multi()
+    print('Profile is available in [func.__name__].profile.'
+          'Use runsnake or snakeviz to view it')

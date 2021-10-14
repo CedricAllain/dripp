@@ -18,6 +18,7 @@ from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
 
+N_JOBS = 3
 
 SAVE_RESULTS_PATH /= 'results_sythetic'
 if not SAVE_RESULTS_PATH.exists():
@@ -53,8 +54,10 @@ simu_params = {'lower': 30e-3, 'upper': 800e-3,
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
-    'seed': list(range(20)),
-    'n_tasks': [0.1, 0.3, 0.6]
+    # 'seed': list(range(20)),
+    'seed': list(range(8)),
+    # 'n_tasks': [0.1, 0.3, 0.6]
+    'n_tasks': [0.6]
 }
 
 # default parameters for EM computation
@@ -64,7 +67,8 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
              'verbose': False}
 
 # parameters to vary for EM computation
-em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
+# em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
+em_params_to_vary = {'T': np.array([1000])}
 T_max = em_params_to_vary['T'].max()
 
 df_res = run_multiple_em_on_synthetic(
@@ -88,7 +92,8 @@ for i in range(N_DRIVERS):
         simu_params['lower'], simu_params['upper'],
         simu_params['m'][i], simu_params['sigma'][i])
 
-    yy = simu_params['baseline'] + kernel_true.eval(xx)
+    yy = simu_params['baseline'] + \
+        simu_params['alpha'][i] * kernel_true.eval(xx)
     axes[i].plot(xx, yy, label='Ground truth', color='black', linestyle='--')
 
     # plot a few estimated kernels
@@ -100,7 +105,8 @@ for i in range(N_DRIVERS):
                                  list(sub_df['m_hat'])[0][i],
                                  list(sub_df['sigma_hat'])[0][i])
 
-        yy = sub_df['baseline_hat'].values[0] + kernel.eval(xx)
+        yy = sub_df['baseline_hat'].values[0] + \
+            sub_df['alpha_hat'].values[0][i] * kernel.eval(xx)
 
         if seed == 0:
             axes[i].plot(xx, yy, color='blue', alpha=0.2,

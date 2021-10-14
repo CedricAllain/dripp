@@ -157,6 +157,7 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
     s = 0.
     while s <= T:
         lambda_max = intensity.get_next_lambda_max(s)
+        # print('lambda_max:', lambda_max)
         u = rng.rand()
         w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w
@@ -319,9 +320,59 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         return driver_tt, acti_tt, kernel, intensity
 
 
+# %%
+# N_DRIVERS = 2
+# T = 1_000  # process time, in seconds
+# lower = 30e-3
+# upper = 500e-3
+# m = [400e-3, 400e-3]
+# sigma = [0.2, 0.05]
+# sfreq = 1000.
+# baseline = 0.5
+# alpha = [0.8, 0.8]
+# isi = 1
+# n_tasks = 0.2
+# n_drivers = N_DRIVERS
+# seed = None
+# add_jitter = False
+# verbose = False
+
+# isi = convert_variable_multi(isi, n_drivers, repeat=True)
+# n_tasks = convert_variable_multi(n_tasks, n_drivers, repeat=True)
+# seed = convert_variable_multi(seed, n_drivers, repeat=True)
+# if seed[0] is not None:
+#     rng = np.random.RandomState(seed[0])
+#     seed += rng.choice(range(100), size=n_drivers, replace=False)
+
+# # simulate task timestamps
+# driver_tt = []
+# for this_isi, this_n_tasks, this_seed in zip(isi, n_tasks, seed):
+#     this_driver_tt = simu_timestamps_reg(
+#         T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
+#         add_jitter=add_jitter, verbose=verbose)
+#     driver_tt.append(this_driver_tt)
+# driver_tt = np.array([np.array(x) for x in driver_tt])
+
+# # define kernel and intensity functions
+# lower = convert_variable_multi(lower, n_drivers, repeat=True)
+# upper = convert_variable_multi(upper, n_drivers, repeat=True)
+# m = convert_variable_multi(m, n_drivers, repeat=True)
+# sigma = convert_variable_multi(sigma, n_drivers, repeat=True)
+
+# kernel = []
+# for this_lower, this_upper, this_m, this_sigma in \
+#         zip(lower, upper, m, sigma):
+#     kernel.append(TruncNormKernel(this_lower, this_upper, this_m,
+#                                   this_sigma, sfreq=sfreq))
+
+# alpha = convert_variable_multi(alpha, n_drivers, repeat=True)
+# intensity = Intensity(baseline, alpha, kernel, driver_tt)
+
+# %%
+
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 10_000  # process time, in seconds
+    T = 30  # process time, in seconds
     start_time = time.time()
     driver_tt, acti_tt, kernel, intensity = simulate_data(
         lower=30e-3, upper=500e-3,

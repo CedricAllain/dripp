@@ -367,3 +367,4 @@ class Intensity():
     @acti_tt.setter
     def acti_tt(self, value):
         self._acti_tt = np.array(value)
+        self.acti_last_tt = get_last_timestamps(self.driver_tt, self.acti_tt)

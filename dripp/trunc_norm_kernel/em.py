@@ -6,7 +6,8 @@ from re import M
 import numpy as np
 from scipy.stats import norm
 
-from dripp.trunc_norm_kernel.utils import get_last_timestamps
+from dripp.trunc_norm_kernel.utils import get_driver_delays
+
 
 # EPS = np.finfo(float).eps
 EPS = 1e-5
@@ -82,7 +83,7 @@ def compute_Cs(kernel):
     return C, C_m, C_sigma
 
 
-def compute_p_tk(t, intensity, last_tt=()):
+def compute_p_tk(t, intensity, driver_delays=()):
     r"""Compute the probability that the activation at time $t$ has been
     triggered by the baseline intensity of the process $k$.
 
@@ -108,10 +109,10 @@ def compute_p_tk(t, intensity, last_tt=()):
 
     """
 
-    return intensity.baseline / intensity(t, last_tt=last_tt)
+    return intensity.baseline / intensity(t, driver_delays=driver_delays)
 
 
-def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
+def compute_p_tp(t, intensity, driver_delays=(), non_overlapping=False):
     r"""Compute the probability that the activation at time $t$ has been
     triggered by the driver $p$.
 
@@ -140,30 +141,38 @@ def compute_p_tp(t, intensity, last_tt=(), non_overlapping=False):
     t = np.atleast_1d(t)
 
     list_p_tp = []
-    if non_overlapping:
-        last_tt = np.array(last_tt)
+    # if non_overlapping:
+    #     last_tt = np.array(last_tt)
 
-        if last_tt.size == 0:
-            last_tt = get_last_timestamps(intensity.driver_tt, t)
+    #     if last_tt.size == 0:
+    #         last_tt = get_last_timestamps(intensity.driver_tt, t)
 
-        for alpha, kernel, this_last_tt in zip(intensity.alpha, intensity.kernel, last_tt):
-            p_tp = alpha * kernel(t - this_last_tt)
-            p_tp /= intensity(t, last_tt=last_tt)
-            p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
+    #     for alpha, kernel, this_last_tt in zip(intensity.alpha, intensity.kernel, last_tt):
+    #         p_tp = alpha * kernel(t - this_last_tt)
+    #         p_tp /= intensity(t, last_tt=last_tt)
+    #         p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
 
-            if t.size == 1:
-                list_p_tp.append(p_tp[0])
-            else:
-                list_p_tp.append(p_tp)
-    # lifting of the non-overlapping assumption (default)
-    else:
-        # for every driver, compute the associated P_tp
-        for p in range(intensity.n_driver):
-            alpha, kernel = intensity.alpha[p], intensity.kernel[p]
-            p_tp = alpha * kernel(t[:, np.newaxis] -
-                                  intensity.driver_tt[p]).sum(axis=1)
-            p_tp /= intensity(t)
-            list_p_tp.append(p_tp)
+    #         if t.size == 1:
+    #             list_p_tp.append(p_tp[0])
+    #         else:
+    #             list_p_tp.append(p_tp)
+    # # lifting of the non-overlapping assumption (default)
+    # else:
+    # for every driver, compute the associated P_tp
+    driver_delays = np.atleast_2d(driver_delays)
+    if driver_delays.size == 0:
+        driver_delays = get_driver_delays(intensity, t)
+
+    # for p in range(intensity.n_driver):
+    intensity_at_t = intensity(t, driver_delays=driver_delays)
+    for p, delays in enumerate(driver_delays):
+
+        alpha, kernel = intensity.alpha[p], intensity.kernel[p]
+        # p_tp = alpha * kernel(t[:, np.newaxis] -
+        #                         intensity.driver_tt[p]).sum(axis=1)
+        p_tp = alpha * np.nansum(kernel(delays), axis=1)
+        p_tp /= intensity_at_t
+        list_p_tp.append(p_tp)
 
     return np.array(list_p_tp)
 
@@ -192,8 +201,8 @@ def compute_next_baseline(intensity, T):
     if intensity.baseline == 0:
         return 0
 
-    sum_p_tk = compute_p_tk(intensity.acti_tt, intensity,
-                            last_tt=intensity.acti_last_tt).sum()
+    sum_p_tk = np.nansum(compute_p_tk(intensity.acti_tt, intensity,
+                                      driver_delays=intensity.driver_delays))
     return sum_p_tk / T
 
 
@@ -216,8 +225,9 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
     """
 
     # sum over all activation timestamps
-    sum_p_tp = compute_p_tp(intensity.acti_tt, intensity,
-                            last_tt=intensity.acti_last_tt).sum(axis=1)
+    sum_p_tp = np.nansum(compute_p_tp(intensity.acti_tt, intensity,
+                                      driver_delays=intensity.driver_delays),
+                         axis=1)
 
     # new value of alpha
     n_driver_tt = np.array(
@@ -228,20 +238,24 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
 
     # n_driver = len(intensity.driver_tt)
     next_m, next_sigma = [], []
-    for p in range(intensity.n_driver):
+    # for p in range(intensity.n_driver):
+    for p, diff in enumerate(intensity.driver_delays):
         if next_alpha[p] == 0:
             next_m.append(intensity.kernel[p].m)
             next_sigma.append(intensity.kernel[p].sigma)
         else:
             # shape: (n_acti_tt, n_driver_p_tt)
-            diff = intensity.acti_tt[:, np.newaxis] - intensity.driver_tt[p]
+            # diff = intensity.acti_tt[:, np.newaxis] - intensity.driver_tt[p]
             # next value of m for p-th driver
             if C[p] > 0:  # avoid division by 0
                 # sum over the driver events
-                sum_temp_m = (diff * intensity.kernel[p](diff)).sum(axis=1)
-                sum_temp_m *= intensity.alpha[p] / intensity(intensity.acti_tt)
-                this_next_m = sum_temp_m.sum() / sum_p_tp[p] - \
-                    np.square(intensity.kernel[p].sigma) * C_m[p] / C[p]
+                sum_temp_m = np.nansum(diff * intensity.kernel[p](diff),
+                                       axis=1)
+                sum_temp_m /= intensity(intensity.acti_tt)
+                this_next_m = intensity.alpha[p] * sum_temp_m.sum() / \
+                    sum_p_tp[p]
+                this_next_m -= np.square(
+                    intensity.kernel[p].sigma) * C_m[p] / C[p]
             else:
                 this_next_m = intensity.kernel[p].m
             next_m.append(this_next_m)
@@ -250,8 +264,9 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
                 # compute diff from the current kernel mean
                 diff_m = diff - intensity.kernel[p].m
                 # sum over the driver events
-                sum_temp_sigma = (np.square(diff_m) *
-                                  intensity.kernel[p](diff)).sum(axis=1)
+                sum_temp_sigma = np.nansum(np.square(diff_m) *
+                                           intensity.kernel[p](diff),
+                                           axis=1)
                 sum_temp_sigma *= intensity.alpha[p] / \
                     intensity(intensity.acti_tt)
                 # cubic root
