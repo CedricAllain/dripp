@@ -18,7 +18,7 @@ from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
 
-N_JOBS = 3
+N_JOBS = 40
 
 SAVE_RESULTS_PATH /= 'results_sythetic'
 if not SAVE_RESULTS_PATH.exists():
@@ -68,7 +68,7 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
              'verbose': False}
 
 # parameters to vary for EM computation
-em_params_to_vary = {'T': np.logspace(2, 5, num=7).astype(int)}
+em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
 # em_params_to_vary = {'T': np.array([10_000])}
 T_max = em_params_to_vary['T'].max()
 
@@ -85,7 +85,7 @@ n_tasks = simu_params_to_vary['n_tasks'][-1]
 fig, axes = plt.subplots(1, 2, figsize=figsize)
 
 start, stop = 0, 1
-xx = np.linspace(start, stop, (stop - start) * 300)
+xx = np.linspace(start, stop, int(np.ceil((stop - start) * 300)))
 
 for i in range(N_DRIVERS):
     # define true kernel

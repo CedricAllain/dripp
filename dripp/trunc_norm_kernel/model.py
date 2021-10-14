@@ -376,7 +376,7 @@ class Intensity():
             # define the kernel pattern to use in convolution
             kernel = self.kernel[p]
             kernel_grid = kernel(np.linspace(
-                0, kernel.upper, kernel.upper * sfreq))
+                0, kernel.upper, int(np.ceil(kernel.upper * sfreq))))
             # do the convolution
             this_intensity_grid = np.convolve(
                 dirac_tt, kernel_grid, mode='full')
