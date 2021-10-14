@@ -47,13 +47,13 @@ for i, seed in enumerate(SEEDS):
         T=T, isi=ISI, n_tasks=N_TASKS,
         n_drivers=N_DRIVERS, seed=seed, return_nll=False, verbose=VERBOSE)
 
-    driver_tt_uni, acti_tt_uni, _ = simulate_data_uni(
-        lower=lower, upper=upper,
-        m=true_params['m'], sigma=true_params['sigma'],
-        sfreq=SFREQ,
-        baseline=true_params['baseline'], alpha=true_params['alpha'],
-        T=T, isi=ISI, n_tasks=N_TASKS,
-        seed=seed, verbose=VERBOSE)
+    # driver_tt_uni, acti_tt_uni, _ = simulate_data_uni(
+    #     lower=lower, upper=upper,
+    #     m=true_params['m'], sigma=true_params['sigma'],
+    #     sfreq=SFREQ,
+    #     baseline=true_params['baseline'], alpha=true_params['alpha'],
+    #     T=T, isi=ISI, n_tasks=N_TASKS,
+    #     seed=seed, verbose=VERBOSE)
 
     # %% ------ Initiate parameters (with new method) ------
     init_params = initialize(acti_tt, driver_tt, lower, upper, T)
@@ -61,8 +61,8 @@ for i, seed in enumerate(SEEDS):
     #     print("Initial parameters: ", init_params)
     # init_params_uni = (init_params[0], init_params[1][0],
     #                    init_params[2][0], init_params[3][0])
-    init_params_uni = initialize_uni(
-        acti_tt_uni, driver_tt_uni, lower, upper, T)
+    # init_params_uni = initialize_uni(
+    #     acti_tt_uni, driver_tt_uni, lower, upper, T)
     # %% ------ Run DriPP univaraite ------
 
     # res_uni = em_truncated_norm_uni(acti_tt=acti_tt_uni, driver_tt=driver_tt_uni,
@@ -71,25 +71,22 @@ for i, seed in enumerate(SEEDS):
     #                                 alpha_pos=True,
     #                                 n_iter=N_ITER,
     #                                 verbose=VERBOSE, disable_tqdm=False)
-    res_uni = em_truncated_norm(acti_tt=acti_tt_uni, driver_tt=driver_tt_uni,
-                                lower=lower, upper=upper, T=T, sfreq=SFREQ,
-                                init_params=init_params,
-                                alpha_pos=True,
-                                n_iter=N_ITER,
-                                verbose=VERBOSE, disable_tqdm=False)
+    # res_uni = em_truncated_norm(acti_tt=acti_tt_uni, driver_tt=driver_tt_uni,
+    #                             lower=lower, upper=upper, T=T, sfreq=SFREQ,
+    #                             init_params=init_params,
+    #                             alpha_pos=True,
+    #                             n_iter=N_ITER,
+    #                             verbose=VERBOSE, disable_tqdm=False)
     res_multi = em_truncated_norm(acti_tt=acti_tt, driver_tt=driver_tt,
                                   lower=lower, upper=upper, T=T, sfreq=SFREQ,
                                   init_params=init_params,
                                   alpha_pos=True,
                                   n_iter=N_ITER,
                                   verbose=VERBOSE, disable_tqdm=False)
-    if VERBOSE:
-        print("Estimated params via DriPP uni: ", res_uni[0])
-        # print("Estimated params via DriPP multi: ", res_multi[0])
 
-    df_hist_uni = pd.DataFrame(res_uni[1])
-    for col in ['alpha', 'm', 'sigma']:
-        df_hist_uni[col] = df_hist_uni[col].apply(lambda x: x[0])
+    # df_hist_uni = pd.DataFrame(res_uni[1])
+    # for col in ['alpha', 'm', 'sigma']:
+    #     df_hist_uni[col] = df_hist_uni[col].apply(lambda x: x[0])
     df_hist_multi = pd.DataFrame(res_multi[1])
     for col in ['alpha', 'm', 'sigma']:
         df_hist_multi[col] = df_hist_multi[col].apply(lambda x: x[0])
@@ -98,7 +95,7 @@ for i, seed in enumerate(SEEDS):
     else:
         legend = False
 
-    df_hist_uni.plot(subplots=True, ax=axes, legend=legend, alpha=0.3)
+    # df_hist_uni.plot(subplots=True, ax=axes, legend=legend, alpha=0.3)
     df_hist_multi.plot(subplots=True, ax=axes, legend=legend,
                        alpha=0.3, linestyle="dashed")
 

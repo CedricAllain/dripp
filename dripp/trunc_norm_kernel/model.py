@@ -1,5 +1,6 @@
 # %%
 import numpy as np
+import itertools
 import math
 from scipy.stats import truncnorm
 from copy import deepcopy
@@ -259,7 +260,7 @@ class Intensity():
         self.baseline = baseline
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
-            alpha, len(self.driver_tt), repeat=True)
+            alpha, self.n_driver, repeat=True)
         self.kernel = np.atleast_1d(kernel)  # set of kernels functions
         self._acti_tt = np.atleast_1d(acti_tt)  # ensure it is numpy array
 
@@ -355,80 +356,44 @@ class Intensity():
         return intensities
 
     def get_max(self):
-        """Compute maximum intensity at every kernel
+        """Compute maximum intensity 
 
         Returns
         -------
-        array-like
+        float
 
         """
 
-        m = np.array([self.baseline + self.alpha[p] * self.kernel[p].max
-                      for p in range(self.n_driver)])
+        # get sfreq used for kernel initialization
+        sfreq = self.kernel[0].sfreq
+        # for each kernel do a convolution with its events timestamps
+        intensity_grid = []
+        for p in range(self.n_driver):
+            tt_idx = np.asarray((self.driver_tt[p] * sfreq), dtype=int)
+            # create Dirac vector for driver events
+            dirac_tt = np.zeros(tt_idx.max() + 1)
+            dirac_tt[tt_idx] = 1
+            # define the kernel pattern to use in convolution
+            kernel = self.kernel[p]
+            kernel_grid = kernel(np.linspace(
+                0, kernel.upper, kernel.upper * sfreq))
+            # do the convolution
+            this_intensity_grid = np.convolve(
+                dirac_tt, kernel_grid, mode='full')
+            # multiply by the corresponding factor
+            this_intensity_grid *= self.alpha[p]
+            intensity_grid.append(this_intensity_grid)
 
-        # lifting the non-overlapping assumption: get empirical max
-        # first_xx = np.floor(np.array([tt.min()
-        #                               for tt in self.driver_tt]).min())
-        # last_xx = np.ceil(np.array([tt.max() for tt in self.driver_tt]).max())
+        # pad with 0 the intensity vectors
+        intensity_grid = np.array(
+            list(itertools.zip_longest(*intensity_grid, fillvalue=0))).T
 
-        # xx = np.linspace(first_xx, last_xx, int(sfreq) * int(last_xx-first_xx))
-        # m = self(xx).max()
+        # sum accros the drivers
+        intensity_grid = intensity_grid.sum(axis=0)
+        # add the baseline intensity
+        intensity_grid += self.baseline
 
-        # ====================================
-
-        # compute the intensity over all kernels' supports and get max
-        # sfreq = self.kernel[0].sfreq
-        # lower, upper = self.kernel[0].lower, self.kernel[0].upper
-        # all_tt = np.sort(np.hstack(self.driver_tt.flatten()))
-        # m = self.baseline
-
-        # # get all supports (where intensity > baseline)
-        # supports = []
-        # temp = (all_tt[0] + lower, all_tt[0] + upper)
-        # for i in range(all_tt.size - 1):
-        #     if all_tt[i+1] + lower > temp[1]:
-        #         # xx = np.linspace(
-        #         #     temp[0], temp[1], int(sfreq*(temp[1]-temp[0])))
-        #         # m = max(m, self(xx).max())  # update maximum value
-        #         supports.append(temp)
-        #         temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
-        #     else:
-        #         temp = (temp[0], all_tt[i+1] + upper)
-
-        # def get_sub_max(support):
-        #     """
-
-        #     """
-        #     xx = np.linspace(
-        #         support[0], support[1], int(sfreq*(support[1]-support[0])))
-        #     return self(xx).max()
-
-        # all_m = Parallel(n_jobs=40)(
-        #     delayed(get_sub_max)(this_support) for this_support in supports[:200])
-        # m = np.max(all_m)
-
-        # ====================================
-        # compute a supremum
-        # m = 0
-        # for p in range(len(self.kernel)):
-        #     m = max(m, self.alpha[p] * self.kernel[p].get_max())
-
-        # m += self.baseline
-
-        # ====================================
-
-        # if "global" (i.e., all drivers combined) non-overlapping assumption
-        # m = self.baseline
-        # if self.kernel.shape[0] > 0:  # if at least one associated kernel
-        #     m += np.array([alpha * kernel.max for alpha,
-        #                     kernel in zip(self.alpha, self.kernel)]).max()
-
-        # if self.kernel is not None:
-        #     return self.baseline + self.alpha * self.kernel.max
-        # else:
-        #     return self.baseline
-
-        return m
+        return intensity_grid.max()
 
     def get_next_lambda_max(self, t):
         """Given a point in time, compute the maximum of the intensity in the

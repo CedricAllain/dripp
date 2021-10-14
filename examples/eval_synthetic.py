@@ -30,10 +30,11 @@ if not SAVE_RESULTS_PATH.exists():
 
 fontsize = 9
 plt.rcParams.update(plt.rcParamsDefault)
-plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Helvetica"]})
+# plt.rcParams.update({
+#     "text.usetex": True,
+#     "font.family": "sans-serif",
+#     "font.sans-serif": ["Helvetica"]
+# })
 
 figsize = (5.5, 2)
 cmap = 'viridis_r'
