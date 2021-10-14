@@ -251,7 +251,7 @@ class Intensity():
                  driver_tt=(), acti_tt=()):
 
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
-        if isinstance(driver_tt[0], (int, float)):
+        if isinstance(driver_tt[0], (int, float, np.int64, np.float)):
             driver_tt = np.atleast_2d(driver_tt)
         self._driver_tt = np.array([np.array(x) for x in driver_tt])
 

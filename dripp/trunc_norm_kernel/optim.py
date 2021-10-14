@@ -156,7 +156,7 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
     """
 
     acti_tt = np.atleast_1d(acti_tt)
-    if isinstance(driver_tt[0], (int, float)):
+    if isinstance(driver_tt[0], (int, float, np.int64, np.float)):
         driver_tt = np.atleast_2d(driver_tt)
     driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
     n_driver = driver_tt.shape[0]
@@ -433,7 +433,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                   "(negative log-likelihood).")
         return compute_baseline_mle(acti_tt, T)
 
-    if isinstance(driver_tt[0], (int, float)):
+    if isinstance(driver_tt[0], (int, float, np.int64, np.float)):
         driver_tt = np.atleast_2d(driver_tt)
     driver_tt = np.array([np.array(x) for x in driver_tt])
     n_driver = driver_tt.shape[0]
