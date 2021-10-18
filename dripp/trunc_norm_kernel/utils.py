@@ -1,6 +1,7 @@
 """ Utils functions used for driven point process
 with truncated normal kernels """
 
+from scipy.sparse import csr_matrix
 import itertools
 import numbers
 import numpy as np
@@ -133,16 +134,35 @@ def get_driver_delays(intensity, t):
     for p in range(intensity.n_drivers):
         driver_tt = intensity.driver_tt[p]
         lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
+        # Construct a sparse matrix
         this_driver_delays = []
+        indices = []
+        indptr = [0]
+        n_col = 1
         for this_t in t:
             this_t_delays = this_t - driver_tt[(
                 driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))]
-            this_driver_delays.append(this_t_delays)
-        # transform into 2D numpy.array with a 0 padding
-        this_driver_delays = np.array(
-            list(itertools.zip_longest(*this_driver_delays, fillvalue=np.nan))).T
-        this_driver_delays = np.atleast_2d(this_driver_delays)
+            # this_driver_delays.append(this_t_delays)
+            n_delays = len(this_t_delays)
+            n_col = max(n_col, n_delays)
+            if n_delays > 0:
+                this_driver_delays.extend(this_t_delays)
+                indices.extend(list(range(n_delays)))
+                indptr.append(n_delays)
+        # add termination
+        indptr.append(len(this_driver_delays))
+        # import ipdb
+        # ipdb.set_trace()
+        # create sparse matrix
+        M = csr_matrix((np.array(this_driver_delays), np.array(
+            indices), np.array(indptr)), shape=(len(t), n_col))
+        delays.append(M)
+
+        # # transform into 2D numpy.array with a 0 padding
+        # this_driver_delays = np.array(
+        #     list(itertools.zip_longest(*this_driver_delays, fillvalue=np.nan))).T
+        # this_driver_delays = np.atleast_2d(this_driver_delays)
         # append to list of delays
-        delays.append(this_driver_delays)
+        # delays.append(this_driver_delays)
 
     return delays

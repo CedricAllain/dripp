@@ -73,50 +73,6 @@ def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
     return baseline_init
 
 
-# def initialize_alpha(baseline, ppt_in_support, ppt_of_support):
-#     """Initializa parameter alpha for the "smart start" initialization strategy
-
-#     Parameters
-#     ----------
-#     baseline : float
-#         intensity baseline parameter
-
-#     ppt_in_support : float | array-like
-#         proportion of activation that kend in kernel support
-
-#     ppt_of_support : float | array-like
-#         proportion of all kernel supports over T
-
-
-#     Returns
-#     -------
-#     array-like
-
-#     """
-
-#     ppt_in_support_list = np.atleast_1d(ppt_in_support)
-#     ppt_of_support_list = np.atleast_1d(ppt_of_support)
-
-#     assert len(ppt_in_support_list) == len(ppt_of_support_list)
-
-#     alpha_init_list = []
-#     for ppt_in_support, ppt_of_support in zip(ppt_in_support_list,
-#                                               ppt_of_support_list):
-
-#         if ppt_in_support == 1 or baseline == 0:
-#             alpha_init_list.append(1)
-#             continue
-
-#         a = np.exp(baseline)
-#         lim = ((a-1) / 5 + 1 / (1 - ppt_of_support)) ** (-1) + ppt_of_support
-#         alpha_init = -a * \
-#             np.log((lim - ppt_in_support) / (lim - ppt_of_support))
-
-#         alpha_init_list.append(max(alpha_init, 0))  # project on [0 ; +infty]
-
-#     return np.array(alpha_init_list)
-
-
 def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
                initializer='smart_start', seed=None):
     """Initializa EM 4 parameters (baseline, alpha, m and sigma) given an
@@ -171,7 +127,6 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
 
     elif initializer == 'smart_start':
         # default values
-        default_alpha = 0.05
         default_m = (upper - lower) / 2
         default_sigma = 0.95 * (upper - lower) / 4
 

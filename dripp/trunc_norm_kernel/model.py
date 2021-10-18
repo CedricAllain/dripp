@@ -1,4 +1,6 @@
 # %%
+
+# %%
 import numpy as np
 import itertools
 import math
@@ -274,7 +276,8 @@ class Intensity():
             # get its corresponding driver timestamp
             self.driver_delays = get_driver_delays(self, self.acti_tt)
         else:
-            self.driver_delays = np.atleast_2d([])
+            # self.driver_delays = np.atleast_2d([])
+            self.driver_delays = None
 
     def update(self, baseline, alpha, m, sigma):
         """Update the intensity function (baseline parameter as well as associated kernels and alpha) with new values.
@@ -311,16 +314,18 @@ class Intensity():
         # compute the driver delays if not specified
         if driver_delays is None:
             driver_delays = get_driver_delays(self, t)
-        else:
-            driver_delays = np.atleast_2d(driver_delays)
+        # else:
+        #     driver_delays = np.atleast_2d(driver_delays)
         # initialize
         intensities = self.baseline
         for p, delays in enumerate(driver_delays):
-            if delays.size == 0:
+            if delays.data.size == 0:
                 # no delays for this driver
                 continue
-            val = np.nansum(self.kernel[p](delays.astype('float')), axis=1)
-            intensities += self.alpha[p] * val
+            # val = np.nansum(self.kernel[p](delays.astype('float')), axis=1)
+            val = delays.copy()
+            val.data = self.kernel[p](delays.data)
+            intensities += self.alpha[p] * val.sum(axis=1)
 
         intensities = np.atleast_1d(intensities)
 

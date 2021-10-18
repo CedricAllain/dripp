@@ -83,7 +83,7 @@ def compute_Cs(kernel):
     return C, C_m, C_sigma
 
 
-def compute_p_tk(t, intensity, driver_delays=()):
+def compute_p_tk(t, intensity, driver_delays=None):
     r"""Compute the probability that the activation at time $t$ has been
     triggered by the baseline intensity of the process $k$.
 
@@ -142,8 +142,8 @@ def compute_p_tp(t, intensity, driver_delays=None):
 
     if driver_delays is None:
         driver_delays = get_driver_delays(intensity, t)
-    else:
-        driver_delays = np.atleast_2d(driver_delays)
+    # else:
+    #     driver_delays = np.atleast_2d(driver_delays)
 
     # compute value of intensity function at each time t
     intensity_at_t = intensity(t, driver_delays=driver_delays)
@@ -151,7 +151,10 @@ def compute_p_tp(t, intensity, driver_delays=None):
     list_p_tp = []
     for p, delays in enumerate(driver_delays):
         alpha, kernel = intensity.alpha[p], intensity.kernel[p]
-        p_tp = alpha * np.nansum(kernel(delays), axis=1)
+        val = delays.copy()
+        val.data = kernel(val.data)
+        # p_tp = alpha * np.nansum(kernel(delays), axis=1)
+        p_tp = alpha * val.sum(axis=1)
         p_tp /= intensity_at_t
         list_p_tp.append(p_tp)
 
@@ -230,9 +233,13 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
             # next value of m for p-th driver
             if C[p] > 0:  # avoid division by 0
                 # sum over the driver events
-                sum_temp_m = np.nansum(diff * intensity.kernel[p](diff),
-                                       axis=1)
-                sum_temp_m /= intensity(intensity.acti_tt)
+                val = diff.copy()
+                val.data *= intensity.kernel[p](val.data)
+                sum_temp_m = val.sum(axis=1)
+                # sum_temp_m = np.nansum(diff * intensity.kernel[p](diff),
+                #                        axis=1)
+                sum_temp_m /= intensity(intensity.acti_tt,
+                                        driver_delays=intensity.driver_delays)
                 this_next_m = intensity.alpha[p] * sum_temp_m.sum() / \
                     sum_p_tp[p]
                 this_next_m -= np.square(
@@ -243,13 +250,18 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
             # next value of sigma for p-th driver
             if C_sigma[p] > 0:  # avoid division by 0
                 # compute diff from the current kernel mean
-                diff_m = diff - intensity.kernel[p].m
+                val = diff.copy()
+                val.data = np.square(val.data - intensity.kernel[p].m) \
+                    * intensity.kernel[p](val.data)
+                sum_temp_sigma = val.sum(axis=1)
+                # diff_m = diff - intensity.kernel[p].m
                 # sum over the driver events
-                sum_temp_sigma = np.nansum(np.square(diff_m) *
-                                           intensity.kernel[p](diff),
-                                           axis=1)
+                # sum_temp_sigma = np.nansum(np.square(diff_m) *
+                #                            intensity.kernel[p](diff),
+                #                            axis=1)
                 sum_temp_sigma *= intensity.alpha[p] / \
-                    intensity(intensity.acti_tt)
+                    intensity(intensity.acti_tt,
+                              driver_delays=intensity.driver_delays)
                 # cubic root
                 this_next_sigma = np.cbrt(
                     C[p] / C_sigma[p] * sum_temp_sigma.sum() / sum_p_tp[p])
