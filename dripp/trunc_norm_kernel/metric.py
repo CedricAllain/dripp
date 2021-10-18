@@ -45,7 +45,7 @@ def negative_log_likelihood_1d(intensity, T):
                               kernel.lower,
                               T - driver_last_tt)[0]
 
-    nll -= np.log(intensity(acti_tt, last_tt=intensity.acti_last_tt)).sum()
+    nll -= np.log(intensity(acti_tt)).sum()
 
     return nll
 
@@ -66,23 +66,26 @@ def negative_log_likelihood(intensity, T):
     float
     """
 
-    n_drivers = len(intensity.kernel)
+    # n_drivers = len(intensity.kernel)
 
-    if n_drivers == 1:
-        return negative_log_likelihood_1d(intensity, T)
+    # if n_drivers == 1:
+    #     return negative_log_likelihood_1d(intensity, T)
 
     # in the case of multiple drivers
     nll = T * intensity.baseline
     for this_alpha, this_driver_tt in zip(intensity.alpha, intensity.driver_tt):
         nll += this_alpha * len(this_driver_tt)
 
-    for this_acti_tt in intensity.acti_tt:
-        sum_temp = intensity.baseline
-        for p in range(n_drivers):
-            # compute delays
-            delays = this_acti_tt - intensity.driver_tt[p]
-            # compute the sum of kernel values for the delays
-            sum_temp += intensity.alpha[p] * intensity.kernel[p](delays).sum()
-        nll -= np.log(sum_temp)
+    nll -= np.log(intensity(intensity.acti_tt,
+                            driver_delays=intensity.driver_delays)).sum()
+
+    # for this_acti_tt in intensity.acti_tt:
+    #     sum_temp = intensity.baseline
+    #     for p in range(n_drivers):
+    #         # compute delays
+    #         delays = this_acti_tt - intensity.driver_tt[p]
+    #         # compute the sum of kernel values for the delays
+    #         sum_temp += intensity.alpha[p] * intensity.kernel[p](delays).sum()
+    #     nll -= np.log(sum_temp)
 
     return nll
