@@ -420,9 +420,9 @@ if __name__ == '__main__':
     N_DRIVERS = 2
     T = 10_000  # process time, in seconds
     lower, upper = 30e-3, 800e-3
-    sfreq = 1000.
+    sfreq = 500.
     start_time = time.time()
-    driver_tt, acti_tt, _, _ = simulate_data(
+    driver_tt, acti_tt, _, intensity = simulate_data(
         lower=lower, upper=upper,
         m=[400e-3, 400e-3], sigma=[0.2, 0.05],
         sfreq=sfreq,
@@ -433,8 +433,10 @@ if __name__ == '__main__':
     print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
           % (N_DRIVERS, T, simu_time))
 
-    res_params = em_truncated_norm(acti_tt, driver_tt, lower, upper, T, sfreq,
-                                   n_iter=300)[0]
+    start_time = time.time()
+    res_params, history_params, _ = em_truncated_norm(
+        acti_tt, driver_tt, lower, upper, T, sfreq, alpha_pos=True,
+        n_iter=30, verbose=True)
     em_time = time.time() - start_time
     print('EM time', em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)

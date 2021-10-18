@@ -142,7 +142,8 @@ def compute_p_tp(t, intensity, driver_delays=None):
 
     if driver_delays is None:
         driver_delays = get_driver_delays(intensity, t)
-    driver_delays = np.atleast_2d(driver_delays)
+    else:
+        driver_delays = np.atleast_2d(driver_delays)
 
     # compute value of intensity function at each time t
     intensity_at_t = intensity(t, driver_delays=driver_delays)

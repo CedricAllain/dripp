@@ -311,7 +311,8 @@ class Intensity():
         # compute the driver delays if not specified
         if driver_delays is None:
             driver_delays = get_driver_delays(self, t)
-        driver_delays = np.atleast_2d(driver_delays)
+        else:
+            driver_delays = np.atleast_2d(driver_delays)
         # initialize
         intensities = self.baseline
         for p, delays in enumerate(driver_delays):
@@ -326,7 +327,7 @@ class Intensity():
         if t.size == 1:
             return intensities[0]
 
-        return intensities
+        return intensities.clip(min=0)
 
     def get_max(self):
         """Compute maximum intensity 
