@@ -125,7 +125,8 @@ for i in range(N_DRIVERS):
     title += rf" $\alpha={simu_params['alpha'][i]}$, "
     title += rf" $m={simu_params['m'][i]}$, "
     title += rf" $\sigma={simu_params['sigma'][i]}$"
-    axes[i].legend(fontsize=fontsize)
+    if i == (N_DRIVERS - 1):
+        axes[i].legend(fontsize=fontsize)
     axes[i].set_title(title, fontsize=fontsize)
 
 plt.tight_layout()
