@@ -9,7 +9,7 @@ from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
 
 # define global grid
 sfreq = 500
-T = 5
+T = 10
 xx = np.linspace(0, T, T*sfreq)
 # define intensity parameters
 alpha = [0.8, 1.2]
@@ -17,10 +17,10 @@ baseline = 0.8
 # define kernels functions and their event timestamps
 kernel_1 = TruncNormKernel(lower=30e-3, upper=800e-3,
                            m=400e-3, sigma=0.1, sfreq=sfreq)
-driver_tt_1 = np.array([1, 2.4, 4])
+driver_tt_1 = np.array([1, 2.4, 4, 5, 6, 7.3])
 kernel_2 = TruncNormKernel(lower=0, upper=1.5,
                            m=600e-3, sigma=0.4, sfreq=sfreq)
-driver_tt_2 = np.array([1.3, 2, 3])
+driver_tt_2 = np.array([1.3, 2, 3, 5, 5.5, 7])
 
 kernel = [kernel_1, kernel_2]
 driver_tt = [driver_tt_1, driver_tt_2]
@@ -38,7 +38,7 @@ for this_kernel, this_driver_tt, this_alpha in zip(kernel, driver_tt, alpha):
     this_intensity_grid *= this_alpha
     intensity_grid.append(this_intensity_grid)
 
-# ad with 0
+# pad with 0
 intensity_grid = np.array(
     list(itertools.zip_longest(*intensity_grid, fillvalue=0))).T
 # sum accros the drivers

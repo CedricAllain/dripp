@@ -157,7 +157,6 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
     s = 0.
     while s <= T:
         # lambda_max = intensity.get_next_lambda_max(s)
-        # print('lambda_max:', lambda_max)
         u = rng.rand()
         w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w

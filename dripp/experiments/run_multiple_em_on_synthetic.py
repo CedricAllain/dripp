@@ -151,7 +151,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
             new_row['infinite_norm_of_diff_rel_kernel_%i' %
                     p] = inf_norm_rel
             # add number of events created for each driver
-            new_row['n_driver_tt_kernel_%i' % p] = len(driver_tt[p])
+            new_row['n_drivers_tt_kernel_%i' % p] = len(driver_tt[p])
 
         # add new row
         new_rows.append(new_row)

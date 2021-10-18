@@ -4,6 +4,7 @@ XXX
 # %%
 import numpy as np
 import time
+import numbers
 from functools import partial
 from numpy.core.records import array
 from tqdm import tqdm
@@ -58,7 +59,7 @@ def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
     # compute the number of activation that lend in at least one kernel's support
     acti_in_support = set()
     for p in range(driver_tt.shape[0]):
-        # (n_driver_tt, n_acti_tt)
+        # (n_drivers_tt, n_acti_tt)
         delays = acti_tt - driver_tt[p][:, np.newaxis]
         mask = (delays >= lower) & (delays <= upper)
         acti_in_support.update(*[set(acti_tt[this_mask])
@@ -156,17 +157,17 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
     """
 
     acti_tt = np.atleast_1d(acti_tt)
-    if isinstance(driver_tt[0], (int, float, np.int64, np.float)):
+    if isinstance(driver_tt[0], numbers.Number):
         driver_tt = np.atleast_2d(driver_tt)
     driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
-    n_driver = driver_tt.shape[0]
+    n_drivers = driver_tt.shape[0]
 
     if initializer == 'random':
         rng = np.random.RandomState(seed)
         baseline_init = rng.uniform(low=0.15, high=1)
-        m_init = rng.uniform(low=max(lower, 0.1), high=upper, size=n_driver)
-        sigma_init = rng.uniform(low=5e-2, high=1, size=n_driver)
-        alpha_init = rng.uniform(low=0.15, high=1, size=n_driver)
+        m_init = rng.uniform(low=max(lower, 0.1), high=upper, size=n_drivers)
+        sigma_init = rng.uniform(low=5e-2, high=1, size=n_drivers)
+        alpha_init = rng.uniform(low=0.15, high=1, size=n_drivers)
 
     elif initializer == 'smart_start':
         # default values
@@ -176,9 +177,9 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
 
         if acti_tt.size == 0:  # no activation at all on the process
             baseline_init = 0
-            alpha_init = np.full(n_driver, fill_value=0)
-            m_init = np.full(n_driver, fill_value=default_m)
-            sigma_init = np.full(n_driver, fill_value=default_sigma)
+            alpha_init = np.full(n_drivers, fill_value=0)
+            m_init = np.full(n_drivers, fill_value=default_m)
+            sigma_init = np.full(n_drivers, fill_value=default_sigma)
             return baseline_init, alpha_init, m_init, sigma_init
 
         # initialize baseline
@@ -193,7 +194,7 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
         alpha_init = []
         m_init = []
         sigma_init = []
-        for p in range(n_driver):
+        for p in range(n_drivers):
             delays = diff[p][mask[p]]
             if delays.size == 0:
                 alpha_init.append(- baseline_init)
@@ -252,102 +253,9 @@ def compute_baseline_mle(acti_tt=(), T=60, return_nll=True):
         return baseline_mle
 
 
-# def early_stopping_percent_mass(kernel, p_mass=0.99, n_tt=4,
-#                                 sfreq=150.):
-#     """ If `p_mass` % of kernel's mass is concentraded on less than `n_tt`
-#     timestamps, the EM algorithm stops.
-
-#     Parameters
-#     ----------
-#     kernel : model.Kernel object
-
-#     p_mass : float
-#         percentage of mass to be concentrated in less that `n_tt` timestamps in
-#         order to stop the algorithm
-
-#     n_tt : int
-#         number of timestamps
-
-#     sfreq : float
-#         sampling frequency
-#         Default is 150.
-
-#     Returns
-#     -------
-#     bool
-
-#     """
-
-#     # determine quantiles of interest
-#     # q1, q2 = kernel.ppf((1 - p_mass) / 2), kernel.ppf((1 + p_mass) / 2)
-#     q1, q2 = kernel.interval(p_mass)
-#     # if the inter quantile intervalle is too small, it means the mass is too
-#     # concentrate, i.e., sigma is too small to mean anything
-#     if (q1 == q2) or (np.abs(q2 - q1) < n_tt / sfreq):
-#         return True
-
-#     return False
-
-
-# def stop_em(alpha, kernel, early_stopping=None, verbose=True,
-#             **early_stopping_params):
-#     """ Determine if the EM algo needs to be stopped.
-#     Returns True if alpha = 0, or if sigma is too small to be meaningfull.
-
-#     Parameters
-#     ----------
-#     alpha : float | int
-#         value of the alpha parameter
-
-#     kernel : instance of TruncNormKernel
-#         kernel function
-
-#     early_stopping : "early_stopping_percent_mass" | None
-#         method to deal with pathological cases
-#         default is None
-
-#     verbose : bool
-#         if True, print some informations
-
-#     early_stopping_params : dict
-#         criteria for `early_stopping` function, if not None
-
-#     Returns
-#     -------
-#     bool : either or not to stop the EM algo
-
-#     """
-
-#     if alpha == 0:
-#         if verbose:
-#             print("Earling stopping due to alpha = 0.")
-
-#         return True
-
-#     stop_sigma = False
-
-#     if early_stopping == "early_stopping_percent_mass":
-#         stop_sigma = early_stopping_percent_mass(
-#             kernel, **early_stopping_params)
-
-#     C, _, C_sigma = compute_Cs(kernel)
-#     stop_C = (np.array(C).max() == 0)  # or (C_sigma <= 0)
-
-#     if stop_sigma or stop_C:
-#         if verbose:
-#             print("Earling stopping: kernel's mass is too concentrated, "
-#                   "either sigma is too small to continue or m is too far "
-#                   "from kernel's support. "
-#                   "The process is hence considered not driven")
-#         return True
-
-#     return False
-
-
 def em_truncated_norm(acti_tt, driver_tt=(),
                       lower=30e-3, upper=500e-3, T=60, sfreq=150.,
                       init_params=None, initializer='smart_start',
-                      #   early_stopping=None, early_stopping_params={},
                       alpha_pos=True, n_iter=80,
                       verbose=False, disable_tqdm=False, compute_loss=False):
     """Run EM-based algorithm
@@ -433,10 +341,10 @@ def em_truncated_norm(acti_tt, driver_tt=(),
                   "(negative log-likelihood).")
         return compute_baseline_mle(acti_tt, T)
 
-    if isinstance(driver_tt[0], (int, float, np.int64, np.float)):
+    if isinstance(driver_tt[0], numbers.Number):
         driver_tt = np.atleast_2d(driver_tt)
     driver_tt = np.array([np.array(x) for x in driver_tt])
-    n_driver = driver_tt.shape[0]
+    n_drivers = driver_tt.shape[0]
 
     # initialize parameters
     if init_params is None:
@@ -452,7 +360,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
 
     # initialize kernels and intensity functions
     kernel = []
-    for i in range(n_driver):
+    for i in range(n_drivers):
         kernel.append(TruncNormKernel(
             lower, upper, m_hat[i], sigma_hat[i], sfreq=sfreq))
     intensity = Intensity(baseline_hat, alpha_hat, kernel, driver_tt, acti_tt)

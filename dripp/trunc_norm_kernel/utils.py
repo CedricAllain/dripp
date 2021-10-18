@@ -2,6 +2,7 @@
 with truncated normal kernels """
 
 import itertools
+import numbers
 import numpy as np
 
 
@@ -63,7 +64,7 @@ def get_last_timestamps(timestamps, t):
     if timestamps == []:
         return np.array([[]])
 
-    if isinstance(timestamps[0], (int, float)):
+    if isinstance(timestamps[0], numbers.Number):
         timestamps = np.atleast_2d(timestamps)
 
     last_tmstp = []
@@ -102,7 +103,7 @@ def get_driver_tt_of_influence(intensity, t):
     """
 
     driver_tt_of_influence = []
-    for p in range(intensity.n_driver):
+    for p in range(intensity.n_drivers):
         driver_tt = intensity.driver_tt[p]
         lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
         this_driver_tt_of_influence = driver_tt[(
@@ -129,7 +130,7 @@ def get_driver_delays(intensity, t):
     t = np.atleast_1d(t)
 
     delays = []
-    for p in range(intensity.n_driver):
+    for p in range(intensity.n_drivers):
         driver_tt = intensity.driver_tt[p]
         lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
         this_driver_delays = []

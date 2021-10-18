@@ -2,6 +2,7 @@
 import numpy as np
 import itertools
 import math
+import numbers
 from scipy.stats import truncnorm
 from copy import deepcopy
 from joblib import Memory, Parallel, delayed
@@ -252,15 +253,15 @@ class Intensity():
                  driver_tt=(), acti_tt=()):
 
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
-        if isinstance(driver_tt[0], (int, float, np.int64, np.float)):
+        if isinstance(driver_tt[0], numbers.Number):
             driver_tt = np.atleast_2d(driver_tt)
         self._driver_tt = np.array([np.array(x) for x in driver_tt])
 
-        self.n_driver = len(self.driver_tt)
+        self.n_drivers = len(self.driver_tt)
         self.baseline = baseline
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
-            alpha, self.n_driver, repeat=True)
+            alpha, self.n_drivers, repeat=True)
         self.kernel = np.atleast_1d(kernel)  # set of kernels functions
         self._acti_tt = np.atleast_1d(acti_tt)  # ensure it is numpy array
 
@@ -271,14 +272,9 @@ class Intensity():
         if self.acti_tt.shape[0] > 0 and self.driver_tt.shape[0] > 0:
             # for every process activation timestamps,
             # get its corresponding driver timestamp
-            self.acti_last_tt = get_last_timestamps(driver_tt, self.acti_tt)
             self.driver_delays = get_driver_delays(self, self.acti_tt)
         else:
-            self.acti_last_tt = ()
             self.driver_delays = np.atleast_2d([])
-
-        # compute maximum intensity
-        # self.lambda_max = self.get_max()
 
     def update(self, baseline, alpha, m, sigma):
         """Update the intensity function (baseline parameter as well as associated kernels and alpha) with new values.
@@ -289,10 +285,10 @@ class Intensity():
 
         self.baseline = baseline
         self.alpha = alpha
-        for i in range(self.n_driver):
+        for i in range(self.n_drivers):
             self.kernel[i].update(m=m[i], sigma=sigma[i])
 
-    def __call__(self, t, last_tt=(), driver_delays=(), non_overlapping=False):
+    def __call__(self, t, driver_delays=None):
         """Evaluate the intensity at time(s) t
 
         Parameters
@@ -300,9 +296,8 @@ class Intensity():
         t : int | float | array-like
             the value(s) we would like to evaluate the intensity at
 
-        last_tt : int | float | array-like
-            the corresponding driver's timestamps
-            if not specified, will be computed
+        driver_delays : array-like
+            XXX
 
         Returns
         -------
@@ -313,34 +308,12 @@ class Intensity():
 
         t = np.atleast_1d(t)
 
-        # if non_overlapping:
-        #     if (last_tt == ()) or \
-        #             (last_tt.shape[0] != self.driver_tt.shape[0]):
-        #         # with the non-overlapping assumption, only the last event on
-        #         # each driver matters
-        #         last_tt = get_last_timestamps(self.driver_tt, t)
-        #     else:
-        #         last_tt = np.atleast_2d(last_tt)  # from 1d to 2d
-
-        #     intensities = self.baseline
-        #     for alpha, kernel, tt in zip(self.alpha, self.kernel, last_tt):
-        #         # if (self.kernel is not None) and (self.alpha > 0):
-        #         intensities += alpha * kernel(t - tt)
-
-        #     intensities[np.isnan(intensities)] = self.baseline
-        # else:
-
         # compute the driver delays if not specified
-        if driver_delays == ():
+        if driver_delays is None:
             driver_delays = get_driver_delays(self, t)
+        driver_delays = np.atleast_2d(driver_delays)
         # initialize
         intensities = self.baseline
-        # for p in range(self.n_driver):
-        #     # compute delays
-        #     delays = t[:, np.newaxis] - self.driver_tt[p]
-        #     # compute sum of kernel values for these delays
-        #     val = np.nansum(self.kernel[p](delays.astype('float')), axis=1)
-        #     intensities += self.alpha[p] * val
         for p, delays in enumerate(driver_delays):
             if delays.size == 0:
                 # no delays for this driver
@@ -368,7 +341,7 @@ class Intensity():
         sfreq = self.kernel[0].sfreq
         # for each kernel do a convolution with its events timestamps
         intensity_grid = []
-        for p in range(self.n_driver):
+        for p in range(self.n_drivers):
             tt_idx = np.asarray((self.driver_tt[p] * sfreq), dtype=int)
             # create Dirac vector for driver events
             dirac_tt = np.zeros(tt_idx.max() + 1)
@@ -392,6 +365,11 @@ class Intensity():
         intensity_grid = intensity_grid.sum(axis=0)
         # add the baseline intensity
         intensity_grid += self.baseline
+
+        # T = len(intensity_grid)
+        # xx = np.linspace(0, T/sfreq, T)
+        # plt.plot(xx, intensity_grid)
+        # plt.show()
 
         return intensity_grid.max()
 
@@ -474,24 +452,20 @@ class Intensity():
     @ property
     def driver_tt(self):
         return self._driver_tt
-        # return self.driver_tt
 
     @ driver_tt.setter
     def driver_tt(self, value):
         self._driver_tt = np.array(value)
-        # self.driver_tt = np.array(value)
         # recompute driver delays from activation timestamps
         self.driver_delays = get_driver_delays(self, self.acti_tt)
 
     @ property
     def acti_tt(self):
         return self._acti_tt
-        # return self.acti_tt
 
     @ acti_tt.setter
     def acti_tt(self, value):
         self._acti_tt = np.array(value)
-        # self.acti_tt = np.array(value)
         # recompute driver delays from activation timestamps
         self.driver_delays = get_driver_delays(self, self.acti_tt)
 
