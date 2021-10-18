@@ -18,7 +18,7 @@ from dripp.trunc_norm_kernel.model import TruncNormKernel
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.optim import em_truncated_norm
 
-N_JOBS = 3
+N_JOBS = 40
 
 SAVE_RESULTS_PATH /= 'results_sythetic'
 if not SAVE_RESULTS_PATH.exists():
@@ -30,10 +30,11 @@ if not SAVE_RESULTS_PATH.exists():
 
 fontsize = 9
 plt.rcParams.update(plt.rcParamsDefault)
-plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Helvetica"]})
+# plt.rcParams.update({
+#     "text.usetex": True,
+#     "font.family": "sans-serif",
+#     "font.sans-serif": ["Helvetica"]
+# })
 
 figsize = (5.5, 2)
 cmap = 'viridis_r'
@@ -47,17 +48,17 @@ SFREQ = 1000
 simu_params = {'lower': 30e-3, 'upper': 800e-3,
                'baseline': 0.8,
                'alpha': [0.8, 0.8],
-               'm': [300e-3, 300e-3],
+               'm': [400e-3, 400e-3],
                'sigma': [0.2, 0.05],
-               'isi': [1.2, 1.2]
+               'isi': [1, 1.4]
                }
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
-    # 'seed': list(range(20)),
-    'seed': list(range(8)),
-    # 'n_tasks': [0.1, 0.3, 0.6]
-    'n_tasks': [0.6]
+    'seed': list(range(30)),
+    # 'seed': list(range(8)),
+    'n_tasks': [0.1, 0.3, 0.6]
+    # 'n_tasks': [0.3]
 }
 
 # default parameters for EM computation
@@ -67,8 +68,8 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
              'verbose': False}
 
 # parameters to vary for EM computation
-# em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
-em_params_to_vary = {'T': np.array([1000])}
+em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
+# em_params_to_vary = {'T': np.array([10_000])}
 T_max = em_params_to_vary['T'].max()
 
 df_res = run_multiple_em_on_synthetic(
@@ -84,7 +85,7 @@ n_tasks = simu_params_to_vary['n_tasks'][-1]
 fig, axes = plt.subplots(1, 2, figsize=figsize)
 
 start, stop = 0, 1
-xx = np.linspace(start, stop, (stop - start) * 300)
+xx = np.linspace(start, stop, int(np.ceil((stop - start) * 300)))
 
 for i in range(N_DRIVERS):
     # define true kernel
@@ -94,7 +95,11 @@ for i in range(N_DRIVERS):
 
     yy = simu_params['baseline'] + \
         simu_params['alpha'][i] * kernel_true.eval(xx)
-    axes[i].plot(xx, yy, label='Ground truth', color='black', linestyle='--')
+    if i == (N_DRIVERS - 1):
+        label = 'Ground truth'
+    else:
+        label = None
+    axes[i].plot(xx, yy, label=label, color='black', linestyle='--')
 
     # plot a few estimated kernels
     for seed in range(8):
@@ -108,11 +113,11 @@ for i in range(N_DRIVERS):
         yy = sub_df['baseline_hat'].values[0] + \
             sub_df['alpha_hat'].values[0][i] * kernel.eval(xx)
 
-        if seed == 0:
-            axes[i].plot(xx, yy, color='blue', alpha=0.2,
-                         label='Estimated')
+        if seed == 0 and i == (N_DRIVERS - 1):
+            label = 'Estimated'
         else:
-            axes[i].plot(xx, yy, color='blue', alpha=0.2)
+            label = None
+        axes[i].plot(xx, yy, color='blue', alpha=0.2, label=label)
 
     axes[i].set_xlim(0, stop)
     axes[i].set_xlabel('Time (s)', fontsize=fontsize)
@@ -120,7 +125,8 @@ for i in range(N_DRIVERS):
     title += rf" $\alpha={simu_params['alpha'][i]}$, "
     title += rf" $m={simu_params['m'][i]}$, "
     title += rf" $\sigma={simu_params['sigma'][i]}$"
-    axes[i].legend(fontsize=fontsize)
+    if i == (N_DRIVERS - 1):
+        axes[i].legend(fontsize=fontsize)
     axes[i].set_title(title, fontsize=fontsize)
 
 plt.tight_layout()

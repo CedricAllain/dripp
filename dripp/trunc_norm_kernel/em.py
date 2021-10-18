@@ -112,7 +112,7 @@ def compute_p_tk(t, intensity, driver_delays=()):
     return intensity.baseline / intensity(t, driver_delays=driver_delays)
 
 
-def compute_p_tp(t, intensity, driver_delays=(), non_overlapping=False):
+def compute_p_tp(t, intensity, driver_delays=None):
     r"""Compute the probability that the activation at time $t$ has been
     triggered by the driver $p$.
 
@@ -140,36 +140,16 @@ def compute_p_tp(t, intensity, driver_delays=(), non_overlapping=False):
 
     t = np.atleast_1d(t)
 
-    list_p_tp = []
-    # if non_overlapping:
-    #     last_tt = np.array(last_tt)
-
-    #     if last_tt.size == 0:
-    #         last_tt = get_last_timestamps(intensity.driver_tt, t)
-
-    #     for alpha, kernel, this_last_tt in zip(intensity.alpha, intensity.kernel, last_tt):
-    #         p_tp = alpha * kernel(t - this_last_tt)
-    #         p_tp /= intensity(t, last_tt=last_tt)
-    #         p_tp[np.isnan(p_tp)] = 0  # i.e., where kernel is not defined
-
-    #         if t.size == 1:
-    #             list_p_tp.append(p_tp[0])
-    #         else:
-    #             list_p_tp.append(p_tp)
-    # # lifting of the non-overlapping assumption (default)
-    # else:
-    # for every driver, compute the associated P_tp
-    driver_delays = np.atleast_2d(driver_delays)
-    if driver_delays.size == 0:
+    if driver_delays is None:
         driver_delays = get_driver_delays(intensity, t)
+    driver_delays = np.atleast_2d(driver_delays)
 
-    # for p in range(intensity.n_driver):
+    # compute value of intensity function at each time t
     intensity_at_t = intensity(t, driver_delays=driver_delays)
+    # for every driver, compute the associated P_tp
+    list_p_tp = []
     for p, delays in enumerate(driver_delays):
-
         alpha, kernel = intensity.alpha[p], intensity.kernel[p]
-        # p_tp = alpha * kernel(t[:, np.newaxis] -
-        #                         intensity.driver_tt[p]).sum(axis=1)
         p_tp = alpha * np.nansum(kernel(delays), axis=1)
         p_tp /= intensity_at_t
         list_p_tp.append(p_tp)
@@ -230,21 +210,21 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
                          axis=1)
 
     # new value of alpha
-    n_driver_tt = np.array(
+    n_drivers_tt = np.array(
         [this_driver_tt.size for this_driver_tt in intensity.driver_tt])
 
     # project on R+ is eventually done after
-    next_alpha = sum_p_tp / n_driver_tt
+    next_alpha = sum_p_tp / n_drivers_tt
 
-    # n_driver = len(intensity.driver_tt)
+    # n_drivers = len(intensity.driver_tt)
     next_m, next_sigma = [], []
-    # for p in range(intensity.n_driver):
+    # for p in range(intensity.n_drivers):
     for p, diff in enumerate(intensity.driver_delays):
         if next_alpha[p] == 0:
             next_m.append(intensity.kernel[p].m)
             next_sigma.append(intensity.kernel[p].sigma)
         else:
-            # shape: (n_acti_tt, n_driver_p_tt)
+            # shape: (n_acti_tt, n_drivers_p_tt)
             # diff = intensity.acti_tt[:, np.newaxis] - intensity.driver_tt[p]
             # next value of m for p-th driver
             if C[p] > 0:  # avoid division by 0

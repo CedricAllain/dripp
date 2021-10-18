@@ -132,7 +132,8 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
             kernel_hat = TruncNormKernel(
                 lower_em[p], upper_em[p], m_hat[p], sigma_hat[p], sfreq=sfreq)
 
-            xx = np.linspace(lower_ - 1, upper_ + 1, 800*(upper_ - lower_ + 2))
+            xx = np.linspace(lower_ - 1, upper_ + 1,
+                             int(np.ceil(800*(upper_ - lower_ + 2))))
             # true intensity at kernel p
             yy_true = simu_params_temp['baseline'] + \
                 simu_params_temp['alpha'][p] * kernel_simu[p].eval(xx)
@@ -150,7 +151,7 @@ def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
             new_row['infinite_norm_of_diff_rel_kernel_%i' %
                     p] = inf_norm_rel
             # add number of events created for each driver
-            new_row['n_driver_tt_kernel_%i' % p] = len(driver_tt[p])
+            new_row['n_drivers_tt_kernel_%i' % p] = len(driver_tt[p])
 
         # add new row
         new_rows.append(new_row)

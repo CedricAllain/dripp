@@ -69,8 +69,7 @@ def test_intensity():
     intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
 
     # test __init__()
-    acti_last_tt = np.array([[np.nan, np.nan, 3.4, 3.4, 3.4, 5, 5]])
-    np.testing.assert_allclose(intensity.acti_last_tt, acti_last_tt)
+    # XXX : test get_driver_delays
 
     # test get_max()
     # print(intensity.get_max())
@@ -98,15 +97,7 @@ def test_intensity():
     intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
 
     # test __init__()
-    acti_last_tt = np.array([[np.nan, np.nan, 3.4, 3.4, 3.4, 5.1, 5.1],
-                             [0.5, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0]])
-    np.testing.assert_allclose(intensity.acti_last_tt, acti_last_tt)
-
-    # test get_max()
-    # assert intensity.get_max() == baseline + alpha[0] * kernel[0].max
-    np.testing.assert_almost_equal(intensity.get_max(),
-                                   baseline + alpha[0] * kernel[0].max,
-                                   decimal=2)
+    # XXX : test get_driver_delays
 
     # test __call___()
     assert intensity(0) == baseline  # before activation
@@ -125,6 +116,30 @@ def test_intensity():
            baseline + alpha[0] * kernel[0](0.4) + alpha[1] * kernel[1](0.2),
            baseline + alpha[0] * kernel[0](0.4) + alpha[1] * kernel[1](0.3)]
     np.testing.assert_allclose(intensity(tt), res)
+
+
+def test_intensity_get_max():
+
+    # define global grid
+    sfreq = 500
+    T = 10
+    xx = np.linspace(0, T, T*sfreq)
+    # define intensity parameters
+    alpha = [0.8, 1.2]
+    baseline = 0.8
+    # define kernels functions and their event timestamps
+    kernel_1 = TruncNormKernel(lower=30e-3, upper=800e-3,
+                               m=400e-3, sigma=0.1, sfreq=sfreq)
+    driver_tt_1 = np.array([1, 2.4, 4, 5, 6, 7.3])
+    kernel_2 = TruncNormKernel(lower=0, upper=1.5,
+                               m=600e-3, sigma=0.4, sfreq=sfreq)
+    driver_tt_2 = np.array([1.3, 2, 3, 5, 5.5, 7])
+
+    kernel = [kernel_1, kernel_2]
+    driver_tt = [driver_tt_1, driver_tt_2]
+
+    intensity = Intensity(baseline, alpha, kernel, driver_tt)
+    assert np.all(np.around(intensity(xx), decimals=6) <= intensity.get_max())
 
 
 if __name__ == '__main__':

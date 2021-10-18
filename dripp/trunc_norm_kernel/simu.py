@@ -148,16 +148,15 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 
     assert T > 0, "The time duration must be stricly positive"
 
-    # if lambda_max is None:
-    #     lambda_max = intensity.get_max()
+    if lambda_max is None:
+        lambda_max = intensity.get_max()
 
     rng = np.random.RandomState(seed)
 
     tt_list = []
     s = 0.
     while s <= T:
-        lambda_max = intensity.get_next_lambda_max(s)
-        # print('lambda_max:', lambda_max)
+        # lambda_max = intensity.get_next_lambda_max(s)
         u = rng.rand()
         w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w
