@@ -288,7 +288,7 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
             T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
             add_jitter=add_jitter, verbose=verbose)
         driver_tt.append(this_driver_tt)
-    driver_tt = np.array([np.array(x) for x in driver_tt])
+    driver_tt = [np.array(x) for x in driver_tt]
 
     # define kernel and intensity functions
     lower = convert_variable_multi(lower, n_drivers, repeat=True)

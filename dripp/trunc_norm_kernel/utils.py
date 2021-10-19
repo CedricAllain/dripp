@@ -116,6 +116,7 @@ def get_driver_tt_of_influence(intensity, t):
     return driver_tt_of_influence
 
 
+# @profile
 def get_driver_delays(intensity, t):
     """
     For each driver, compute the delays with t that are on support
@@ -134,15 +135,22 @@ def get_driver_delays(intensity, t):
         driver_tt = intensity.driver_tt[p]
         lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
         this_driver_delays = []
+        has_driver_events = False
         for this_t in t:
-            this_t_delays = this_t - driver_tt[(
-                driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))]
+            this_t_delays = this_t - driver_tt[
+                (driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))
+            ]
             this_driver_delays.append(this_t_delays)
+            if this_t_delays.size > 0:
+                has_driver_events = True
+
         # transform into 2D numpy.array with a 0 padding
-        this_driver_delays = np.array(
-            list(itertools.zip_longest(*this_driver_delays, fillvalue=np.nan))).T
-        this_driver_delays = np.atleast_2d(this_driver_delays)
+        if has_driver_events and t.size > 1:
+            this_driver_delays = list(
+                itertools.zip_longest(*this_driver_delays, fillvalue=np.nan)
+            )
+            import ipdb; ipdb.set_trace()
         # append to list of delays
-        delays.append(this_driver_delays)
+        delays.append(np.atleast_2d(np.array(this_driver_delays).T))
 
     return delays
