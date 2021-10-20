@@ -1,6 +1,8 @@
 """ Utils functions used for driven point process
 with truncated normal kernels """
 
+# %%
+
 from scipy.sparse import csr_matrix
 import itertools
 import numbers
@@ -139,7 +141,7 @@ def get_driver_delays(intensity, t):
         this_driver_delays = []
         indices = []
         indptr = [0]
-        n_col = 1
+        n_col = 1  # number of colons of the full sparse matrix
         for this_t in t:
             this_t_delays = this_t - driver_tt[(
                 driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))]
@@ -149,14 +151,37 @@ def get_driver_delays(intensity, t):
             if n_delays > 0:
                 this_driver_delays.extend(this_t_delays)
                 indices.extend(list(range(n_delays)))
-                indptr.append(n_delays)
-        # add termination
-        indptr.append(len(this_driver_delays))
-        # import ipdb
-        # ipdb.set_trace()
+
+            indptr.append(indptr[-1] + n_delays)
+
+        n_delays = len(this_driver_delays)
+        if indptr[-1] != n_delays:
+            # add termination
+            indptr.append(n_delays)
+
         # create sparse matrix
         M = csr_matrix((np.array(this_driver_delays), np.array(
             indices), np.array(indptr)), shape=(len(t), n_col))
         delays.append(M)
 
     return delays
+
+# %%
+
+
+if __name__ == '__main__':
+
+    # define 2 kernel functions
+    m, sigma = 200e-3, 0.08
+    lower, upper = 30e-3, 500e-3
+    kernel = [TruncNormKernel(lower, upper, m, sigma),
+              TruncNormKernel(lower, upper, m, sigma)]
+    driver_tt = [[3.4, 5.1, 8, 10],
+                 [0.5, 2, 4]]  # make sure it respects non-overlapping
+    # define intensity function
+    baseline, alpha = 0.8, [1.2, 0.5]
+    intensity = Intensity(baseline, alpha, kernel, driver_tt)
+
+    # get delays for t = 0
+    t = 0
+    # %%

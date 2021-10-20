@@ -5,6 +5,7 @@ with truncated Gaussian kernel
 
 # %%
 
+import cProfile
 import numpy as np
 import time
 
@@ -109,7 +110,6 @@ def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
 
 def simu_1d_nonhomogeneous_poisson_process(intensity,
                                            T=240,
-                                           lambda_max=None,
                                            seed=None,
                                            verbose=False):
     """Simulation of an Inhomogeneous Poisson Process with
@@ -125,11 +125,6 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
     T: int | float
         duration of the Poisson process, in seconds
         default is 240
-
-    lambda_max: int | float
-        maximum of the intensity function on [0, T]
-        if None, it is computed using intensity.get_max()
-        default is None
 
     seed : int
         the seed used for ramdom sampling
@@ -148,15 +143,13 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 
     assert T > 0, "The time duration must be stricly positive"
 
-    if lambda_max is None:
-        lambda_max = intensity.get_max()
+    lambda_max = intensity.get_max()
 
     rng = np.random.RandomState(seed)
 
     tt_list = []
     s = 0.
     while s <= T:
-        # lambda_max = intensity.get_next_lambda_max(s)
         u = rng.rand()
         w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w
@@ -179,6 +172,18 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 # GENERATE FULL SET OF DATA
 # =======================================
 
+
+def profile_this(fn):
+    def profiled_fn(*args, **kwargs):
+        filename = fn.__name__ + '.profile'
+        prof = cProfile.Profile()
+        ret = prof.runcall(fn, *args, **kwargs)
+        prof.dump_stats(filename)
+        return ret
+    return profiled_fn
+
+
+@profile_this
 def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
                   baseline=0.8, alpha=1, T=240, isi=1, add_jitter=False,
                   n_tasks=0.8,
@@ -288,7 +293,7 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
             T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
             add_jitter=add_jitter, verbose=verbose)
         driver_tt.append(this_driver_tt)
-    driver_tt = [np.array(x) for x in driver_tt]
+    # driver_tt = [np.array(x) for x in driver_tt]
 
     # define kernel and intensity functions
     lower = convert_variable_multi(lower, n_drivers, repeat=True)
@@ -371,15 +376,16 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 30  # process time, in seconds
+    T = 10_000  # process time, in seconds
+    lower, upper = 30e-3, 800e-3
     start_time = time.time()
     driver_tt, acti_tt, kernel, intensity = simulate_data(
-        lower=30e-3, upper=500e-3,
+        lower=lower, upper=upper,
         m=[400e-3, 400e-3], sigma=[0.2, 0.05],
-        sfreq=1000.,
+        sfreq=300.,
         baseline=0.5, alpha=[0.8, 0.8],
-        T=T, isi=1, n_tasks=0.2,
-        n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
+        T=T, isi=[1, 1.2], n_tasks=0.8,
+        n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
     print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
           % (N_DRIVERS, T, simu_time))

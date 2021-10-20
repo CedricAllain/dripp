@@ -154,7 +154,7 @@ def compute_p_tp(t, intensity, driver_delays=None):
         val = delays.copy()
         val.data = kernel(val.data)
         # p_tp = alpha * np.nansum(kernel(delays), axis=1)
-        p_tp = alpha * val.sum(axis=1)
+        p_tp = alpha * np.array(val.sum(axis=1).T)[0]
         p_tp /= intensity_at_t
         list_p_tp.append(p_tp)
 
@@ -235,7 +235,7 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
                 # sum over the driver events
                 val = diff.copy()
                 val.data *= intensity.kernel[p](val.data)
-                sum_temp_m = val.sum(axis=1)
+                sum_temp_m = np.array(val.sum(axis=1).T)[0]
                 # sum_temp_m = np.nansum(diff * intensity.kernel[p](diff),
                 #                        axis=1)
                 sum_temp_m /= intensity(intensity.acti_tt,
@@ -253,7 +253,7 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
                 val = diff.copy()
                 val.data = np.square(val.data - intensity.kernel[p].m) \
                     * intensity.kernel[p](val.data)
-                sum_temp_sigma = val.sum(axis=1)
+                sum_temp_sigma = np.array(val.sum(axis=1).T)[0]
                 # diff_m = diff - intensity.kernel[p].m
                 # sum over the driver events
                 # sum_temp_sigma = np.nansum(np.square(diff_m) *

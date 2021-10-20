@@ -38,10 +38,16 @@ class TruncNormKernel():
 
     """
 
-    def __init__(self, lower, upper, m, sigma, sfreq=150.):
+    def __init__(self, lower, upper, m=None, sigma=None, sfreq=150.):
 
         assert lower < upper, \
             "Truncation value 'lower' must be strictly smaller than 'upper'."
+
+        # compute default values of shape parameters
+        if m is None:
+            m = (upper - lower) / 2
+        if sigma is None:
+            sigma = 0.95 * (upper - lower) / 4
 
         assert sigma > 0, "Sigma must be strictly positive."
 
@@ -251,12 +257,12 @@ class Intensity():
 
     """
 
-    def __init__(self, baseline, alpha=0, kernel=None,
+    def __init__(self, baseline=0, alpha=0, kernel=None,
                  driver_tt=(), acti_tt=()):
 
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
         if isinstance(driver_tt[0], numbers.Number):
-            driver_tt = np.atleast_2d(driver_tt)
+            driver_tt = [driver_tt]
         self._driver_tt = [np.array(x) for x in driver_tt]
 
         self.n_drivers = len(self.driver_tt)
@@ -314,8 +320,7 @@ class Intensity():
         # compute the driver delays if not specified
         if driver_delays is None:
             driver_delays = get_driver_delays(self, t)
-        # else:
-        #     driver_delays = np.atleast_2d(driver_delays)
+
         # initialize
         intensities = self.baseline
         for p, delays in enumerate(driver_delays):
@@ -325,7 +330,7 @@ class Intensity():
             # val = np.nansum(self.kernel[p](delays.astype('float')), axis=1)
             val = delays.copy()
             val.data = self.kernel[p](delays.data)
-            intensities += self.alpha[p] * val.sum(axis=1)
+            intensities += self.alpha[p] * np.array(val.sum(axis=1).T)[0]
 
         intensities = np.atleast_1d(intensities)
 
