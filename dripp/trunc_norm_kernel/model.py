@@ -257,7 +257,7 @@ class Intensity():
         # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
         if isinstance(driver_tt[0], numbers.Number):
             driver_tt = np.atleast_2d(driver_tt)
-        self._driver_tt = np.array([np.array(x) for x in driver_tt])
+        self._driver_tt = [np.array(x) for x in driver_tt]
 
         self.n_drivers = len(self.driver_tt)
         self.baseline = baseline
@@ -271,7 +271,7 @@ class Intensity():
         assert len(self.alpha) == len(self.kernel), \
             "alpha and kernel parameters must have the same length"
 
-        if self.acti_tt.shape[0] > 0 and self.driver_tt.shape[0] > 0:
+        if len(self.acti_tt) > 0 and len(self.driver_tt) > 0:
             # for every process activation timestamps,
             # get its corresponding driver timestamp
             self.driver_delays = get_driver_delays(self, self.acti_tt)

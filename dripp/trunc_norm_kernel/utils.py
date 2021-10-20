@@ -117,6 +117,7 @@ def get_driver_tt_of_influence(intensity, t):
     return driver_tt_of_influence
 
 
+# @profile
 def get_driver_delays(intensity, t):
     """
     For each driver, compute the delays with t that are on support
@@ -157,12 +158,5 @@ def get_driver_delays(intensity, t):
         M = csr_matrix((np.array(this_driver_delays), np.array(
             indices), np.array(indptr)), shape=(len(t), n_col))
         delays.append(M)
-
-        # # transform into 2D numpy.array with a 0 padding
-        # this_driver_delays = np.array(
-        #     list(itertools.zip_longest(*this_driver_delays, fillvalue=np.nan))).T
-        # this_driver_delays = np.atleast_2d(this_driver_delays)
-        # append to list of delays
-        # delays.append(this_driver_delays)
 
     return delays

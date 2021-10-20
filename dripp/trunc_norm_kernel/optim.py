@@ -58,7 +58,7 @@ def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
     """
     # compute the number of activation that lend in at least one kernel's support
     acti_in_support = set()
-    for p in range(driver_tt.shape[0]):
+    for p in range(len(driver_tt)):
         # (n_drivers_tt, n_acti_tt)
         delays = acti_tt - driver_tt[p][:, np.newaxis]
         mask = (delays >= lower) & (delays <= upper)
@@ -66,10 +66,10 @@ def initialize_baseline(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3,
                                  for this_mask in mask])
 
     # compute the Lebesgue measure of all kernels' supports
-    all_tt = np.sort(np.hstack(driver_tt.flatten()))
+    all_tt = np.sort(np.hstack(driver_tt))
     s = compute_lebesgue_support(all_tt, lower, upper)
 
-    baseline_init = (acti_tt.size - len(acti_in_support)) / (T - s)
+    baseline_init = (len(acti_tt) - len(acti_in_support)) / (T - s)
     return baseline_init
 
 
@@ -111,12 +111,11 @@ def initialize(acti_tt=(), driver_tt=(), lower=30e-3, upper=500e-3, T=60,
         alpha, m and sigma are array-like of shape (n_drivers, )
 
     """
-
-    acti_tt = np.atleast_1d(acti_tt)
-    if isinstance(driver_tt[0], numbers.Number):
-        driver_tt = np.atleast_2d(driver_tt)
-    driver_tt = np.array([np.array(x) for x in driver_tt], dtype=object)
-    n_drivers = driver_tt.shape[0]
+    # acti_tt = np.atleast_1d(acti_tt)
+    # if isinstance(driver_tt[0], numbers.Number):
+    #     driver_tt = np.atleast_2d(driver_tt)
+    # driver_tt = [np.array(x) for x in driver_tt]
+    n_drivers = len(driver_tt)
 
     if initializer == 'random':
         rng = np.random.RandomState(seed)
@@ -219,7 +218,9 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     ----------
     acti_tt : array-like
 
-    driver_tt : array-like of shape (n_drivers, )
+    driver_tt : list of arrays | array
+        List of length n_drivers. Each element contains the events
+        of one driver.
 
     lower, upper : float
         kernel's truncation values
@@ -289,7 +290,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     acti_tt = np.atleast_1d(acti_tt)
     assert acti_tt.size > 0, "no activation vector was given"
 
-    if np.array(driver_tt).size == 0:
+    if len(driver_tt) == 0:
         if verbose:
             print("Intensity has no driver timestamps. "
                   "Will return baseline MLE and corresponding loss "
@@ -297,9 +298,9 @@ def em_truncated_norm(acti_tt, driver_tt=(),
         return compute_baseline_mle(acti_tt, T)
 
     if isinstance(driver_tt[0], numbers.Number):
-        driver_tt = np.atleast_2d(driver_tt)
-    driver_tt = np.array([np.array(x) for x in driver_tt])
-    n_drivers = driver_tt.shape[0]
+        driver_tt = [driver_tt]
+    driver_tt = [np.array(x) for x in driver_tt]
+    n_drivers = len(driver_tt)
 
     # initialize parameters
     if init_params is None:
