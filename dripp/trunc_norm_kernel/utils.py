@@ -119,7 +119,6 @@ def get_driver_tt_of_influence(intensity, t):
     return driver_tt_of_influence
 
 
-# @profile
 def get_driver_delays(intensity, t):
     """
     For each driver, compute the delays with t that are on support
@@ -170,6 +169,8 @@ def get_driver_delays(intensity, t):
 
 
 if __name__ == '__main__':
+
+    from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
 
     # define 2 kernel functions
     m, sigma = 200e-3, 0.08

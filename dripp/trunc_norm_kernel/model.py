@@ -107,7 +107,6 @@ class TruncNormKernel():
         float | numpy.array
 
         """
-        # if np.issubdtype(x[0].dtype, np.number):
 
         if self.sfreq is None:
             return truncnorm.pdf(x, self._a, self._b, loc=self.m,
@@ -282,7 +281,6 @@ class Intensity():
             # get its corresponding driver timestamp
             self.driver_delays = get_driver_delays(self, self.acti_tt)
         else:
-            # self.driver_delays = np.atleast_2d([])
             self.driver_delays = None
 
     def update(self, baseline, alpha, m, sigma):
@@ -297,7 +295,7 @@ class Intensity():
         for i in range(self.n_drivers):
             self.kernel[i].update(m=m[i], sigma=sigma[i])
 
-    def __call__(self, t, driver_delays=None):
+    def __call__(self, t, driver_delays=None, intensity_pos=False):
         """Evaluate the intensity at time(s) t
 
         Parameters
@@ -306,7 +304,14 @@ class Intensity():
             the value(s) we would like to evaluate the intensity at
 
         driver_delays : array-like
-            XXX
+            an array of csr matrices, each one containing, for each driver,
+            the delays between the intensity activations and the driver
+            timestamps
+
+        intensity_pos : bool
+            if True, enforce the positivity of the intensity function by
+            applying a max with 0
+            default is False
 
         Returns
         -------
@@ -327,8 +332,8 @@ class Intensity():
             if delays.data.size == 0:
                 # no delays for this driver
                 continue
-            # val = np.nansum(self.kernel[p](delays.astype('float')), axis=1)
             val = delays.copy()
+            # compute the kernel value at the "good" delays
             val.data = self.kernel[p](delays.data)
             intensities += self.alpha[p] * np.array(val.sum(axis=1).T)[0]
 
@@ -337,7 +342,10 @@ class Intensity():
         if t.size == 1:
             return intensities[0]
 
-        return intensities.clip(min=0)
+        if intensity_pos:
+            return intensities.clip(min=0)
+        else:
+            return intensities
 
     def get_max(self):
         """Compute maximum intensity 
@@ -377,37 +385,7 @@ class Intensity():
         # add the baseline intensity
         intensity_grid += self.baseline
 
-        # T = len(intensity_grid)
-        # xx = np.linspace(0, T/sfreq, T)
-        # plt.plot(xx, intensity_grid)
-        # plt.show()
-
         return intensity_grid.max()
-
-    def get_next_lambda_max(self, t):
-        """Given a point in time, compute the maximum of the intensity in the
-        near future, by taking into account only past driver events.
-
-        lambda^*(t) = max_{t'>t} lambda(t' | \mathcal{F}_t)
-
-        Parameters
-        ----------
-        t : float
-
-        Returns
-        -------
-
-        """
-
-        xx_max = t + np.array([k.upper for k in self.kernel]).max()
-        xx = np.linspace(t, xx_max, int(500 * (xx_max-t)))  # 500 points/sec
-        # make a copy of the current intensity function but filter its driver
-        # events
-        other_intensity = deepcopy(self)
-        other_intensity.driver_tt = np.array([np.array(x[x < t])
-                                              for x in self.driver_tt])
-
-        return other_intensity(xx).max()
 
     def plot(self, xx=np.linspace(0, 1, 600)):
         """Plot kernel

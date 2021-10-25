@@ -8,9 +8,7 @@ from scipy.stats import norm
 
 from dripp.trunc_norm_kernel.utils import get_driver_delays
 
-
-# EPS = np.finfo(float).eps
-EPS = 1e-5
+EPS = 1e-5  # np.finfo(float).eps
 
 
 def compute_C(m, sigma, a, b):
@@ -142,8 +140,6 @@ def compute_p_tp(t, intensity, driver_delays=None):
 
     if driver_delays is None:
         driver_delays = get_driver_delays(intensity, t)
-    # else:
-    #     driver_delays = np.atleast_2d(driver_delays)
 
     # compute value of intensity function at each time t
     intensity_at_t = intensity(t, driver_delays=driver_delays)
@@ -152,8 +148,8 @@ def compute_p_tp(t, intensity, driver_delays=None):
     for p, delays in enumerate(driver_delays):
         alpha, kernel = intensity.alpha[p], intensity.kernel[p]
         val = delays.copy()
+        # compute the kernel value at all the "good" delays pre-computed
         val.data = kernel(val.data)
-        # p_tp = alpha * np.nansum(kernel(delays), axis=1)
         p_tp = alpha * np.array(val.sum(axis=1).T)[0]
         p_tp /= intensity_at_t
         list_p_tp.append(p_tp)
@@ -217,10 +213,9 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
     n_drivers_tt = np.array(
         [this_driver_tt.size for this_driver_tt in intensity.driver_tt])
 
-    # project on R+ is eventually done after
+    # projection on R+ is eventually done after, during EM
     next_alpha = sum_p_tp / n_drivers_tt
 
-    # n_drivers = len(intensity.driver_tt)
     next_m, next_sigma = [], []
     # for p in range(intensity.n_drivers):
     for p, diff in enumerate(intensity.driver_delays):
@@ -228,16 +223,12 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
             next_m.append(intensity.kernel[p].m)
             next_sigma.append(intensity.kernel[p].sigma)
         else:
-            # shape: (n_acti_tt, n_drivers_p_tt)
-            # diff = intensity.acti_tt[:, np.newaxis] - intensity.driver_tt[p]
             # next value of m for p-th driver
             if C[p] > 0:  # avoid division by 0
                 # sum over the driver events
                 val = diff.copy()
                 val.data *= intensity.kernel[p](val.data)
                 sum_temp_m = np.array(val.sum(axis=1).T)[0]
-                # sum_temp_m = np.nansum(diff * intensity.kernel[p](diff),
-                #                        axis=1)
                 sum_temp_m /= intensity(intensity.acti_tt,
                                         driver_delays=intensity.driver_delays)
                 this_next_m = intensity.alpha[p] * sum_temp_m.sum() / \
@@ -254,11 +245,6 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
                 val.data = np.square(val.data - intensity.kernel[p].m) \
                     * intensity.kernel[p](val.data)
                 sum_temp_sigma = np.array(val.sum(axis=1).T)[0]
-                # diff_m = diff - intensity.kernel[p].m
-                # sum over the driver events
-                # sum_temp_sigma = np.nansum(np.square(diff_m) *
-                #                            intensity.kernel[p](diff),
-                #                            axis=1)
                 sum_temp_sigma *= intensity.alpha[p] / \
                     intensity(intensity.acti_tt,
                               driver_delays=intensity.driver_delays)

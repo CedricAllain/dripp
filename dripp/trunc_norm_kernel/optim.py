@@ -1,8 +1,7 @@
 """
 XXX
 """
-# %%
-import cProfile
+
 import numpy as np
 import time
 import numbers
@@ -17,6 +16,7 @@ from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 from dripp.trunc_norm_kernel.em import compute_nexts, compute_Cs
 from dripp.trunc_norm_kernel.simu import simulate_data
 
+from dripp.utils import profile_this
 
 EPS = np.finfo(float).eps
 
@@ -53,27 +53,36 @@ def compute_lebesgue_support(all_tt, lower, upper):
     return s
 
 
-def initialize_baseline(intensity, T=60):
-    """
+def initialize_baseline(intensity, T=None):
+    """ Initialize the baseline parameter with a smart strategy.
+    The initial value correspond of the average number of activations that lend
+    outside any kernel support.
+
+    Parameters
+    ----------
+    intensity : instance of model.Intensity
+        the intensity object that contains the different drivers
+
+    T : int | float | None
+        duration of the process
+        if None, is set to the maximum the intensity activation timestamps plus
+        a margin equal to the upper truncation value
 
     """
-    # compute the number of activation that lend in at least one kernel's support
+    # compute the number of activation that lend in at least one kernel's
+    # support
     acti_in_support = []
     for delays in intensity.driver_delays:
         # get the colons (i.e. the activation tt) for wich there is at least
-        # one "good" delay
+        # one "good" delay)
         acti_in_support.extend(find(delays)[0])
-        # (n_drivers_tt, n_acti_tt)
-        # delays = acti_tt - driver_tt[p][:, np.newaxis]
-        # mask = (delays >= lower) & (delays <= upper)
-        # acti_in_support.update(*[set(acti_tt[this_mask])
-        #                          for this_mask in mask])
 
     # compute the Lebesgue measure of all kernels' supports
     all_tt = np.sort(np.hstack(intensity.driver_tt))
     lower, upper = intensity.kernel[0].lower, intensity.kernel[0].upper
     s = compute_lebesgue_support(all_tt, lower, upper)
-
+    if T is None:
+        T = intensity.acti_tt.max() + upper
     baseline_init = (len(intensity.acti_tt) -
                      len(set(acti_in_support))) / (T - s)
     return baseline_init
@@ -86,16 +95,10 @@ def initialize(intensity, T=60, initializer='smart_start', seed=None):
     Parameters
     ----------
 
-    acti_tt : array-like
-
-    driver_tt : array-like
-
-    lower, upper : float | array-like
-        kernel's truncation values
-        default is 30e-3, 500e-3
+    intensity : instance of model.Intensity
 
     T : int | float
-        total duration
+        total duration of the process
         default is 60
 
     initializer: 'random' | 'smart_start'
@@ -116,10 +119,7 @@ def initialize(intensity, T=60, initializer='smart_start', seed=None):
         alpha, m and sigma are array-like of shape (n_drivers, )
 
     """
-    # acti_tt = np.atleast_1d(acti_tt)
-    # if isinstance(driver_tt[0], numbers.Number):
-    #     driver_tt = np.atleast_2d(driver_tt)
-    # driver_tt = [np.array(x) for x in driver_tt]
+
     driver_tt = intensity.driver_tt
     n_drivers = len(driver_tt)
 
@@ -137,7 +137,7 @@ def initialize(intensity, T=60, initializer='smart_start', seed=None):
         default_m = (upper - lower) / 2
         default_sigma = 0.95 * (upper - lower) / 4
 
-        if intensity.acti_tt.size == 0:  # no activation at all on the process
+        if intensity.acti_tt.size == 0:   # no activation at all on the process
             baseline_init = 0
             alpha_init = np.full(n_drivers, fill_value=0)
             m_init = np.full(n_drivers, fill_value=default_m)
@@ -147,17 +147,10 @@ def initialize(intensity, T=60, initializer='smart_start', seed=None):
         # initialize baseline
         baseline_init = initialize_baseline(intensity, T)
 
-        # set of all activations that lend in a kernel support
-        # diff = acti_tt - get_last_timestamps(driver_tt, acti_tt)
-        # diff[np.isnan(diff)] = -1  # replace nan values
-        # mask = (diff <= upper) * (diff >= lower)
-
         alpha_init = []
         m_init = []
         sigma_init = []
-        # for p in range(n_drivers):
         for p, delays in enumerate(intensity.driver_delays):
-            # delays = diff[p][mask[p]]
             delays = delays.data
             if delays.size == 0:
                 alpha_init.append(- baseline_init)
@@ -214,16 +207,6 @@ def compute_baseline_mle(acti_tt=(), T=60, return_nll=True):
         return baseline_mle
 
 
-def profile_this(fn):
-    def profiled_fn(*args, **kwargs):
-        filename = fn.__name__ + '.profile'
-        prof = cProfile.Profile()
-        ret = prof.runcall(fn, *args, **kwargs)
-        prof.dump_stats(filename)
-        return ret
-    return profiled_fn
-
-
 @profile_this
 def em_truncated_norm(acti_tt, driver_tt=(),
                       lower=30e-3, upper=500e-3, T=60, sfreq=150.,
@@ -262,17 +245,6 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     initializer: 'random' | 'smart_start'
         method to initalize parameters
         default is 'smart_start'
-
-    early_stopping : string
-        "early_stopping_sigma" | "early_stopping_percent_mass" | None
-        method used for early stopping
-        default is None
-
-    early_stopping_params : dict
-        parameters for the early stopping method
-        for 'early_stopping_sigma', keys must be 'n_sigma', 'n_tt' and 'sfreq'
-        for 'early_stopping_percent_mass', keys must be 'alpha', 'n_tt' and
-        'sfreq'
 
     alpha_pos : bool
         if True, force alpha to be non-negative
@@ -338,13 +310,6 @@ def em_truncated_norm(acti_tt, driver_tt=(),
     # update kernels and intensity function
     intensity.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
 
-    # # initialize kernels and intensity functions
-    # kernel = []
-    # for i in range(n_drivers):
-    #     kernel.append(TruncNormKernel(
-    #         lower, upper, m_hat[i], sigma_hat[i], sfreq=sfreq))
-    # intensity = Intensity(baseline_hat, alpha_hat, kernel, driver_tt, acti_tt)
-
     # initializa history of parameters and loss
     history_params = {'baseline': [baseline_hat],
                       'alpha': [alpha_hat],
@@ -398,7 +363,7 @@ def em_truncated_norm(acti_tt, driver_tt=(),
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 1_000  # process time, in seconds
+    T = 10_000  # process time, in seconds
     lower, upper = 30e-3, 800e-3
     sfreq = 500.
     start_time = time.time()
@@ -420,5 +385,3 @@ if __name__ == '__main__':
     em_time = time.time() - start_time
     print('EM time', em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)
-
-# %%
