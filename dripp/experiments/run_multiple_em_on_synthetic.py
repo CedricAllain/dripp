@@ -21,45 +21,42 @@ memory = Memory(CACHEDIR, verbose=0)
 def procedure(comb_simu, combs_em, T_max, simu_params, simu_params_to_vary,
               em_params, em_params_to_vary, sfreq=150., n_drivers=1):
     """For a given set of simulation parameters, simulate the data and run the
-    EM for several combination of EM parameters
+    EM for several combination of EM parameters.
 
     Parameters
     ----------
     comb_simu : tuple
-        a combination of simulation parameters values
+        A combination of simulation parameters values.
 
     combs_em : list of tuple
-        a list of all possible combinations of em parameters values
+        A list of all possible combinations of em parameters values.
 
     T_max : int | float
-        maximum length for data simulation
+        Maximum length for data simulation.
 
     simu_params : dict
-        dictionary of all simulation parameters and their values
+        Dictionary of all simulation parameters and their values.
 
     simu_params_to_vary : dict
-        dictionary of all simulation parameters we want to vary (keys) and
-        their corresponding set of values
+        Dictionary of all simulation parameters we want to vary (keys) and
+        their corresponding set of values.
 
     em_params : dict
-        dictionary of all EM parameters and their values
+        Dictionary of all EM parameters and their values.
 
     em_params_to_vary : dict
-        dictionary of all EM parameters we want to vary (keys) and
-        their corresponding set of values
+        Dictionary of all EM parameters we want to vary (keys) and their
+        corresponding set of values.
 
     sfreq : int | None
-        sampling frequency used to create a grid between kernel's lower and
-        upper to pre-compute kernel's values
-        if None, the kernel will be exactly evaluate at each call.
-        Warning: setting sfreq to None may considerably increase computational
-        time.
-        default is 150.
+        Sampling frequency used to create a grid between kernel's lower and
+        upper to pre-compute kernel's values. If None, the kernel will be
+        exactly evaluate at each call. Warning: setting sfreq to None may
+        considerably increase computational time. Defaults to 150.
 
     Returns
     -------
     new_rows : list of dict
-
     """
     # update data simulation parameters
     simu_params_temp = simu_params.copy()
@@ -165,7 +162,7 @@ def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
                                  sfreq=150., n_drivers=1, n_jobs=6,
                                  save_results=False):
     """Run several EM in parallel for multiple simulation parameters
-    combinations and for multiple EM parameters combinations
+    combinations and for multiple EM parameters combinations.
 
     Parameters
     ----------
@@ -180,25 +177,21 @@ def run_multiple_em_on_synthetic(simu_params, simu_params_to_vary,
         dictionary of all EM parameters and their values
 
     em_params_to_vary : dict
-        dictionary of all EM parameters we want to vary (keys) and
-        their corresponding set of values
+        Dictionary of all EM parameters we want to vary (keys) and
+        their corresponding set of values.
 
     sfreq : int | None
-        sampling frequency used to create a grid between kernel's lower and
-        upper to pre-compute kernel's values
-        if None, the kernel will be exactly evaluate at each call.
-        Warning: setting sfreq to None may considerably increase computational
-        time.
-        default is 150.
+        Sampling frequency used to create a grid between kernel's lower and
+        upper to pre-compute kernel's values. If None, the kernel will be
+        exactly evaluate at each call. Warning: setting sfreq to None may
+        considerably increase computational time. Defaults to 150.
 
     n_jobs : int
-        The maximum number of concurrently running jobs
-        default is 6
+        The maximum number of concurrently running jobs. Defaults to 6.
 
     Returns
     -------
     pandas.DataFrame
-
     """
     # get all parameters combination for data simulation
     combs_simu = list(itertools.product(*list(simu_params_to_vary.values())))

@@ -1,12 +1,11 @@
-"""
-Utils functions used in the computation of the next EM iteration
+"""Utils functions used in the computation of the next EM iteration.
 """
 
-from re import M
 import numpy as np
 from scipy.stats import norm
 
-from dripp.trunc_norm_kernel.utils import get_driver_delays
+from dripp.trunc_norm_kernel.utils import \
+    get_driver_delays, check_truncation_values
 
 EPS = 1e-5  # np.finfo(float).eps
 
@@ -15,8 +14,7 @@ def compute_C(m, sigma, a, b):
     """
 
     """
-    if not b > a:
-        raise ValueError("truncation values must be sorted, with a < b")
+    check_truncation_values(a, b)
 
     C = sigma * np.sqrt(2 * np.pi)
     C *= norm.cdf((b - m) / sigma) - norm.cdf((a - m) / sigma)
@@ -28,9 +26,7 @@ def compute_C_m(m, sigma, a, b):
     """
 
     """
-
-    if not b > a:
-        raise ValueError("truncation values must be sorted, with a < b")
+    check_truncation_values(a, b)
 
     C_m = np.exp(- np.square(a-m) / (2 * np.square(sigma)))
     C_m -= np.exp(- np.square(b-m) / (2 * np.square(sigma)))
@@ -42,9 +38,7 @@ def compute_C_sigma(m, sigma, a, b):
     """
 
     """
-
-    if not b > a:
-        raise ValueError("truncation values must be sorted, with a < b")
+    check_truncation_values(a, b)
 
     C_sigma = (a - m) / sigma * \
         np.exp(- np.square(a-m) / (2 * np.square(sigma)))
@@ -56,7 +50,7 @@ def compute_C_sigma(m, sigma, a, b):
 
 
 def compute_Cs(kernel):
-    """ Compute C coefficient and its derivatives C_m and C_sigma
+    """Compute C coefficient and its derivatives C_m and C_sigma.
 
     Parameters
     ----------
@@ -64,16 +58,13 @@ def compute_Cs(kernel):
 
     Returns
     -------
-    tuple of size 3
+    tuple of 3 lists
         (C, C_m, C_sigma)
-
     """
     C, C_m, C_sigma = [], [], []
     for this_kernel in kernel:
-        m = this_kernel.m
-        sigma = this_kernel.sigma
+        m, sigma = this_kernel.m, this_kernel.sigma
         lower, upper = this_kernel.lower, this_kernel.upper
-
         C.append(compute_C(m, sigma, lower, upper))
         C_m.append(compute_C_m(m, sigma, lower, upper))
         C_sigma.append(compute_C_sigma(m, sigma, lower, upper))
@@ -87,24 +78,25 @@ def compute_p_tk(t, intensity, driver_delays=None):
 
     .. math::
 
-        P_{t,k} = \frac{\mu_k}{\lambda_{k,p}(t)}
+        P_{t,k} = \frac{\mu_k}{\lambda_{k,\mathcal{P}}(t)}
 
 
     Parameters
     ----------
     t : float | array-like
-        the time(s) we would like to compute p_tk at
+        The time(s) to compute p_tk at.
 
     intensity : instance of model.Intensity
-        intensity function
+        Intensity function.
 
-    last_tt : float | array-like
-        the corresponding driver's timestamps
+    driver_delays : list of scipy.sparse.csr_matrix
+        A list of csr matrices, each one containing, for each driver,
+        the delays between the time t and the driver timestamps. Defaults to
+        None.
 
     Returns
     -------
     float | numpy.array
-
     """
 
     return intensity.baseline / intensity(t, driver_delays=driver_delays)
@@ -112,28 +104,33 @@ def compute_p_tk(t, intensity, driver_delays=None):
 
 def compute_p_tp(t, intensity, driver_delays=None):
     r"""Compute the probability that the activation at time $t$ has been
-    triggered by the driver $p$.
+    triggered by each one of the driver.
 
     .. math::
 
-        P_{t,p} = \frac{\alpha_{k,p}\kappa_{k,p}\left(t - t_*^{(p)}(t)\right)}\
-            {\lambda_{k,p}(t)}\mathds{1}_{t \geq t_1^{(p)}}
+        \forall p \in \mathcal{P}, P_{t,p} = \
+        \frac{\
+        \alpha_{k,p}\sum_{i,t_i^{(p)}<t}\kappa_{k,p}\left(t - t_i^{(p)}\right)
+        }{\
+        \lambda_{k,\mathcal{P}}(t)\
+        }
 
     Parameters
     ----------
     t : float | array-like
-        the time(s) we would like to compute p_tp at
+        The time(s) to compute p_tp at.
 
     intensity : instance of model.Intensity
-        intensity function
+        Intensity function.
 
-    last_tt : float | array-like
-        the corresponding driver's timestamps
+    driver_delays : list of scipy.sparse.csr_matrix
+        A list of csr matrices, each one containing, for each driver,
+        the delays between the time t and the driver timestamps. Defaults to
+        None.
 
     Returns
     -------
     float | numpy.array
-
     """
 
     t = np.atleast_1d(t)
@@ -158,7 +155,7 @@ def compute_p_tp(t, intensity, driver_delays=None):
 
 
 def compute_next_baseline(intensity, T):
-    r"""Compute the value of mu at the next EM step
+    r"""Compute the value of mu at the next EM step.
 
     .. math::
 
@@ -167,15 +164,14 @@ def compute_next_baseline(intensity, T):
     Parameters
     ----------
     intensity : instance of model.Intensity
-        intensity function
+        Intensity function.
 
     T : int | float
-        total duration of the process, in seconds
+        Total duration of the process, in seconds.
 
     Returns
     -------
     float
-
     """
 
     if intensity.baseline == 0:
@@ -187,21 +183,20 @@ def compute_next_baseline(intensity, T):
 
 
 def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
-    """Compute next values of parameters alpha, m and sigma
+    """Compute next values of parameters alpha, m and sigma.
 
     Parameters
     ----------
     intensity : instance of model.Intensity
-        intensity function
+        Intensity function.
 
     C, C_m, C_sigma : float
-        values of constants
+        Values of constants.
 
     Returns
     -------
     tuple of 3 floats
         next value for alpha, m, sigma
-
     """
 
     # sum over all activation timestamps
@@ -217,7 +212,6 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
     next_alpha = sum_p_tp / n_drivers_tt
 
     next_m, next_sigma = [], []
-    # for p in range(intensity.n_drivers):
     for p, diff in enumerate(intensity.driver_delays):
         if next_alpha[p] == 0:
             next_m.append(intensity.kernel[p].m)
@@ -262,22 +256,21 @@ def compute_next_alpha_m_sigma(intensity, C, C_m, C_sigma):
 
 
 def compute_nexts(intensity, T):
-    """Compute next values for the 4 parameters
+    """Compute next values for the 4 parameters.
 
     Parameters
     ----------
     intensity : instance of model.Intensity
-        intensity function
+        Intensity function.
 
     T : int | float
-        total duration of the process, in seconds
+        Total duration of the process, in seconds.
 
 
     Returns
     -------
     tuple of 4 floats
-        next value for baseline, alpha, m, sigma
-
+        Next value for baseline, alpha, m, sigma.
     """
 
     baseline = compute_next_baseline(intensity, T)

@@ -1,47 +1,40 @@
-# %%
+"""Define kernel and intensity classes.
+"""
 
-# %%
 import numpy as np
 import itertools
 import math
 import numbers
 from scipy.stats import truncnorm
-from copy import deepcopy
-from joblib import Memory, Parallel, delayed
 import matplotlib.pyplot as plt
 
 from dripp.trunc_norm_kernel.utils import \
-    convert_variable_multi, get_last_timestamps, get_driver_delays
+    convert_variable_multi, get_driver_delays, check_truncation_values, check_driver_tt, check_acti_tt
 
 
 class TruncNormKernel():
-    """Class for truncated normal distribution kernel
+    """Class for truncated normal distribution kernel.
 
     Parameters
     ----------
     lower, upper : float
-        kernel's truncation values
+        Kernel's truncation values, thus defining its support. Defaults to
+        lower = 0 and upper = 1.
 
-    m : float
-        mean of the distribution
-
-    sigma : float
-        standard deviation of the distribution
+    m, sigma : float | None
+        Mean and standard deviation of the distribution. If None, the mean is
+        set to the middle of the supper, and the standard deviation is set such
+        that 95% of the kernel mass is in [m +- 2*sigma]. Defaults to None.
 
     sfreq : int | None
-        sampling frequency used to create a grid between lower and upper to
-        pre-compute kernel's values
-        if None, the kernel will be exactly evaluate at each call.
-        Warning: setting sfreq to None may considerably increase computational
-        time.
-        default is 150.
-
+        Sampling frequency used to create a grid between lower and upper to
+        pre-compute kernel's values. If None, the kernel will be exactly
+        evaluate at each call. Warning: setting sfreq to None may considerably increase computational time. Defaults to 150.
     """
 
-    def __init__(self, lower, upper, m=None, sigma=None, sfreq=150.):
+    def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.):
 
-        assert lower < upper, \
-            "Truncation value 'lower' must be strictly smaller than 'upper'."
+        check_truncation_values(lower, upper)
 
         # compute default values of shape parameters
         if m is None:
@@ -55,9 +48,9 @@ class TruncNormKernel():
         self.upper = upper
         self.sfreq = sfreq
         self.update(m=m, sigma=sigma)
-        self.max = self.get_max()  # compute maximum of the kernel
 
     def update(self, m, sigma):
+        """Update kernel with new values for shape parameters."""
         self._m = m
         self._sigma = sigma
 
@@ -69,48 +62,37 @@ class TruncNormKernel():
             self._x_grid = None
             self._pdf_grid = None
         else:
+            # define a grid on which the kernel will be evaluate
             x_grid = np.arange(0, (self.upper - self.lower)
                                * self.sfreq + 1) / self.sfreq
             x_grid += self.lower
             self._x_grid = x_grid
+            # evaluate the kernel on the pre-defined grid and save as argument
             self._pdf_grid = truncnorm.pdf(
                 x_grid, a, b, loc=self.m, scale=self.sigma)
 
-    @property
-    def sigma(self):
-        return self._sigma
+        # compute maximum of the kernel
+        self.max = self.get_max()
 
-    @sigma.setter
-    def sigma(self, value):
-        self.update(m=self.m, sigma=value)
-        self.max = self.get_max()  # recompute max
-
-    @property
-    def m(self):
-        return self._m
-
-    @m.setter
-    def m(self, value):
-        self.update(m=value, sigma=self.sigma)
-        self.max = self.get_max()  # recompute max
+    def eval(self, x):
+        """Exactly evaluate the kernel at given value(s)."""
+        return truncnorm.pdf(x, self._a, self._b, loc=self.m, scale=self.sigma)
 
     def __call__(self, x):
-        """Evaluate the kernel at given value(s)
+        """Evaluate the kernel at given value(s).
 
         Parameters
         ----------
         x : int | float | array-like
-            value(s) to evaluate the kernel at
+            Value(s) to evaluate the kernel at.
 
         Returns
         -------
         float | numpy.array
-
         """
 
         if self.sfreq is None:
-            return truncnorm.pdf(x, self._a, self._b, loc=self.m,
-                                 scale=self.sigma)
+            return eval(self, x)
 
         x = np.asarray(x)
         x_idx = np.asarray(((x - self.lower) * self.sfreq), dtype=int)
@@ -122,16 +104,12 @@ class TruncNormKernel():
         out[mask] = self._pdf_grid[x_idx[mask]]
         return out
 
-    def eval(self, x):
-        return truncnorm.pdf(x, self._a, self._b, loc=self.m, scale=self.sigma)
-
     def get_max(self):
-        """Compute maximum value reached by the kernel function
+        """Compute maximum value reached by the kernel function.
 
         Returns
         -------
         float
-
         """
 
         if self.m < self.lower:
@@ -142,52 +120,60 @@ class TruncNormKernel():
             return self.eval(self.m)
 
     def ppf(self, q):
-        """Percent point function (inverse of `cdf`) at q
+        """Percent point function (inverse of `cdf`) at q.
 
         Parameters
         ----------
         q : float | array-like
-            the values to compute the ppf
-
+            The values to compute the ppf.
         """
 
-        # normalize truncation values
-        a = (self.lower - self.m) / self.sigma
-        b = (self.upper - self.m) / self.sigma
-
-        return truncnorm.ppf(q, a, b, loc=self.m, scale=self.sigma)
+        return truncnorm.ppf(q, self._a, self._b, loc=self.m, scale=self.sigma)
 
     def interval(self, alpha):
         """Endpoints of the range that contains alpha percent of the
-        distribution
+        distribution.
 
         Parameters
         ----------
         alpha : float
-            percent of distribution
+            Percent of distribution.
 
         Returns
         -------
-        tuple of 2 floats
-
+        Tuple of 2 floats
         """
 
-        # normalize truncation values
-        a = (self.lower - self.m) / self.sigma
-        b = (self.upper - self.m) / self.sigma
+        return truncnorm.interval(
+            alpha, self._a, self._b, loc=self.m, scale=self.sigma)
 
-        return truncnorm.interval(alpha, a, b, loc=self.m, scale=self.sigma)
+    def integrate(self, b1, b2):
+        """Integrate the kernel between b1 and b2.
+
+        Parameters
+        ----------
+        b1, b2 : floats
+            Integration bounds.
+
+        Returns
+        -------
+        float
+        """
+        integ = truncnorm.cdf(b2, a=self._a, b=self._b,
+                              loc=self.m, scale=self.sigma)
+        integ -= truncnorm.cdf(b1, a=self._a, b=self._b,
+                               loc=self.m, scale=self.sigma)
+
+        return integ
 
     def plot(self, xx=None):
-        """Plot kernel
+        """Plot kernel.
 
         Parameters
         ----------
         xx : array-like | None
-            points to plot the kernel over
-            if None, kernel will be plotted over its support
-            default is None
-
+            Points to plot the kernel over. If None, kernel will be plotted
+            over its support. Defaults to None.
         """
 
         if xx is None:
@@ -201,82 +187,64 @@ class TruncNormKernel():
         plt.title("Kernel function")
         plt.show()
 
-    def integrate(self, b1, b2):
-        """Integrate the kernel between b1 and b2
+    @property
+    def sigma(self):
+        return self._sigma
 
-        Parameters
-        ----------
-        b1, b2 : floats
-            integration bounds
+    @sigma.setter
+    def sigma(self, value):
+        self.update(m=self.m, sigma=value)
 
-        Returns
-        -------
-        float
+    @property
+    def m(self):
+        return self._m
 
-        """
-
-        # normalize truncation values
-        a = (self.lower - self.m) / self.sigma
-        b = (self.upper - self.m) / self.sigma
-
-        integ = truncnorm.cdf(b2, a=a, b=b, loc=self.m, scale=self.sigma)
-        integ -= truncnorm.cdf(b1, a=a, b=b, loc=self.m, scale=self.sigma)
-
-        return integ
-
-# %%
+    @m.setter
+    def m(self, value):
+        self.update(m=value, sigma=self.sigma)
 
 
 class Intensity():
-    """Class for intensity function
+    """Class for intensity function.
 
     Parameters
     ----------
 
     baseline : int | float
-        baseline intensity
+        Baseline intensity value. Defaults to 0.
 
     alpha : int | float | array-like
-        coefficient of influence
-        if multiple drivers are taken into account, alpha must be an array-like
-        of length the number of kernels.
-        default is 0
+        Coefficient of influence. If multiple drivers are taken into account,
+        alpha must be an array-like of length the number of kernels. Defaults
+        to 0.
 
-    kernel : instance of TruncNormKernel | array-like of TruncNormKernel
-        the kernel function(s) to take into account
-        default is None
+    kernel : instance of TruncNormKernel | array-like of TruncNormKernel | None
+        The kernel function(s) to take into account. Defaults to None.
 
-    driver_tt : array-like of shape (n_drivers, n_tt)
-        the drivers' timestamps
-        default is ()
+    driver_tt : array-like of shape (n_drivers, n_tt) | None
+        The drivers' timestamps. Defaults to None.
 
-    acti_tt : array-like of shape (n_tt, )
-        the process' activation timestamps
-        default is ()
-
+    acti_tt : array-like of shape (n_tt, ) | None
+        The process' activation timestamps. Defaults to None.
     """
 
     def __init__(self, baseline=0, alpha=0, kernel=None,
-                 driver_tt=(), acti_tt=()):
+                 driver_tt=None, acti_tt=None):
 
-        # ensure that driver_tt is a 2d array (# 1st dim. is # drivers)
-        if isinstance(driver_tt[0], numbers.Number):
-            driver_tt = [driver_tt]
-        self._driver_tt = [np.array(x) for x in driver_tt]
-
-        self.n_drivers = len(self.driver_tt)
         self.baseline = baseline
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
             alpha, self.n_drivers, repeat=True)
         self.kernel = np.atleast_1d(kernel)  # set of kernels functions
-        self._acti_tt = np.atleast_1d(acti_tt)  # ensure it is numpy array
-
         # make sure we have one alpha coefficient per kernel
         assert len(self.alpha) == len(self.kernel), \
             "alpha and kernel parameters must have the same length"
+        # ensure that driver_tt is a 2d array (# 1st dim. is number of drivers)
+        self._driver_tt = check_driver_tt(driver_tt)
+        self.n_drivers = len(self.driver_tt)
+        self._acti_tt = check_acti_tt(acti_tt)  # ensure it is numpy 1d-array
 
-        if len(self.acti_tt) > 0 and len(self.driver_tt) > 0:
+        if len(self.acti_tt) > 0 and self.n_drivers > 0:
             # for every process activation timestamps,
             # get its corresponding driver timestamp
             self.driver_delays = get_driver_delays(self, self.acti_tt)
@@ -284,10 +252,24 @@ class Intensity():
             self.driver_delays = None
 
     def update(self, baseline, alpha, m, sigma):
-        """Update the intensity function (baseline parameter as well as associated kernels and alpha) with new values.
+        """Update the intensity function with new values.
+
+        Update the full intensity object, the baseline parameter as well as
+        the associated kernels (their shape parameters) and alphas coefficients
         In practice, this method is called once an interation of the learning
         algorithm is computed.
 
+        Parameters
+        ----------
+
+        baseline : float
+            The new value for the baseline intensity value.
+
+        alpha : list of floats | array-like of floats
+            The list of the new importance coefficient, one for each driver.
+
+        m, sigma : list of floats | array-like of floats
+            The list of the new values for the mean and std for every kernel.
         """
 
         self.baseline = baseline
@@ -296,28 +278,26 @@ class Intensity():
             self.kernel[i].update(m=m[i], sigma=sigma[i])
 
     def __call__(self, t, driver_delays=None, intensity_pos=False):
-        """Evaluate the intensity at time(s) t
+        """Evaluate the intensity at time(s) t.
 
         Parameters
         ----------
         t : int | float | array-like
-            the value(s) we would like to evaluate the intensity at
+            The value(s) to evaluate the intensity at.
 
-        driver_delays : array-like
-            an array of csr matrices, each one containing, for each driver,
+        driver_delays : list of scipy.sparse.csr_matrix
+            A list of csr matrices, each one containing, for each driver,
             the delays between the intensity activations and the driver
-            timestamps
+            timestamps. Defaults to None.
 
         intensity_pos : bool
-            if True, enforce the positivity of the intensity function by
-            applying a max with 0
-            default is False
+            If True, enforce the positivity of the intensity function by
+            applying a max with 0. Defaults to False.
 
         Returns
         -------
         float | numpy.array
-            the value of the intensity function at given time(s)
-
+            The value of the intensity function at given time(s).
         """
 
         t = np.atleast_1d(t)
@@ -348,12 +328,11 @@ class Intensity():
             return intensities
 
     def get_max(self):
-        """Compute maximum intensity 
+        """Compute maximum intensity.
 
         Returns
         -------
         float
-
         """
 
         # get sfreq used for kernel initialization
@@ -388,15 +367,14 @@ class Intensity():
         return intensity_grid.max()
 
     def plot(self, xx=np.linspace(0, 1, 600)):
-        """Plot kernel
+        """Plot kernel.
 
         Parameters
         ----------
 
         xx : array-like
-            points to plot the intensity over
-            default is numpy.linspace(0, 1, 600)
-
+            Points to plot the intensity over. Default to
+            numpy.linspace(0, 1, 600).
         """
         yy = self.baseline
         for alpha, kernel in zip(self.alpha, self.kernel):
@@ -420,10 +398,10 @@ class Intensity():
         Parameters
         ----------
         a, b : floats
-            limits of the considered interval
+            Limits of the considered interval.
 
         n : int
-            number of events
+            Number of events.
 
         Returns
         -------

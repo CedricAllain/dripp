@@ -36,66 +36,58 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                   data_source='sample', subject_id='CC620264',
                   save_results=False):
     """Run a Greedy Convolutional Dictionary Learning on mne.[data_source]
-    dataset
+    dataset.
 
     Parameters
     ----------
     data_source : str, 'sample' | 'camcan' | 'somato'
-        Data source name
-        Default is 'sample'
+        Data source name. Defaults to 'sample'
 
     subject_id : str
-        for Cam-CAN dataset, the subject id to run the CSC on
-        default is 'CC620264', a 76.33 year old woman
+        For Cam-CAN dataset, the subject id to run the CSC on. Defaults to
+        'CC620264', a 76.33 year old woman.
 
     subject : str
-        subject label for camcan dataset, e.g., subject = 'CC110033'
-        default is 'sample'
+        Subject label for camcan dataset, e.g., subject = 'CC110033'. Defaults
+        to 'sample'.
 
     kind : 'passive' | 'rest' | 'task'
-        only for camcan dataset, kind of experiment done on the subject
-        default is 'passive'
+        Only for camcan dataset, kind of experiment done on the subject.
+        Defaults to 'passive'.
 
     sfreq : double
         Sampling frequency. The signal will be resampled to match this.
-        Default is 150.
+        Defaults to 150.
 
     n_atoms : int
-        Number of atoms to learn
-        Default is 40
+        Number of atoms to learn. Defaults to 40.
 
-    n_atoms : int
-        The support of the atom (in timestamps)
-        Default is None (computed after from sfreq)
+    n_times_atoms : int | None
+        The support of the atom (in timestamps). If None, set to sfreq.
+        Defaults to None.
 
     reg : double
-        Regularization parameter which control sparsity
-        Default is 0.1
+        Regularization parameter which control sparsity. Defaults to 0.1.
 
     n_iter : int
-        Number of iteration for the alternate minimization
-        Default is 100
+        Number of iteration for the alternate minimization. Defaults to 100.
 
     eps : float
-        cvg threshold
-        Default is 1e-4
+        Convergence threshold. Defaults to 1e-4.
 
     use_greedy: bool
-        if True, use GreedyCDL, if false, use BatchCDL
-        default is True
+        If True, use GreedyCDL, if false, use BatchCDL. Defaults to True.
 
     n_jobs : int
-        Number of processors for parallel computing
-        Default is 5
+        Number of processors for parallel computing. Defaults to 5.
 
     n_splits : int
-        Number of splits the raw signal is decomposed into
-        The number of splits should actually be the smallest possible to avoid
+        Number of splits the raw signal is decomposed into. The number of
+        splits should actually be the smallest possible to avoid
         introducing border artifacts in the learned atoms and it should be no
         much larger than n_jobs.
         A good value is n_splits = n_jobs, or n_splits set to be a small
-        multiple of n_jobs.
-        Default is 10
+        multiple of n_jobs. Defaults to 10.
 
     Returns
     -------
@@ -103,19 +95,17 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
         Global dictionary with keys as follow.
 
         'dict_cdl_params' : dict
-            value of GreedyCDL's parameters
+            Value of GreedyCDL's parameters.
 
         'dict_other_params' : dict
-            value of all other parameters, such as data source, sfreq, etc.
+            Value of all other parameters, such as data source, sfreq, etc.
 
         'dict_cdl_fit_res' : dict of numpy.array
-            results of the cdl.fit(), with u_hat_, v_hat_ and z_hat
+            Results of the cdl.fit(), with u_hat_, v_hat_ and z_hat.
 
         'dict_pair_up' : dict
-            pre-process of results that serve as input in a EM algorithm
-
+            Pre-process of results that serve as input in a EM algorithm.
     """
-
     print("Run CDL model")
 
     if n_times_atom is None:
@@ -292,9 +282,7 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
 
 def run_cdl_sample(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                    n_iter=100, eps=1e-4, n_jobs=5, n_splits=10):
-    """Run Convolutional Dictionary Learning on mne.sample
-
-    """
+    """Run Convolutional Dictionary Learning on mne.sample."""
     return _run_cdl_data(sfreq=sfreq, n_atoms=n_atoms,
                          n_times_atom=n_times_atom, reg=reg,
                          n_iter=n_iter, eps=eps, n_jobs=n_jobs,
@@ -304,9 +292,7 @@ def run_cdl_sample(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
 
 def run_cdl_somato(sfreq=150., n_atoms=25, n_times_atom=None, reg=0.2,
                    n_iter=100, eps=1e-4, n_jobs=5, n_splits=10):
-    """Run Convolutional Dictionary Learning on mne.somato
-
-    """
+    """Run Convolutional Dictionary Learning on mne.somato."""
     return _run_cdl_data(sfreq=sfreq, n_atoms=n_atoms,
                          n_times_atom=n_times_atom, reg=reg,
                          n_iter=n_iter, eps=eps, n_jobs=n_jobs,
@@ -318,14 +304,13 @@ def run_cdl_camcan(subject_id="CC320428", sfreq=150., n_atoms=30,
                    n_times_atom=int(np.round(0.7*150.)), reg=0.2, n_iter=100,
                    eps=1e-5, tol_z=1e-3, use_greedy=False, n_jobs=5,
                    n_splits=10):
-    """Run Convolutional Dictionary Learning on Cam-CAN dataset
+    """Run Convolutional Dictionary Learning on Cam-CAN dataset.
 
     Parameters
     ----------
-
     subject_id : str
-        for Cam-CAN dataset, the subject id to run the CSC on
-        default is 'CC620264', a 76.33 year old woman
+        For Cam-CAN dataset, the subject id to run the CSC on. Defaults to
+        'CC620264', a 76.33 year old woman.
 
     """
     return _run_cdl_data(sfreq=sfreq, n_atoms=n_atoms,

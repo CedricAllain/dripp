@@ -1,19 +1,21 @@
-""" Utils functions for metrics """
+"""Utils functions for metrics.
+"""
 
 import numpy as np
 from scipy import integrate
 
 
 def negative_log_likelihood_1d(intensity, T):
-    """ Compute the negative log-likelihood for a given intensity function over
-    a given time duration, in the case where the intensity only have one driver
+    """Compute the negative log-likelihood for a given intensity function over
+    a given time duration, in the case where the intensity only have one
+    driver.
 
     Parameters
     ----------
     intensity : model.Trun object
 
     T : float
-        total duration
+        Total duration.
 
     Returns
     -------
@@ -51,15 +53,15 @@ def negative_log_likelihood_1d(intensity, T):
 
 
 def negative_log_likelihood(intensity, T):
-    """ Compute the negative log-likelihood for a given intensity function over
-    a given time duration
+    """Compute the negative log-likelihood for a given intensity function over
+    a given time duration.
 
     Parameters
     ----------
-    intensity : model.Trun object
+    intensity : instance of model.Intensity
 
     T : float
-        total duration
+        Total duration.
 
     Returns
     -------

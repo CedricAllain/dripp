@@ -1,6 +1,4 @@
-"""Utils functions used all accross the package
-
-"""
+"""Utils functions used all accross the package"""
 
 import cProfile
 
