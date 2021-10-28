@@ -1,6 +1,4 @@
-"""
-
-"""
+"""Functions to plot results of CDL and experiments results"""
 import numpy as np
 import mne
 
@@ -20,8 +18,6 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
 
     Parameters
     ----------
-
-
     n_top_atoms : int | None
         number of atoms to plot when ordered by their ratio alpha / mu
         default is None
@@ -234,12 +230,3 @@ def plot_cdl_atoms(dict_global, cdl_params, info,
             plt.savefig(str(path_fig).replace('pdf', 'png'), dpi=300,
                         bbox_inches='tight')
     return fig
-
-
-def plot_history_params(history_params):
-    """
-
-    Parameters
-    ----------
-    history_params : dict
-    """

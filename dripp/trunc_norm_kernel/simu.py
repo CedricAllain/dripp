@@ -1,9 +1,6 @@
+"""Utils functions used for the simulation of driven point process
+with truncated Gaussian kernel.
 """
-Utils functions used for the simulation of driven point process
-with truncated Gaussian kernel
-"""
-
-# %%
 
 import numpy as np
 import time
@@ -12,14 +9,18 @@ from dripp.trunc_norm_kernel.utils import convert_variable_multi
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
 from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 
+from dripp.utils import profile_this
+
 
 # =======================================
 # DRIVER EVENTS TIMESTAMPS
 # =======================================
 
 def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
-                        add_jitter=True, verbose=False):
-    """ Simulate regular timestamps over the interval
+                        add_jitter=False, verbose=False):
+    """Simulate regular timestamps with a given isi.
+
+    Simulate regular timestamps over the interval
     [start + 2 * isi ; start + T - 2 * isi],
     with a inter stimuli interval of `isi`,
     and keep `n_tasks` (or `n_tasks` %) of those simulated timestamps,
@@ -28,31 +29,29 @@ def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
     Parameters
     ----------
     start : int
-        starting time
-        default is 0
+        Starting time. Defaults to 0.
 
     T : int | float
-        total duration, in seconds
-        default is 240
+        Total duration, in seconds. Defaults to 240.
 
     isi : int | float
-        inter stimuli interval, in seconds
-        default is 1
+        Inter stimuli interval, in seconds. Defaults to 1.
 
     n_tasks: float | int | None
-        number or percentage of timestamps to keep
-        if None, keep them all (proportion of 1)
-        if float between 0 and 1, act as a percentage
-        if float > 1, then it is converted in int
-        default is None
+        Number or percentage of timestamps to keep. If None, keep them all
+        (proportion of 1). If float between 0 and 1, act as a percentage. If
+        float > 1, then it is converted in int. Defaults to None.
 
     seed : int
-        the seed used for ramdom sampling
-        default is None
+        The numpy seed used for ramdom sampling. Defaults to None.
+
+    add_jitter : bool
+        If True, add some random jitter to the selected timestamps. Defaults
+        to False.
 
     verbose : bool
-        if True, print some information linked to the timestamps generation
-        default is False
+        If True, print some information linked to the timestamps generation. 
+        Defaults to False.
 
     Returns
     -------
@@ -107,56 +106,43 @@ def simu_timestamps_reg(start=0, T=240, isi=1, n_tasks=None, seed=None,
 # PROCESS EVENTS TIMESTAMPS
 # =======================================
 
-def simu_1d_nonhomogeneous_poisson_process(intensity,
-                                           T=240,
-                                           lambda_max=None,
-                                           seed=None,
+def simu_1d_nonhomogeneous_poisson_process(intensity, T=240, seed=None,
                                            verbose=False):
-    """Simulation of an Inhomogeneous Poisson Process with
-    Bounded Intensity Function λ(t), on [0, T].
-    Source: PA W Lewis and Gerald S Shedler, 1979,
-    "Simulation of nonhomogeneous poisson processes by thinning."
+    """Simulate an Inhomogeneous Poisson Process.
+
+    Simulate an Inhomogeneous Poisson Process with Bounded Intensity Function
+    λ(t), on [0, T].
+    Source: PA W Lewis and Gerald S Shedler, 1979, "Simulation of
+    nonhomogeneous poisson processes by thinning."
 
     Parameters
     ----------
-    intensity: callable (defaul None)
-        intensity function
+    intensity: intance of model.Intensity
 
     T: int | float
-        duration of the Poisson process, in seconds
-        default is 240
-
-    lambda_max: int | float
-        maximum of the intensity function on [0, T]
-        if None, it is computed using intensity.get_max()
-        default is None
+        Duration of the Poisson process, in seconds. Defaults to 240.
 
     seed : int
-        the seed used for ramdom sampling
-        default is None
+        The numpy seed used for ramdom sampling. Defaults to None.
 
     verbose : bool
-        if True, print some information
-        default is False
+        If True, print some information. Defaults to False.
 
     Returns
     -------
     1d numpy.array
         the timestamps of the point process' events
-
     """
 
     assert T > 0, "The time duration must be stricly positive"
 
-    if lambda_max is None:
-        lambda_max = intensity.get_max()
+    lambda_max = intensity.get_max()
 
     rng = np.random.RandomState(seed)
 
     tt_list = []
     s = 0.
     while s <= T:
-        # lambda_max = intensity.get_next_lambda_max(s)
         u = rng.rand()
         w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w
@@ -179,101 +165,93 @@ def simu_1d_nonhomogeneous_poisson_process(intensity,
 # GENERATE FULL SET OF DATA
 # =======================================
 
+@profile_this
 def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
                   baseline=0.8, alpha=1, T=240, isi=1, add_jitter=False,
-                  n_tasks=0.8,
-                  n_drivers=1, seed=None, return_nll=True, verbose=False):
-    """ Given some initial parameters, simulate driver's timestamps and
+                  n_tasks=0.8, n_drivers=1, seed=None, return_nll=True,
+                  verbose=False):
+    """Given some initial parameters, simulate driver's timestamps and
     driven process's activation timestamps, for the intensity defined with a
     truncated gaussian kernel.
 
     Parameters
     ----------
     lower, upper : int | float | array-like
-        kernel's truncation values
-        if lower and upper are int or float with n_drivers > 1, their values 
-        are shared accross all generated driver; if they are array-like, they
-        must be of length n_drivers
-        default is 30e-3, 500e-3
+        Kernel's truncation values. If lower and upper are int or float with
+        n_drivers > 1, their values are shared accross all generated driver; if
+        they are array-like, they must be of length n_drivers. Defaults to
+        lower = 30e-3 and upper = 500e-3.
 
     m, sigma : int | float | array-like
-        kernel's shape parameters: mean and stadard deviation, respectively
+        Kernel's shape parameters: mean and stadard deviation, respectively
         similarly to lower, upper, either the values are shared accross all
-        kernels, or they must be arrays of length n_drivers
-        default is 150e-3, 0.1
+        kernels, or they must be arrays of length n_drivers. Defaults to 
+        m = 150e-3 and sigma = 0.1.
 
     sfreq : int | None
-        sampling frequency used to create a grid between kernel's lower and
-        upper to pre-compute kernel's values
-        if None, the kernel will be exactly evaluate at each call.
-        Warning: setting sfreq to None may considerably increase computational
-        time.
-        default is 150.
+        Sampling frequency used to create a grid between kernel's lower and
+        upper to pre-compute kernel's values. If None, the kernel will be
+        exactly evaluate at each call. Warning: setting sfreq to None may
+        considerably increase computational time. Defaults to 150.
 
     baseline : int | float
-        baseline intensity
-        default is 0.8
+        Baseline intensity value. Defaults to 0.8.
 
     alpha : int | float | array-like
-        coefficient of influence of the driver on the process
+        Coefficient of influence of the driver on the process
         similarly to lower, upper, either the value is shared accross all
-        kernels, or it must be an array of length n_drivers
-        default is 1
+        kernels, or it must be an array of length n_drivers. Defaults to 1.
 
     T : int | float
-        duration of the process, in seconds (same duration for all drivers)
-        default is 240
+        Duration of the process, in seconds (same duration for all drivers).
+        Defaults to 240.
 
     isi : int | float | array-like
-        inter stimuli interval
-        similarly to lower, upper, either the value is shared accross all
-        kernels, or it must be an array of length n_drivers
-        default is 1
+        Inter stimuli interval. Similarly to lower, upper, either the value is
+        shared accross all kernels, or it must be an array of length n_drivers.
+        Defaults to 1.
 
-    n_tasks : float | int | array-like | None
-        number or percentage of timestamps to keep
-        if None, keep them all
-        if float between 0 and 1, act as a percentage
-        if float > 1, then it is converted in int
-        similarly to lower, upper, either the value is shared accross all
-        kernels, or it must be an array of length n_drivers
-        default is None
+    n_tasks: float | int | None
+        Number or percentage of timestamps to keep. If None, keep them all
+        (proportion of 1). If float between 0 and 1, act as a percentage. If
+        float > 1, then it is converted in int. similarly to lower, upper,
+        either the value is shared accross all kernels, or it must be an array
+        of length n_drivers. Defaults to None.
 
     n_drivers : int
-        number of driver to simulate
-        default is 1
+        Number of driver to simulate. Defaults to 1.
 
     seed : int | array-like
-        the seed used for ramdom sampling
-        if n_drivers > 1, seed must be None or array-like of length n_drivers
-        default is None
+        The seed used for ramdom sampling. If n_drivers > 1, seed must be None
+        or array-like of length n_drivers. Defaults to None.
 
     return_nll : bool
-        if True, compute and return the true negative log-likelihood (nll)
+        If True, compute and return the true negative log-likelihood (nll).
+        Defaults to True.
 
     verbose : bool
-        if True, print some information linked to the timestamps generation
-        default is False
+        If True, print some information linked to the timestamps generation.
+        Defaults to False.
 
 
     Returns
     -------
     driver_tt : 1d | 2d numpy.array
-        driver's timestamps
-        if n_drivers > 1, the second dimension if n_drivers
+        Driver's timestamps. If n_drivers > 1, the second dimension is equal
+        to the number of drivers.
 
     acti_tt : 1d | 2d numpy.array
-        process's activation timestamps
-        if n_drivers > 1, the second dimension if n_drivers
+        Process's activation timestamps. If n_drivers > 1, the second dimension
+        is equal to the number of drivers.
 
     if return_nll is True:
         true_nll : float
             negative log-likelihood of the process
 
-    kernel : array of TruncNormKernel instances
+    kernel : list of TruncNormKernel instances
 
+    intensity : intance of model.Intensity
     """
-
     isi = convert_variable_multi(isi, n_drivers, repeat=True)
     n_tasks = convert_variable_multi(n_tasks, n_drivers, repeat=True)
     seed = convert_variable_multi(seed, n_drivers, repeat=True)
@@ -288,7 +266,6 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
             T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
             add_jitter=add_jitter, verbose=verbose)
         driver_tt.append(this_driver_tt)
-    driver_tt = [np.array(x) for x in driver_tt]
 
     # define kernel and intensity functions
     lower = convert_variable_multi(lower, n_drivers, repeat=True)
@@ -319,69 +296,18 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         return driver_tt, acti_tt, kernel, intensity
 
 
-# %%
-# N_DRIVERS = 2
-# T = 1_000  # process time, in seconds
-# lower = 30e-3
-# upper = 500e-3
-# m = [400e-3, 400e-3]
-# sigma = [0.2, 0.05]
-# sfreq = 1000.
-# baseline = 0.5
-# alpha = [0.8, 0.8]
-# isi = 1
-# n_tasks = 0.2
-# n_drivers = N_DRIVERS
-# seed = None
-# add_jitter = False
-# verbose = False
-
-# isi = convert_variable_multi(isi, n_drivers, repeat=True)
-# n_tasks = convert_variable_multi(n_tasks, n_drivers, repeat=True)
-# seed = convert_variable_multi(seed, n_drivers, repeat=True)
-# if seed[0] is not None:
-#     rng = np.random.RandomState(seed[0])
-#     seed += rng.choice(range(100), size=n_drivers, replace=False)
-
-# # simulate task timestamps
-# driver_tt = []
-# for this_isi, this_n_tasks, this_seed in zip(isi, n_tasks, seed):
-#     this_driver_tt = simu_timestamps_reg(
-#         T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
-#         add_jitter=add_jitter, verbose=verbose)
-#     driver_tt.append(this_driver_tt)
-# driver_tt = np.array([np.array(x) for x in driver_tt])
-
-# # define kernel and intensity functions
-# lower = convert_variable_multi(lower, n_drivers, repeat=True)
-# upper = convert_variable_multi(upper, n_drivers, repeat=True)
-# m = convert_variable_multi(m, n_drivers, repeat=True)
-# sigma = convert_variable_multi(sigma, n_drivers, repeat=True)
-
-# kernel = []
-# for this_lower, this_upper, this_m, this_sigma in \
-#         zip(lower, upper, m, sigma):
-#     kernel.append(TruncNormKernel(this_lower, this_upper, this_m,
-#                                   this_sigma, sfreq=sfreq))
-
-# alpha = convert_variable_multi(alpha, n_drivers, repeat=True)
-# intensity = Intensity(baseline, alpha, kernel, driver_tt)
-
-# %%
-
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 30  # process time, in seconds
+    T = 10_000  # process time, in seconds
+    lower, upper = 30e-3, 800e-3
     start_time = time.time()
     driver_tt, acti_tt, kernel, intensity = simulate_data(
-        lower=30e-3, upper=500e-3,
+        lower=lower, upper=upper,
         m=[400e-3, 400e-3], sigma=[0.2, 0.05],
-        sfreq=1000.,
+        sfreq=300.,
         baseline=0.5, alpha=[0.8, 0.8],
-        T=T, isi=1, n_tasks=0.2,
-        n_drivers=N_DRIVERS, seed=None, return_nll=False, verbose=False)
+        T=T, isi=[1, 1.2], n_tasks=0.8,
+        n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
     print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
           % (N_DRIVERS, T, simu_time))
-
-# %%

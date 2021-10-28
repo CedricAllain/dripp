@@ -1,19 +1,21 @@
-""" Utils functions for metrics """
+"""Utils functions for metrics.
+"""
 
 import numpy as np
 from scipy import integrate
 
 
 def negative_log_likelihood_1d(intensity, T):
-    """ Compute the negative log-likelihood for a given intensity function over
-    a given time duration, in the case where the intensity only have one driver
+    """Compute the negative log-likelihood for a given intensity function over
+    a given time duration, in the case where the intensity only have one
+    driver.
 
     Parameters
     ----------
     intensity : model.Trun object
 
     T : float
-        total duration
+        Total duration.
 
     Returns
     -------
@@ -51,41 +53,27 @@ def negative_log_likelihood_1d(intensity, T):
 
 
 def negative_log_likelihood(intensity, T):
-    """ Compute the negative log-likelihood for a given intensity function over
-    a given time duration
+    """Compute the negative log-likelihood for a given intensity function over
+    a given time duration.
 
     Parameters
     ----------
-    intensity : model.Trun object
+    intensity : instance of model.Intensity
 
     T : float
-        total duration
+        Total duration.
 
     Returns
     -------
     float
     """
 
-    # n_drivers = len(intensity.kernel)
-
-    # if n_drivers == 1:
-    #     return negative_log_likelihood_1d(intensity, T)
-
-    # in the case of multiple drivers
     nll = T * intensity.baseline
+
     for this_alpha, this_driver_tt in zip(intensity.alpha, intensity.driver_tt):
         nll += this_alpha * len(this_driver_tt)
 
     nll -= np.log(intensity(intensity.acti_tt,
                             driver_delays=intensity.driver_delays)).sum()
-
-    # for this_acti_tt in intensity.acti_tt:
-    #     sum_temp = intensity.baseline
-    #     for p in range(n_drivers):
-    #         # compute delays
-    #         delays = this_acti_tt - intensity.driver_tt[p]
-    #         # compute the sum of kernel values for the delays
-    #         sum_temp += intensity.alpha[p] * intensity.kernel[p](delays).sum()
-    #     nll -= np.log(sum_temp)
 
     return nll

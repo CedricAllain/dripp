@@ -10,24 +10,23 @@ import mne
 
 def get_data_utils(data_source='sample', subject='sample',
                    verbose=True):
-    """ Returns dataset's informations such as paths, STIM channel,
+    """Returns dataset's informations such as paths, STIM channel,
     events description, etc.
 
     Parameters
     ----------
     data_source : 'sample' | 'camcan'
-        Name of the dataset, default is 'sample'
+        Name of the dataset. Defaults to 'sample'.
 
     subject : str
-        subject label, default is 'sample'
+        Subject label. Defaults to 'sample'.
 
     verbose : bool
-        if True, print events description
+        If True, print events description. Defaults to True.
 
     Returns
     -------
     dict
-
     """
 
     if data_source == 'sample':
@@ -54,12 +53,10 @@ def get_data_utils(data_source='sample', subject='sample',
                      'smiley': 5, 'buttonpress': 32}
 
     elif data_source == 'somato':
-
         data_path = mne.datasets.somato.data_path()
         subjects_dir = None
         file_name = os.path.join(data_path, 'sub-01', 'meg',
                                  'sub-01_task-somato_meg.fif')
-
         event_id = [1]
         event_des = {'somato': 1}
         stim_channel = 'STI 014'  # STIM channel
@@ -69,6 +66,7 @@ def get_data_utils(data_source='sample', subject='sample',
         fname_cov = None
         fname_trans = None
         fname_bem = None
+
     elif data_source == 'camcan':
         event_id = [1, 2, 3, 4, 5, 6]
         event_des = {'audiovis/1200Hz': 1,  # bimodal
@@ -104,43 +102,38 @@ def get_data_utils(data_source='sample', subject='sample',
 
 def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
                            verbose=True):
-    """ Get the event id, or ids, corresponding to a type,
+    """Get the event id, or ids, corresponding to a type,
     given an events description.
 
     Parameters
     ----------
     event_des : dict
-        events descriptions
-        keys are event type, e.g., 'visual/left',
-        values are event id
-        note that in type, specifications must be separated by a '/'
-        default is None
+        Events descriptions. Keys are event type, e.g., 'visual/left', values
+        are corresponding event ids. Note that in type, specifications must be
+        separated by a '/'. Defaults to None.
 
     event_type : str | list of str | 'all'
-        type(s) of event(s) we want to select
-        if 'all', all events id are returned
-        default is 'all'
-        exemples:
+        Type(s) of event(s) we want to select. If 'all', all events id are
+        returned. Defaults to'all'.
+        Exemples:
             event_type = "visual/left" -> return the corresponding id in a list
-            of length 1
+            of length 1.
             event_type = ”visual" -> return a list of length 1, containing a
-            sub-list of all id that have the specification
+            sub-list of all id that have the specification.
             event_type = ["visual", "auditory"] -> return a list of length 2,
-            containing 2 sub-lists of id, one sub-list per specification
+            containing 2 sub-lists of id, one sub-list per specification.
 
     data_source : 'sample' | 'camcan'
-        Name of the dataset, to determine event_des if the latter is None
-        default is 'sample'
+        Name of the dataset, to determine event_des if the latter is None.
+        Defaults to 'sample'.
 
     verbose : bool
-        if True, print some info
+        If True, print some info. Defaults to True.
 
     Returns
     -------
     list of int | list of list of int
-
     """
-
     assert (event_des is not None) or (data_source is not None), \
         "No event descriptions nor data source is given."
 
@@ -160,7 +153,6 @@ def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
     for t in event_type:
         id_temp = []
         for k, v in event_des.items():
-
             if k == t:
                 id_temp.append(v)
                 break
@@ -181,35 +173,32 @@ def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
 
 def get_event_type_from_id(event_des_reverse=None, event_id=None,
                            data_source='sample'):
-    """ Get the event type, or types, corresponding to an id(s),
+    """Get the event type, or types, corresponding to an id(s),
     given an inverse events description.
 
     Parameters
     ----------
     event_des_reverse : dict
-        inverse events descriptions
-        keys are event id,
-        values are event type, e.g., 'visual/left',
-        note that in type, specifications must be separated by a '/'
-        default is None
+        Inverse events descriptions. Keys are event id, values are event type,
+        e.g., 'visual/left'. Note that in type, specifications must be
+        separated by a '/'. Defaults to None.
 
     event_id : int | list of int | list of list of int
-        id of events for which to find the corresponding type
-        exemples:
+        Id of events for which to find the corresponding type.
+        Exemples:
             event_id = 1 -> return the type corresponding in a list of length 1
             event_id = [1, 2, 3, 4] -> return a list of the 4 types
             event_id = [[1, 2], [3, 4]] -> return a list of length 2, for each
             sublist of event id, return the common specification
 
     data_source : 'sample' | 'camcan'
-        Name of the dataset, to determine event_des if the latter is None
-        default is 'sample'
+        Name of the dataset, to determine event_des if the latter is None.
+        Defaults to 'sample'.
 
     Returns
     -------
     list of str
     """
-
     assert (event_des_reverse is not None) or (data_source is not None), \
         "No event descriptions nor data source is given."
 
@@ -252,22 +241,32 @@ def get_event_type_from_id(event_des_reverse=None, event_id=None,
 
 def get_events_timestamps(events=None, sfreq=None, info=None,
                           event_id='all'):
-    """
+    """Return the dictionary of the timestamps corresponding to a set of event
+    ids.
 
     Parameters
     ----------
+    events : 2d-array of shape (n_events, 3)
+        The events array, as used in MNE. If None, will search for an "events"
+        key in the info dictionary. Defaults to None.
+
+    sfreq : float
+        The sampling frequency. If None, will search for an "sfreq" key in the
+        info dictionary. Defaults to None.
+
+    info : dict
+        Dictionary containing information about the experiment, similar to
+        mne.Info. Defaults to None.
 
     event_id : 'all' | list of int
-        list of event id for which to compute their timestamps
-        if 'all', all event ids are considered
-        default is 'all'
+        List of event id for which to compute their timestamps. If 'all', all
+        event ids are considered. Defaults to'all'.
 
     Returns
     -------
     events_timestamps : dict
-        keys are int, the event id,
-        values are numpy.array of float, the event's timestamps (in seconds)
-
+        Keys are int, the event id, and values are numpy.array of float, the
+        event's timestamps (in seconds).
     """
 
     if events is None:
@@ -294,20 +293,24 @@ def get_events_timestamps(events=None, sfreq=None, info=None,
 
 
 def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
-    """ Get activation sparse vector from CDL results.
+    """Get activation sparse vector from CDL results.
 
     Parameters
     ----------
     model : alphacsc.convolutional_dictionary_learning.GreedyCDL | dict
-        fitted model
-        if dict, must have v_hat_ and z_hat in its keys
+        Fitted model. If dict, must have v_hat_ and z_hat in its keys.
 
     z_hat : numpy.array of shape (n_trials, n_atoms, n_timestamps)
+        If z_hat is None, model must be a dict containing a 'z_hat' key.
+        Defaults to None
 
     idx_atoms : int | list of int | 'all'
+        The idices of the atoms to consider. If 'all', then all the extracted
+        atoms are taken. Defaults to 'all'.
 
     shift : bool
-        if True, apply, for each atom's ativations, a shift of size equal
+        If True, apply, for each atom's ativations, a shift of size equal.
+        Defaults to True.
 
     Returns
     -------
@@ -349,23 +352,26 @@ def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
 def block_process_1d(a, blocksize):
     """For a given array a, returns an array of same size b, but with only the
     constructed by keeping maximum values of a within blocks of given size.
-    ex. : if a = numpy.array([0, 1, 0, 0, 1, 3, 0]) and blocksize = 2,
-    returns b = numpy.array([0, 1, 0, 0, 0, 3, 0])
 
     Parameters
     ----------
     a : numpy.array
-        array to process
+        Array to process.
 
     blocksize : int
-        size of the block to process a with
-
+        Size of the block to process a with.
 
     Returns
     -------
     b : numpy.array
-        processed array, of same shape of input array a
+        Processed array, of same shape of input array a.
 
+    Examples
+    --------
+    >>> a = numpy.array([0, 1, 0, 0, 1, 3, 0])
+    >>> blocksize = 2
+    >>> block_process_1d(a, blocksize)
+    numpy.array([0, 1, 0, 0, 0, 3, 0])
     """
     if len(a) < blocksize:
         return a
@@ -384,33 +390,32 @@ def filter_activation(acti, atom_to_filter='all', sfreq=150.,
                       time_interval=0.01):
     """For an array of atoms activations values, only keeps maximum values
     within a given time intervalle.
+
     In other words, we apply a filter in order to have a minimum time
     intervalle between two consecutives activations, and only keeping the
     maximum values
 
     Parameters
     ----------
-    acti : n,umpy.array
+    acti : numpy.array
 
     atom_to_filter : 'all' | int | array-like of int
-        ids of atoms to apply the filter on
-        if 'all', then applied on every atom in input `acti`
+        Ids of atoms to apply the filter on. If 'all', then applied on every
+        atom in input `acti`. Defaults to 'all'.
 
     sfreq = float
-        sampling frequency, allow to transform `time_interval` into a number of
-        timestamps
-        default is 150.
+        Sampling frequency, allow to transform `time_interval` into a number of
+        timestamps. Defaults to 150.
 
     time_interval : float
-        in second, the time interval within which we would like to keep the
-        maximum activation values
-        default is 0.01
+        In second, the time interval within which we would like to keep the
+        maximum activation values. Defaults to 0.01
 
     Returns
     -------
     acti : numpy.array
-        same as input, but with only maximum values within the given time
-        intervalle
+        Same as input, but with only maximum values within the given time
+        intervalle.
     """
 
     blocksize = round(time_interval * sfreq)
@@ -431,24 +436,24 @@ def filter_activation(acti, atom_to_filter='all', sfreq=150.,
 
 
 def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
-    """ Get atoms' activation timestamps, using a threshold on the activation
-    values to filter out unsignificant values
+    """Get atoms' activation timestamps, using a threshold on the activation
+    values to filter out unsignificant values.
 
     Parameters
     ----------
     acti : numpy.array of shape (n_atoms, n_timestamps)
-        sparse vector where
+        Sparse vector of activations values for each of the extracted atoms.
 
     sfreq : float
-        sampling frequency used in CDL
+        Sampling frequency used in CDL. If None, will search for an "sfreq" key
+        in the info dictionary. Defaults to None.
 
     info : dict
-        similar to mne.Info instance
-        used if sfreq is not given
+        Similar to mne.Info instance. Defaults to None.
 
-    threshold = int | float
-        threshold value to filter out unsignificant ativation values
-        default is 0
+    threshold : int | float
+        Threshold value to filter out unsignificant ativation values. Defaults
+        to 0.
 
     Returns
     -------

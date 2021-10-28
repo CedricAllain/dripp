@@ -1,38 +1,35 @@
-""" Utils functions used for driven point process
-with truncated normal kernels """
+"""Utils functions used for driven point process
+with truncated normal kernels.
+"""
 
 import itertools
 import numbers
 import numpy as np
+from scipy.sparse import csr_matrix
 
 
 def convert_variable_multi(var, n=1, repeat=True):
-    """Take a variable and make it an array of length n
+    """Take a variable and make it an array of length n.
 
     Parameters
     ----------
     var : int | float | array-like
-        the variable we want to convert
+        The variable we want to convert.
 
     n : int
-        the length of the return array
-        default is 1
+        The length of the return array. Defauls to 1.
 
     repeat : bool
-        if True, if var is of dimension 1 and n > 1, return an array of
-        repeated var of length n
-        default is True
+        If True, if var is of dimension 1 and n > 1, return an array of
+        repeated var of length n. Defaults to True.
 
     Returns
     -------
-    var
-
+    1d-array
     """
-
     var = np.atleast_1d(var)
 
-    if len(var) == n:
-        # already at the good size
+    if len(var) == n:  # already at the good size
         return var
     elif repeat and (n > 1) and (len(var) == 1):
         var = np.repeat(var, n)
@@ -41,6 +38,35 @@ def convert_variable_multi(var, n=1, repeat=True):
         "var must be an int, float or an array of length n"
 
     return var
+
+
+def check_truncation_values(lower, upper):
+    """Ensure that the truncation values are ordered"""
+    if not upper > lower:
+        raise ValueError(
+            "truncation values must be sorted, with lower < upper")
+
+
+def check_driver_tt(driver_tt):
+    """Ensure that driver_tt is a list of 1d-arrays"""
+
+    if driver_tt is None:
+        return [np.array([])]
+
+    if isinstance(driver_tt[0], numbers.Number):
+        driver_tt = [driver_tt]
+
+    driver_tt = [np.array(x) for x in driver_tt]
+
+    return driver_tt
+
+
+def check_acti_tt(acti_tt):
+    """Ensure that acti_tt is a 1d-array"""
+    if acti_tt is None:
+        return np.array([])
+
+    return np.atleast_1d(acti_tt)
 
 
 def get_last_timestamps(timestamps, t):
@@ -81,51 +107,22 @@ def get_last_timestamps(timestamps, t):
         this_last_tmstp[idx == 0] = np.nan
         last_tmstp.append(this_last_tmstp)
 
-    return np.array(last_tmstp)  # , dtype=object)
+    return np.array(last_tmstp)
 
 
-def get_driver_tt_of_influence(intensity, t):
-    """For a given time and a intensity function, find, for all of its driver, 
-    the timestamsp that may still have an influence at that time.
-    For a kernels that are truncated gaussians, that means finding all the t_i
-    among a driver's timestamps such that t_i + a <= t <= t_i + b
+def get_driver_delays(intensity, t):
+    """For each driver, compute the sparse delay matrix between the time(s) t
+    and the driver timestamps.
 
     Parameters
     ----------
-    t : int | float 
+    intensity : instance of model.Intensity
 
-    intensity : instance of Intensity
-
-
-    Returns
-    -------
-    numpy 2d array, filled with np.nan values
-    """
-
-    driver_tt_of_influence = []
-    for p in range(intensity.n_drivers):
-        driver_tt = intensity.driver_tt[p]
-        lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
-        this_driver_tt_of_influence = driver_tt[(
-            driver_tt >= t - upper) & ((driver_tt <= t - lower))]
-        driver_tt_of_influence.append(this_driver_tt_of_influence)
-
-    driver_tt_of_influence = np.array(
-        list(itertools.zip_longest(*driver_tt_of_influence, fillvalue=0))).T
-
-    return driver_tt_of_influence
-
-
-# @profile
-def get_driver_delays(intensity, t):
-    """
-    For each driver, compute the delays with t that are on support
-
+    t : int | float | array-like
 
     Returns
     -------
-    list of 2D numpy.array
-
+    list of scipy.sparse.csr_matrix
     """
 
     t = np.atleast_1d(t)
@@ -134,23 +131,45 @@ def get_driver_delays(intensity, t):
     for p in range(intensity.n_drivers):
         driver_tt = intensity.driver_tt[p]
         lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
+        # Construct a sparse matrix
         this_driver_delays = []
-        has_driver_events = False
+        indices = []
+        indptr = [0]
+        n_col = 1  # number of colons of the full sparse matrix
         for this_t in t:
-            this_t_delays = this_t - driver_tt[
-                (driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))
-            ]
-            this_driver_delays.append(this_t_delays)
-            if this_t_delays.size > 0:
-                has_driver_events = True
+            this_t_delays = this_t - driver_tt[(
+                driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))]
+            n_delays = len(this_t_delays)
+            n_col = max(n_col, n_delays)
+            if n_delays > 0:
+                this_driver_delays.extend(this_t_delays)
+                indices.extend(list(range(n_delays)))
 
-        # transform into 2D numpy.array with a 0 padding
-        if has_driver_events and t.size > 1:
-            this_driver_delays = list(
-                itertools.zip_longest(*this_driver_delays, fillvalue=np.nan)
-            )
-            import ipdb; ipdb.set_trace()
-        # append to list of delays
-        delays.append(np.atleast_2d(np.array(this_driver_delays).T))
+            indptr.append(indptr[-1] + n_delays)
+
+        n_delays = len(this_driver_delays)
+        if indptr[-1] != n_delays:
+            indptr.append(n_delays)  # add termination
+
+        # create sparse matrix
+        M = csr_matrix((np.array(this_driver_delays), np.array(
+            indices), np.array(indptr)), shape=(len(t), n_col))
+        delays.append(M)
 
     return delays
+
+
+if __name__ == '__main__':
+
+    from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
+
+    # define 2 kernel functions
+    m, sigma = 200e-3, 0.08
+    lower, upper = 30e-3, 500e-3
+    kernel = [TruncNormKernel(lower, upper, m, sigma),
+              TruncNormKernel(lower, upper, m, sigma)]
+    driver_tt = [[3.4, 5.1, 8, 10],
+                 [0.5, 2, 4]]  # make sure it respects non-overlapping
+    # define intensity function
+    baseline, alpha = 0.8, [1.2, 0.5]
+    intensity = Intensity(baseline, alpha, kernel, driver_tt)

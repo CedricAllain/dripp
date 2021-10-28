@@ -1,3 +1,4 @@
+"""Run EM on CDL results, for multiple combinaison of hyperparameters."""
 import itertools
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ memory = Memory(CACHEDIR, verbose=0)
 
 
 def procedure(comb):
-    """Procedure to parallelized
+    """Procedure to parallelized.
 
     Parameters
     ----------
@@ -45,8 +46,6 @@ def procedure(comb):
     n_bootstrap = args['n_bootstrap']
     p_bootstrap = args['p_bootstrap']
 
-    # n_iter = np.atleast_1d(args['n_iter'])
-    # n_iter_max = max(n_iter)
     n_iter = args['n_iter']
 
     # get activation timestamps
@@ -57,9 +56,6 @@ def procedure(comb):
     events_timestamps = args['events_timestamps']  # dict
 
     def proprocess_tasks(tasks):
-        """
-        XXX
-        """
         if isinstance(tasks, int):
             tt = np.sort(events_timestamps[tasks])
         elif isinstance(tasks, list):
@@ -105,8 +101,6 @@ def procedure(comb):
             upper=args['upper'],
             T=args['T'],
             initializer=args['initializer'],
-            early_stopping=args['early_stopping'],
-            early_stopping_params=args['early_stopping_params'],
             alpha_pos=args['alpha_pos'],
             # n_iter=n_iter_max,
             n_iter=n_iter,
@@ -115,26 +109,6 @@ def procedure(comb):
 
         # get results
         res_params, history_params, history_loss = res_em
-
-        # unpack parameters history
-        # hist_baseline, hist_alpha, hist_m, hist_sigma = history_params
-        # list of values for n_iter that exist
-        # list_n_iter = [n for n in n_iter if n < hist_baseline.size]
-        # list_n_iter = n_iter[n_iter < hist_baseline.size]
-        # make sure the last iteration will be added
-        # if not (hist_baseline.size - 1) in list_n_iter:
-        #     list_n_iter = np.append(list_n_iter, hist_baseline.size - 1)
-
-        # for n in list_n_iter:
-        #     new_row = {**base_row,
-        #                'n_iter': n,
-        #                'baseline_hat': hist_baseline[n],
-        #                'alpha_hat': hist_alpha[n],
-        #                'm_hat': hist_m[n],
-        #                'sigma_hat': hist_sigma[n]}
-        #     if len(history_loss) > 0:
-        #         new_row['nll'] = history_loss[n]
-        #     new_rows.append(new_row)
 
         baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
         new_row = {**base_row,
@@ -150,7 +124,7 @@ def procedure(comb):
     return [new_row]
 
 
-# @memory.cache(ignore=['n_jobs'])
+@memory.cache(ignore=['n_jobs'])
 def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            shift_acti=True,
                            atom_to_filter=None, time_interval=0.01,
@@ -159,12 +133,12 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                            n_drivers=1,
                            lower=30e-3, upper=500e-3,
                            n_iter=400, initializer='smart_start',
-                           early_stopping=None, early_stopping_params={},
                            alpha_pos=True, n_jobs=6,
                            n_bootstrap=1, p_bootstrap=1, save_results=False):
     """Run in parallel EM algorithm on results obtained from
     `dripp.experiments.run_cdl`, with several combination of (atoms, tasks).
-    Results are returned on a pd.DataFrame object
+
+    Results are returned on a pd.DataFrame object.
 
     Parameters
     ----------
@@ -176,64 +150,56 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
 
     atom_to_filter : list | None
         list of atom's indexes for which their activation will be filter
-        Default is None
+        Defaults to None
 
     time_interval : float
         Minimal time interval, in second, between two activations.
         Used if `atom_to_filter` is not None
-        Default is 0.01
+        Defaults to 0.01
 
     threshold : float | array-like
         Threshold value(s) used to filter out insignificant activations.
-        Default is 0.6e-10
+        Defaults to 0.6e-10
 
     list_atoms : list
         list of atoms' indexes for which the EM algo will be computed.
         If None, then EM algo is computed for all atoms.
-        Default is None
+        Defaults to None
 
     lower, upper : float | array-like
         Truncation values for the kernel
         If array-like, EM will be computed with every couple (lower, upper)
-        Default is 30e-3, 500e-3
+        Defaults to 30e-3, 500e-3
 
     n_iter : int | array-like
         Number of iteration for the EM-based algorithm
         If array-like, denotes the different iteration values we are interested
         in. The EM will be computed with the maximum of that list.
-        Default is 400
+        Defaults to 400
 
     initializer : str ('smart_start' | 'random')
         Initialization method
-        Default is 'smart_start'
-
-    early_stopping : string
-        "early_stopping_sigma" | "early_stopping_percent_mass" | None
-        method used for early stopping
-
-    early_stopping_params : dict
-        parameters for the early stopping method
-        for 'early_stopping_sigma', keys must be 'n_sigma', 'n_tt' and 'sfreq'
-        for 'early_stopping_percent_mass', keys must be 'alpha', 'n_tt' and
-        'sfreq'
+        Defaults to 'smart_start'
 
     alpha_pos : boolean
-        if True, force alpha to be non-negative
+        If True, force alpha to be non-negative. Defaults to True.
 
     list_tasks : list
         list of task's indexes, or tasks (regrouped in a list), for wich the EM
-        algo will be computed.
-        If None, a value will be attributed based on the used dataset:
+        algo will be computed. If None, a value will be attributed based on the
+        considered dataset:
             for sample, [1, 2, 3, 4, [1, 2], [3, 4]]
             for camcan, [6, 7, 8, 9, [6, 7, 8]]
-        Default is None
+        Defaults to None.
 
-    n_jobs
+    n_jobs : int
+        The maximum number of concurrently running jobs. Defaults to 6.
 
     n_bootstrap : int
+        Number of bootstrap sampling to do. Defaults to 1.
 
     p_bootstrap : float
-        between 0 and 1, percentage of tasks events to keep
+        Between 0 and 1, percentage of tasks events to keep. Defaults to 1.
 
     Return
     ------
@@ -299,8 +265,6 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
                              'atoms_timestamps': atoms_timestamps,
                              'lower': i, 'upper': j,
                              'T': T, 'initializer': initializer,
-                             'early_stopping': early_stopping,
-                             'early_stopping_params': early_stopping_params,
                              'alpha_pos': alpha_pos,
                              'n_iter': n_iter,
                              'n_bootstrap': n_bootstrap,
