@@ -231,6 +231,8 @@ class Intensity():
     def __init__(self, baseline=0, alpha=0, kernel=None,
                  driver_tt=None, acti_tt=None):
 
+        self.n_drivers = len(kernel)
+
         self.baseline = baseline
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
@@ -241,7 +243,6 @@ class Intensity():
             "alpha and kernel parameters must have the same length"
         # ensure that driver_tt is a 2d array (# 1st dim. is number of drivers)
         self._driver_tt = check_driver_tt(driver_tt)
-        self.n_drivers = len(self.driver_tt)
         self._acti_tt = check_acti_tt(acti_tt)  # ensure it is numpy 1d-array
 
         if len(self.acti_tt) > 0 and self.n_drivers > 0:

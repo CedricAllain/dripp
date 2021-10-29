@@ -212,7 +212,7 @@ def compute_baseline_mle(acti_tt, T=None, return_nll=True):
         return baseline_mle
 
 
-@profile_this
+# @profile_this
 def em_truncated_norm(acti_tt, driver_tt=None,
                       lower=30e-3, upper=500e-3, T=None, sfreq=150.,
                       init_params=None, initializer='smart_start',

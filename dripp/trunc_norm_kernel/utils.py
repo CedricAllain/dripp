@@ -35,7 +35,8 @@ def convert_variable_multi(var, n=1, repeat=True):
         var = np.repeat(var, n)
 
     assert len(var) == n, \
-        "var must be an int, float or an array of length n"
+        "var must be an int, float or an array of length %i, but got %s" % (
+            n, var)
 
     return var
 
