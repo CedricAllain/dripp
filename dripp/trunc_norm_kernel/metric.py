@@ -84,6 +84,7 @@ def infinite_norm_intensity(intensity_true, intensity_hat):
 
     """
     inf_norm_rel = []
+
     for p in range(intensity_true.n_drivers):
         # get associated kernels
         kernel_true = intensity_true.kernel[p]
@@ -93,13 +94,15 @@ def infinite_norm_intensity(intensity_true, intensity_hat):
         xx = np.linspace(lower_ - 1, upper_ + 1,
                          int(np.ceil(800*(upper_ - lower_ + 2))))
         # true intensity at kernel p
-        yy_true = intensity_true.baseline + \
-            intensity_true.alpha[p] * kernel_true.eval(xx)
+        yy_true = intensity_true.baseline
+        if intensity_true.alpha[p] != 0:
+            yy_true += intensity_true.alpha[p] * kernel_true.eval(xx)
         # estimated intensity at kernel p
-        yy_hat = intensity_hat.baseline + \
-            intensity_hat.alpha[p] * kernel_hat.eval(xx)
+        yy_hat = intensity_hat.baseline
+        if intensity_hat.alpha[p] != 0:
+            yy_hat += intensity_hat.alpha[p] * kernel_hat.eval(xx)
         # compute infinite norm between true and estimated intensities
-        inf_norm = abs(yy_true - yy_hat).max()
+        inf_norm = abs(np.atleast_1d(yy_true - yy_hat)).max()
         # compute maximum of true intensity at kernel p
         lambda_max = intensity_true.baseline + \
             intensity_true.alpha[p] * kernel_true.max

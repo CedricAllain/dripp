@@ -6,6 +6,7 @@ import itertools
 import math
 import numbers
 from scipy.stats import truncnorm
+import warnings
 import matplotlib.pyplot as plt
 
 from dripp.trunc_norm_kernel.utils import \
@@ -42,7 +43,9 @@ class TruncNormKernel():
         if sigma is None:
             sigma = 0.95 * (upper - lower) / 4
 
-        assert sigma > 0, "Sigma must be strictly positive."
+        if not sigma > 0:
+            warnings.warn(
+                "Sigma must be strictly positive, got sigma = %.3f." % sigma)
 
         self.lower = lower
         self.upper = upper
@@ -310,8 +313,8 @@ class Intensity():
         # initialize
         intensities = self.baseline
         for p, delays in enumerate(driver_delays):
-            if delays.data.size == 0:
-                # no delays for this driver
+            if delays.data.size == 0 or self.alpha[p] == 0:
+                # no delays for this driver of alpha is 0
                 continue
             val = delays.copy()
             # compute the kernel value at the "good" delays

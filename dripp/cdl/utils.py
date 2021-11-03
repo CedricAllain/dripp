@@ -490,6 +490,7 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
         return atoms_timestamps
 
     if percent and not per_atom:
+        # compute the q-th percentile over all positive values
         threshold = np.percentile(acti[acti > 0], threshold)
 
     atoms_timestamps = [np.where(acti[i] > threshold)[0] / sfreq
