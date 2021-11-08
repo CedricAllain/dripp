@@ -4,7 +4,7 @@ Experiments are performed on MNE sample dataset, for the 4 main atoms of
 interest: artifacts (heartbeat and eye-blinks), audio and visual responses.
 """
 # %%
-# %%
+
 import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
@@ -150,7 +150,7 @@ for kk in list_atoms:
     dict_intensity_true[kk] = Intensity(baseline, alpha, kernel)
 
 # ====== With threshold value as a percentage  ======
-list_threshold = [0, 10, 20, 30, 40, 50]
+list_threshold = [0, 20, 40, 60, 80]
 
 for per_atom in [True, False]:
     for threshold in list_threshold:
@@ -209,9 +209,11 @@ for i, atom in enumerate(list_atoms):
     else:
         legend = False
     sub_df[plotted_tasks.keys()].plot(
-        ax=ax, c=cmap.to_rgba(i+1), style=styles, legend=legend)
+        ax=ax, logx=False, logy=True, c=cmap.to_rgba(i+1), style=styles,
+        legend=legend)
 
 plt.savefig(SAVE_RESULTS_PATH / ('inf_norm.pdf'), dpi=300)
+plt.savefig(SAVE_RESULTS_PATH / ('inf_norm.png'), dpi=300)
 plt.show()
 plt.close()
 
@@ -265,5 +267,6 @@ for i, atom in enumerate(list_atoms):
             axes[i, p].legend(fontsize=fontsize)
 
 plt.savefig(SAVE_RESULTS_PATH / ('kernel_retrieval.pdf'), dpi=300)
+plt.savefig(SAVE_RESULTS_PATH / ('kernel_retrieval.png'), dpi=300)
 plt.show()
 # %%
