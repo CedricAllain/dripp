@@ -435,7 +435,8 @@ def filter_activation(acti, atom_to_filter='all', sfreq=150.,
     return acti
 
 
-def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
+def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
+                         percent=False, per_atom=True):
     """Get atoms' activation timestamps, using a threshold on the activation
     values to filter out unsignificant values.
 
@@ -455,6 +456,17 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
         Threshold value to filter out unsignificant ativation values. Defaults
         to 0.
 
+    percent : bool
+        If True, threshold is treated as a percentage: e.g., threshold = 5
+        indicates that 5% of the activations will be removed, either per atom,
+        or globally. Defaults to False.
+
+    per_atom : bool
+        If True, the threshold as a percentage will be applied per atom, e.g., 
+        threshold = 5 will remove 5% of the activation of each atom. If false,
+        the thresholding will be applied to all the activations. Defaults to
+        True.
+
     Returns
     -------
     atoms_timestamps : numpy array
@@ -468,9 +480,21 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0):
         sfreq = info['sfreq']
 
     n_atoms = acti.shape[0]
-    atoms_timestamps = np.array([np.where(acti[i] > threshold)[0]
-                                 for i in range(n_atoms)], dtype="object")
-    atoms_timestamps /= sfreq
+    if percent and per_atom:
+        acti_nan = acti.copy()
+        acti_nan[acti_nan == 0] = np.nan
+        mask = acti_nan >= np.nanpercentile(
+            acti_nan, threshold, axis=1, keepdims=True)
+        atoms_timestamps = [acti_nan[i][mask[i]] / sfreq
+                            for i in range(n_atoms)]
+        return atoms_timestamps
+
+    if percent and not per_atom:
+        # compute the q-th percentile over all positive values
+        threshold = np.percentile(acti[acti > 0], threshold)
+
+    atoms_timestamps = [np.where(acti[i] > threshold)[0] / sfreq
+                        for i in range(n_atoms)]
 
     return atoms_timestamps
 

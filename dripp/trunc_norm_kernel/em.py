@@ -3,6 +3,7 @@
 
 import numpy as np
 from scipy.stats import norm
+import matplotlib.pyplot as plt
 
 from dripp.trunc_norm_kernel.utils import \
     get_driver_delays, check_truncation_values
@@ -20,6 +21,30 @@ def compute_C(m, sigma, a, b):
     C *= norm.cdf((b - m) / sigma) - norm.cdf((a - m) / sigma)
 
     return C
+
+
+def plot_C(m, sigma, a, b, save=False):
+
+    def func(x):
+        return np.exp(- (x-m)**2 / (2 * sigma**2))
+
+    xx_min = min(np.floor(a), np.floor(m))
+    xx_max = max(np.ceil(b), np.ceil(m))
+    xx = np.linspace(xx_min, xx_max, 1000)
+    plt.plot(xx, func(xx), label="exp(- (x-m)**2 / (2 * sigma**2)")
+    plt.vlines(m, ymin=0, ymax=1, color='black',
+               linestyle='--', label=r'm = %.3f' % m)
+    xx_support = np.linspace(a, b, 600)
+    plt.fill_between(xx_support, func(xx_support), step="pre", alpha=0.4,
+                     label=r'C = %.3f' % compute_C(m, sigma, a, b))
+    plt.xlim(xx.min(), xx.max())
+    plt.ylim(0, 1.1)
+    plt.xlabel('x')
+    plt.title(r'C(m=%.3f, sigma=%.3f, a=%.3f, b=%.3f)' % (m, sigma, a, b))
+    plt.legend()
+    if save:
+        plt.savefig("constant_C.pdf")
+    plt.show()
 
 
 def compute_C_m(m, sigma, a, b):

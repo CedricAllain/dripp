@@ -77,3 +77,36 @@ def negative_log_likelihood(intensity, T):
                             driver_delays=intensity.driver_delays)).sum()
 
     return nll
+
+
+def infinite_norm_intensity(intensity_true, intensity_hat):
+    """
+
+    """
+    inf_norm_rel = []
+
+    for p in range(intensity_true.n_drivers):
+        # get associated kernels
+        kernel_true = intensity_true.kernel[p]
+        kernel_hat = intensity_hat.kernel[p]
+        lower_ = min(kernel_true.lower, kernel_hat.lower)
+        upper_ = max(kernel_true.upper, kernel_hat.upper)
+        xx = np.linspace(lower_ - 1, upper_ + 1,
+                         int(np.ceil(800*(upper_ - lower_ + 2))))
+        # true intensity at kernel p
+        yy_true = intensity_true.baseline
+        if intensity_true.alpha[p] != 0:
+            yy_true += intensity_true.alpha[p] * kernel_true.eval(xx)
+        # estimated intensity at kernel p
+        yy_hat = intensity_hat.baseline
+        if intensity_hat.alpha[p] != 0:
+            yy_hat += intensity_hat.alpha[p] * kernel_hat.eval(xx)
+        # compute infinite norm between true and estimated intensities
+        inf_norm = abs(np.atleast_1d(yy_true - yy_hat)).max()
+        # compute maximum of true intensity at kernel p
+        lambda_max = intensity_true.baseline + \
+            intensity_true.alpha[p] * kernel_true.max
+        # compute relative infinite norm
+        inf_norm_rel.append(inf_norm / lambda_max)
+
+    return inf_norm_rel

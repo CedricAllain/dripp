@@ -6,6 +6,7 @@ import itertools
 import math
 import numbers
 from scipy.stats import truncnorm
+import warnings
 import matplotlib.pyplot as plt
 
 from dripp.trunc_norm_kernel.utils import \
@@ -42,7 +43,9 @@ class TruncNormKernel():
         if sigma is None:
             sigma = 0.95 * (upper - lower) / 4
 
-        assert sigma > 0, "Sigma must be strictly positive."
+        if not sigma > 0:
+            warnings.warn(
+                "Sigma must be strictly positive, got sigma = %.3f." % sigma)
 
         self.lower = lower
         self.upper = upper
@@ -231,6 +234,8 @@ class Intensity():
     def __init__(self, baseline=0, alpha=0, kernel=None,
                  driver_tt=None, acti_tt=None):
 
+        self.n_drivers = len(kernel)
+
         self.baseline = baseline
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
@@ -241,7 +246,6 @@ class Intensity():
             "alpha and kernel parameters must have the same length"
         # ensure that driver_tt is a 2d array (# 1st dim. is number of drivers)
         self._driver_tt = check_driver_tt(driver_tt)
-        self.n_drivers = len(self.driver_tt)
         self._acti_tt = check_acti_tt(acti_tt)  # ensure it is numpy 1d-array
 
         if len(self.acti_tt) > 0 and self.n_drivers > 0:
@@ -309,8 +313,8 @@ class Intensity():
         # initialize
         intensities = self.baseline
         for p, delays in enumerate(driver_delays):
-            if delays.data.size == 0:
-                # no delays for this driver
+            if delays.data.size == 0 or self.alpha[p] == 0:
+                # no delays for this driver of alpha is 0
                 continue
             val = delays.copy()
             # compute the kernel value at the "good" delays

@@ -212,7 +212,7 @@ def compute_baseline_mle(acti_tt, T=None, return_nll=True):
         return baseline_mle
 
 
-@profile_this
+# @profile_this
 def em_truncated_norm(acti_tt, driver_tt=None,
                       lower=30e-3, upper=500e-3, T=None, sfreq=150.,
                       init_params=None, initializer='smart_start',
@@ -338,8 +338,8 @@ def em_truncated_norm(acti_tt, driver_tt=None,
             if(alpha_hat.max() == 0):  # all alphas are zero
                 if verbose:
                     print("alpha is null, compute baseline MLE.")
-                baseline_hat = compute_baseline_mle(
-                    acti_tt, T, return_nll=False)
+                baseline_hat, nll_mle = compute_baseline_mle(
+                    acti_tt, T, return_nll=True)
                 stop = True
 
         # append history
@@ -347,14 +347,16 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         history_params['alpha'].append(alpha_hat)
         history_params['m'].append(m_hat)
         history_params['sigma'].append(sigma_hat)
-        intensity.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
-        # compute loss
-        if compute_loss:
-            hist_loss.append(nll(intensity))
 
         if stop:
+            if compute_loss:
+                hist_loss.append(nll_mle)
             break
-
+        else:
+            intensity.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
+            # compute loss
+            if compute_loss:
+                hist_loss.append(nll(intensity))
     res_params = baseline_hat, alpha_hat, m_hat, sigma_hat
 
     if verbose:
