@@ -66,7 +66,7 @@ def eval_camcan(subject_id):
         list_atoms=list(range(cdl_params['n_atoms'])),
         # , [4]),  # audiovis and button stimuli, in two drivers
         list_tasks=([1, 2, 3, 5], [1, 2, 3, 6]),
-        n_driver=2,
+        n_drivers=2,
         lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',
         alpha_pos=True,
         n_jobs=N_JOBS)

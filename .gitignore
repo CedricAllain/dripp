@@ -6,6 +6,8 @@ __pycache__/
 #
 __cache__/
 joblib/
+dripp_results/
+examples/dripp_results/
 
 # C extensions
 *.so

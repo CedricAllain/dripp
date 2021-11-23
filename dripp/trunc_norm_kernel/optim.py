@@ -284,6 +284,7 @@ def em_truncated_norm(acti_tt, driver_tt=None,
     assert acti_tt.size > 0, "No activation vector was given"
 
     driver_tt = check_driver_tt(driver_tt)
+    n_drivers = len(driver_tt)
 
     if T is None:
         T = acti_tt.max() + upper
@@ -296,8 +297,7 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         return compute_baseline_mle(acti_tt, T)
 
     # define intances of kernels and intensity function
-    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq),
-              TruncNormKernel(lower, upper, sfreq=sfreq)]
+    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq)] * n_drivers
     intensity = Intensity(kernel=kernel, driver_tt=driver_tt, acti_tt=acti_tt)
 
     # initialize parameters

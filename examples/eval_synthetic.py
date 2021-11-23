@@ -30,11 +30,11 @@ if not SAVE_RESULTS_PATH.exists():
 
 fontsize = 9
 plt.rcParams.update(plt.rcParamsDefault)
-# plt.rcParams.update({
-#     "text.usetex": True,
-#     "font.family": "sans-serif",
-#     "font.sans-serif": ["Helvetica"]
-# })
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]
+})
 
 figsize = (5.5, 2)
 cmap = 'viridis_r'
@@ -185,10 +185,11 @@ for ax in axes.ravel():
     ax.legend([], frameon=False)
     ax.set_xlim(em_params_to_vary['T'].min(), em_params_to_vary['T'].max())
 
-axes[1].legend(ncol=1, handlelength=1, fontsize=fontsize)
+axes[1].legend(title=r"$P/T$", ncol=1, handlelength=1, fontsize=fontsize)
+# axes[1].get_legend().set_title(r"$P/T$")
 
 plt.tight_layout()
-fig_name = 'fig3_mean_multi_%i_sfreq_%i' % (T_max, SFREQ)
+fig_name = 'fig3_mean'
 plt.savefig(SAVE_RESULTS_PATH / (fig_name + '.pdf'),
             dpi=300, bbox_inches='tight')
 plt.savefig(SAVE_RESULTS_PATH / (fig_name + '.png'),
