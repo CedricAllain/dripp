@@ -26,6 +26,7 @@ SAVE_RESULTS_PATH /= 'results_somato'
 if not SAVE_RESULTS_PATH.exists():
     SAVE_RESULTS_PATH.mkdir(parents=True)
 
+
 cdl_params = {
     'sfreq': 150.,
     'n_iter': 100,
@@ -36,6 +37,18 @@ cdl_params = {
     'n_times_atom': 80,
     'reg': 0.2
 }
+# cdl_params = {
+#     'sfreq': 150.,
+#     'n_atoms': 25,
+#     'n_times_atom': int(round(150. * 1.0)),
+#     'reg': 0.2,
+#     'n_iter': 100,
+#     'eps': 1e-4,
+#     'use_greedy': False,
+#     'n_jobs': 5,
+#     'n_splits': 10}  # default values as in alphacsc tutorials
+
+
 # run CDL and EM
 lower, upper = 0, 2
 shift_acti = True
@@ -45,7 +58,7 @@ dict_global, df_res = run_multiple_em_on_cdl(
     data_source='somato', cdl_params=cdl_params,  # CDL
     shift_acti=shift_acti, atom_to_filter='all', threshold=threshold,
     list_atoms=list(range(cdl_params['n_atoms'])),
-    list_tasks=[1], n_driver=1,
+    list_tasks=[1], n_drivers=1,
     lower=lower, upper=upper, n_iter=n_iter, initializer='smart_start',  # EM
     n_jobs=N_JOBS)
 

@@ -108,7 +108,7 @@ def procedure(comb):
             disable_tqdm=True)
 
         # get results
-        res_params, history_params, history_loss = res_em
+        res_params, history_params, _ = res_em
 
         baseline_hat, alpha_hat, m_hat, sigma_hat = res_params
         new_row = {**base_row,
@@ -117,8 +117,8 @@ def procedure(comb):
                    'alpha_hat': alpha_hat,
                    'm_hat': m_hat,
                    'sigma_hat': sigma_hat,
-                   'baseline_init': history_params[0][0],
-                   'alpha_init': history_params[1][0]}
+                   'baseline_init': history_params['baseline'][0],
+                   'alpha_init': history_params['alpha'][0]}
 
     # return new_rows
     return [new_row]

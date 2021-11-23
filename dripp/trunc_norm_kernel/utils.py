@@ -136,7 +136,7 @@ def get_driver_delays(intensity, t):
         this_driver_delays = []
         indices = []
         indptr = [0]
-        n_col = 1  # number of colons of the full sparse matrix
+        n_col = 1  # number of columns of the full sparse matrix
         for this_t in t:
             this_t_delays = this_t - driver_tt[(
                 driver_tt >= this_t - upper) & ((driver_tt <= this_t - lower))]

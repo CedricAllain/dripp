@@ -291,7 +291,8 @@ def run_cdl_sample(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
 
 
 def run_cdl_somato(sfreq=150., n_atoms=25, n_times_atom=None, reg=0.2,
-                   n_iter=100, eps=1e-4, n_jobs=5, n_splits=10):
+                   n_iter=100, eps=1e-4, use_greedy=False, n_jobs=5,
+                   n_splits=10):
     """Run Convolutional Dictionary Learning on mne.somato."""
     return _run_cdl_data(sfreq=sfreq, n_atoms=n_atoms,
                          n_times_atom=n_times_atom, reg=reg,
