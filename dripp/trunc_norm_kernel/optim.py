@@ -1,7 +1,7 @@
 """Functions that are called for parameters initialisation and EM
 computation.
 """
-
+# %%
 import numpy as np
 import time
 import numbers
@@ -160,6 +160,8 @@ def initialize(intensity, T=None, initializer='smart_start', seed=None):
                 # compute Lebesgue measure of driver p supports
                 s = compute_lebesgue_support(driver_tt[p], lower, upper)
                 alpha_init.append(delays.size / s - baseline_init)
+                # alpha_init.append(
+                #     (intensity.acti_tt.size - baseline_init * T) / s)
                 m_init.append(np.mean(delays))
                 sigma_init.append(max(EPS, np.std(delays)))
     else:
@@ -375,7 +377,7 @@ if __name__ == '__main__':
         lower=lower, upper=upper,
         m=[400e-3, 400e-3], sigma=[0.2, 0.05],
         sfreq=sfreq,
-        baseline=0.8, alpha=[0.8, 0.8],
+        baseline=0.8, alpha=[-0.8, 0.8],
         T=T, isi=[1, 1.2], n_tasks=0.8,
         n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
@@ -384,8 +386,10 @@ if __name__ == '__main__':
 
     start_time = time.time()
     res_params, history_params, _ = em_truncated_norm(
-        acti_tt, driver_tt, lower, upper, T, sfreq, alpha_pos=True,
-        n_iter=30, verbose=True)
+        acti_tt, driver_tt, lower, upper, T, sfreq, alpha_pos=False,
+        n_iter=100, verbose=True)
     em_time = time.time() - start_time
     print('EM time', em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)
+
+# %%
