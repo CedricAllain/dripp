@@ -30,7 +30,8 @@ class TruncNormKernel():
     sfreq : int | None
         Sampling frequency used to create a grid between lower and upper to
         pre-compute kernel's values. If None, the kernel will be exactly
-        evaluate at each call. Warning: setting sfreq to None may considerably increase computational time. Defaults to 150.
+        evaluate at each call. Warning: setting sfreq to None may considerably
+        increase computational time. Defaults to 150.
     """
 
     def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.):
