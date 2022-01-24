@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.model import Intensity
 from dripp.trunc_norm_kernel.metric import negative_log_likelihood
-from dripp.trunc_norm_kernel.optim import initialize
+from dripp.trunc_norm_kernel.optim import initialize, em_truncated_norm
 
 
 class RaisedCosineKernel():
@@ -123,11 +123,21 @@ class RaisedCosineKernel():
         plt.title("Raised Cosine Kernel")
         plt.show()
 
+    def partial_x(self, x):
+        """
+        x : array-like
+        """
+        x = np.atleast_1d(x)
+        res = - np.pi / (2 * self.sigma) * \
+            np.sin((x-self.m) / self.sigma * np.pi)
+
+        return res
+
     def partial_m(self, x):
         """
         x : array-like
         """
-        x = np.asarray(x)
+        x = np.atleast_1d(x)
         res = np.pi / (2 * self.sigma) * \
             np.sin((x-self.m) / self.sigma * np.pi)
 
@@ -137,7 +147,7 @@ class RaisedCosineKernel():
         """
         x : array-like
         """
-        x = np.asarray(x)
+        x = np.atleast_1d(x)
         res = (x - self.m) / (2 * self.sigma**3) * np.pi * \
             np.sin((x-self.m) / self.sigma * np.pi) - self.eval(x)
 
@@ -163,6 +173,27 @@ class RaisedCosineKernel():
         self.update(m=value, sigma=self.sigma)
 
 
+# %% Check grad for kernel function
+kernel = RaisedCosineKernel()
+
+
+def func_kernel_rc(x):
+    t, m, sigma = x
+    kernel = RaisedCosineKernel(m, sigma)
+    return kernel(t)
+
+
+def grad_kernel_rc(x):
+    t, m, sigma = x
+    kernel = RaisedCosineKernel(m, sigma)
+    return [kernel.partial_x(t), kernel.partial_m(t)[0], kernel.partial_sigma(t)[0]]
+
+
+check_grad(func_kernel_rc, grad_kernel_rc, [0.2, 0, 0.1])
+
+# %%
+
+
 def partial_nll_rc_baseline(intensity, T):
     """
 
@@ -171,7 +202,7 @@ def partial_nll_rc_baseline(intensity, T):
     intensity_at_t = intensity(t=intensity.acti_tt,
                                driver_delays=intensity.driver_delays)
 
-    return T - (1 / intensity_at_t).sum() * intensity.baseline
+    return T - (1 / intensity_at_t).sum()
 
 
 def partial_nll_rc_alpha(intensity):
@@ -188,7 +219,7 @@ def partial_nll_rc_alpha(intensity):
         [this_driver_tt.size for this_driver_tt in intensity.driver_tt])
 
     for p, delays in enumerate(intensity.driver_delays):
-        alpha, kernel = intensity.alpha[p], intensity.kernel[p]
+        kernel = intensity.kernel[p]
         val = delays.copy()
         val.data = kernel(val.data)
         this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
@@ -215,9 +246,9 @@ def partial_nll_rc_m(intensity):
         val.data = np.sin((val.data - kernel.m) / kernel.sigma * np.pi)
         this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
                              axis=0)
-        this_res *= alpha * np.pi / (2 * kernel.sigma**2)
+        this_res *= -1 * alpha * np.pi / (2 * kernel.sigma**2)
 
-        res.append(-this_res)
+        res.append(this_res)
 
     return np.array(res)
 
@@ -241,8 +272,8 @@ def partial_nll_rc_sigma(intensity):
             kernel(val.data) / sigma
         this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
                              axis=0)
-        this_res *= alpha
-        res.append(-this_res)
+        this_res *= -1 * alpha
+        res.append(this_res)
 
     return np.array(res)
 
@@ -251,7 +282,7 @@ def gd(intensity, T, step, n_iter):
     """
 
     """
-
+    hist_loss = [negative_log_likelihood(intensity, T)]
     for i in range(n_iter):
         baseline, alpha, kernel = intensity.baseline, intensity.alpha, intensity.kernel
         m, sigma = [], []
@@ -267,35 +298,99 @@ def gd(intensity, T, step, n_iter):
         sigma -= step * partial_nll_rc_sigma(intensity)
         # update intensity
         intensity.update(baseline, alpha, m, sigma)
+        hist_loss.append(negative_log_likelihood(intensity, T))
 
-    return baseline, alpha, m, sigma
+    params = baseline, alpha, m, sigma
+    return params, hist_loss
+
+# %% check grad for nll with RC kernel
+
+
+def func_nll_rc(x, driver_tt, acti_tt, T):
+    baseline, alpha, m, sigma = x
+    alpha = [alpha]
+    m = [m]
+    sigma = [sigma]
+
+    intensity = Intensity(kernel=RaisedCosineKernel(),
+                          driver_tt=driver_tt,
+                          acti_tt=acti_tt)
+    intensity.update(baseline, alpha, m, sigma)
+    return negative_log_likelihood(intensity, T)
+
+
+def grad_nll_rc(x, driver_tt, acti_tt, T):
+    baseline, alpha, m, sigma = x
+    alpha = [alpha]
+    m = [m]
+    sigma = [sigma]
+
+    intensity = Intensity(kernel=RaisedCosineKernel(),
+                          driver_tt=driver_tt,
+                          acti_tt=acti_tt)
+    intensity.update(baseline, alpha, m, sigma)
+    res = [partial_nll_rc_baseline(intensity, T),
+           partial_nll_rc_alpha(intensity)[0],
+           partial_nll_rc_m(intensity)[0],
+           partial_nll_rc_sigma(intensity)[0]]
+    return res
+
+
+baseline_true, alpha_true, m_true, sigma_true = 0.8, 1, 400e-3, 0.1
+true_params = baseline_true, alpha_true, m_true, sigma_true
+# simulate data
+T = 240
+driver_tt, acti_tt, _, _ = simulate_data(
+    lower=0, upper=0.8, m=m_true, sigma=sigma_true, sfreq=150., baseline=baseline_true,
+    alpha=alpha_true, T=T, isi=1, add_jitter=False, n_tasks=0.8, n_drivers=1,
+    seed=None, return_nll=False, verbose=False)
+
+check_grad(func_nll_rc, grad_nll_rc, true_params,
+           driver_tt, acti_tt, T)
 
 
 # %%
-baseline_true, alpha_true, m_true, sigma_true = 0.8, 1, [500e-3], [0.1]
+baseline_true, alpha_true, m_true, sigma_true = 0.8, [1], [400e-3], [0.1]
 true_params = baseline_true, alpha_true, m_true, sigma_true
-kernel_true = RaisedCosineKernel(m=500e-3, sigma=0.2)
+
+kernel_true = RaisedCosineKernel(m=m_true[0], sigma=sigma_true[0])
 kernel_true.plot()
 
 T = 240
 driver_tt, acti_tt, kernel_tg, intensity_tg = simulate_data(
-    lower=0, upper=1, m=m_true, sigma=sigma_true, sfreq=150., baseline=baseline_true,
+    lower=0, upper=0.8, m=m_true, sigma=sigma_true, sfreq=150., baseline=baseline_true,
     alpha=alpha_true, T=T, isi=1, add_jitter=False, n_tasks=0.8, n_drivers=1,
     seed=None, return_nll=False, verbose=False)
-kernel_tg[0].plot(xx=np.linspace(0, 1, 600))
+kernel_tg[0].plot()
 
 
 # %%
-intensity = Intensity(kernel=RaisedCosineKernel(),
-                      driver_tt=driver_tt, acti_tt=acti_tt)
+intensity_rc = Intensity(kernel=RaisedCosineKernel(),
+                         driver_tt=driver_tt, acti_tt=acti_tt)
 # compute initial values with TG kernel
 # XXX not ideal, find a init method for RC kernel
 init_params = initialize(intensity_tg, T, initializer='smart_start')
 print("Initials parameters:\n(mu, alpha, m, sigma) = ", init_params)
 baseline_init, alpha_init, m_init, sigma_init = init_params
-intensity.update(baseline_init, alpha_init, m_init, sigma_init)
+intensity_rc.update(baseline_init, alpha_init, m_init, sigma_init)
+intensity_rc.kernel[0].plot()
 
-nll = negative_log_likelihood(intensity, T)
+nll_rc = negative_log_likelihood(intensity_rc, T)
 nll_tg = negative_log_likelihood(intensity_tg, T)
 # %%
-gd(intensity, T, 0.04, 100)
+params, hist_loss = gd(intensity_rc, T, 0.01, 1000)
+print("Estimated parameters:\n(mu, alpha, m, sigma) = ", params)
+plt.plot(hist_loss)
+plt.show()
+# %%
+# check with EM on TG
+res_params_em, history_params, hist_loss_em = em_truncated_norm(
+    acti_tt, driver_tt=driver_tt, lower=0, upper=0.8, T=T, sfreq=150.,
+    initializer='smart_start', alpha_pos=True, n_iter=80, verbose=False,
+    disable_tqdm=False, compute_loss=True)
+baseline_hat, alpha_hat, m_hat, sigma_hat = res_params_em
+intensity_tg.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
+intensity_tg.kernel[0].plot()
+plt.plot(hist_loss_em)
+plt.show()
+# %%
