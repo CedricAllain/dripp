@@ -1,5 +1,7 @@
 # %%
 import numpy as np
+from tqdm import tqdm
+import time
 import matplotlib.pyplot as plt
 
 import torch
@@ -59,7 +61,7 @@ def truncated_gaussian_kernel(t, params, lower, upper, dt=1/1000,
 
 
 def simu(true_params, simu_params=[50, 1000, 0.5], seed=None,
-         plot_convolve=False):
+         plot_intensity=True,):
     """
 
     Parameters
@@ -101,16 +103,15 @@ def simu(true_params, simu_params=[50, 1000, 0.5], seed=None,
     # t_dt = simu.intensity_tracked_times / dt
     # intensity = simu.tracked_intensity[0][abs(t_dt - np.round(t_dt)) < 1e-6]
 
+    # generate driver timestamps
     isi = 0.7
-    t_k = np.arange(start=0,
-                    stop=T - 2 * isi,
-                    step=isi)
+    t_k = np.arange(start=0, stop=T - 2 * isi, step=isi)
     # sample timestamps
     rng = np.random.RandomState(seed=seed)
     t_k = rng.choice(t_k, size=int(p_task * len(t_k)),
                      replace=False).astype(float)
     t_k = (t_k / dt).astype(int) * dt
-
+    # create sparse vector
     t = np.arange(0, T + 1e-10, dt)
     driver_tt = t * 0
     driver_tt[(t_k * L).astype(int)] += 1
@@ -120,34 +121,42 @@ def simu(true_params, simu_params=[50, 1000, 0.5], seed=None,
     tf = TimeFunction((t, intensity_csc), dt=dt)
     # We define a 1 dimensional inhomogeneous Poisson process with the
     # intensity function seen above
-    in_poi = SimuInhomogeneousPoisson([tf], end_time=T, verbose=False)
+    in_poi = SimuInhomogeneousPoisson(
+        [tf], end_time=T, seed=seed, verbose=False)
     # We activate intensity tracking and launch simulation
     in_poi.track_intensity(dt)
     in_poi.simulate()
 
     # We plot the resulting inhomogeneous Poisson process with its
     # intensity and its ticks over time
-    plot_point_process(in_poi)
+    if plot_intensity:
+        plot_point_process(in_poi)
 
     t_k = (in_poi.timestamps[0] / dt).astype(int) * dt
     acti_tt = t * 0
     acti_tt[(t_k * L).astype(int)] += 1
 
-    if plot_convolve:
-
-        # z_test
-
-        plt.plot(t, intensity_csc)
-        plt.plot(t, intensity, '--')
-        # plt.vlines(t_k, mu_0, intensity.max(), linestyles='dotted')
-        plt.show()
-
     return y_value, intensity_csc, driver_tt, acti_tt, in_poi
 
 
-def run_exp(true_params, simu_params=[50, 1000], init_params=None,
-            loss='log-likelihood', kernel_zero_base=False, max_iter=100,
-            step_size=1e-5):
+def compute_loss(loss, intensity, acti_t, dt):
+    """
+    """
+
+    if loss == 'log-likelihood':
+        # negative log-likelihood
+        return intensity.sum() * dt - torch.log(intensity[acti_t]).sum()
+    elif loss == 'MLE':
+        return (intensity ** 2).sum() * dt - 2 * (intensity[acti_t]).sum()
+    else:
+        raise ValueError(
+            f"loss must be 'MLE' or 'log-likelihood', got '{loss}'"
+        )
+
+
+def run_gd(driver_tt, acti_tt, dt=1/1000, init_params=None,
+           loss='log-likelihood', kernel_zero_base=False, max_iter=100,
+           step_size=1e-5, test=0.3):
     """
 
     Parameters
@@ -155,92 +164,130 @@ def run_exp(true_params, simu_params=[50, 1000], init_params=None,
     true_params : list
         [mu_0, alpha_true, mu_true, sig_true]
 
-    simu_params = list
-        [T, L]
 
 
     """
 
-    # simulate data
-    true_kernel, true_intensity, driver_tt, acti_tt, in_poi = simu(
-        true_params, simu_params)
-
     # intialize parameters
     P0 = torch.tensor(init_params, requires_grad=True)
-    mu0, alpha, mu, sig = P0
+    mu0 = P0[0]
 
-    dt = 1 / simu_params[1]
+    # define kernel support
     t = torch.arange(0, 1, dt)
 
     pobj = []
-    driver_torch = torch.tensor(driver_tt).float()
-    driver_t = driver_torch.to(torch.bool)
+    pval = []
+    driver_torch_temp = torch.tensor(driver_tt).float()
+    acti_torch_temp = torch.tensor(acti_tt).float()
 
-    acti_torch = torch.tensor(acti_tt).float()
+    if test:
+        n_test = np.int(np.round(test * len(driver_torch_temp)))
+        driver_torch = driver_torch_temp[:-n_test]
+        driver_torch_test = driver_torch_temp[-n_test:]
+        driver_t_test = driver_torch_test.to(torch.bool)
+
+        acti_torch = acti_torch_temp[:-n_test]
+        acti_torch_test = acti_torch_temp[-n_test:]
+        acti_t_test = acti_torch_test.to(torch.bool)
+    else:
+        driver_torch = driver_torch_temp
+        acti_torch = acti_torch_temp
+
+    driver_t = driver_torch.to(torch.bool)
     acti_t = acti_torch.to(torch.bool)
 
+    start = time.time()
     for i in range(max_iter):
         print(f"Fitting model... {i/max_iter:6.1%}\r", end='', flush=True)
         P0.grad = None
         # kernel = torch.exp(-(t - mu) ** 2 / sig ** 2)
         kernel = raised_cosine_kernel(t, P0, dt, kernel_zero_base)
-        # kernel = (1 + torch.cos((t-mu)/sig*np.pi)) / (2 * sig ** 2)
-        # mask_kernel = (t < (mu-sig)) | (t > (mu+sig))
-        # kernel[mask_kernel] = 0.
-        # if kernel_zero_base:
-        #     kernel = (kernel - kernel.min())
-        # kernel = alpha * kernel / (kernel.sum() * dt)
-
         # torch.exp(mu0)
-        intensity = mu0 + torch.conv1d(driver_torch[None, None],
-                                       kernel[None, None],
-                                       padding=(L-1,))[0, 0, :-L+1]
+        print(f"mu0: {mu0}")
+        intensity = mu0 + torch.conv_transpose1d(driver_torch[None, None],
+                                                 kernel[None, None]
+                                                 #    padding=(L-1,)
+                                                 )[0, 0, :-L+1]
         # assert np.allclose(intensity.detach(), np.convolve(z, k.detach()))
         # detach() allow to use as array
-        if loss == 'log-likelihood':
-            v_loss = intensity.sum() * dt - torch.log(intensity[acti_t]).sum()
-        elif loss == 'MLE':
-            v_loss = (intensity ** 2).sum() * dt - \
-                2 * (intensity[acti_t]).sum()
-        else:
-            raise ValueError(
-                f"loss must be 'MLE' or 'log-likelihood', got '{loss}'"
-            )
+        # if loss == 'log-likelihood':
+        #     # negative log-likelihood
+        #     v_loss = intensity.sum() * dt - torch.log(intensity[acti_t]).sum()
+        # elif loss == 'MLE':
+        #     v_loss = (intensity ** 2).sum() * dt - \
+        #         2 * (intensity[acti_t]).sum()
+        # else:
+        #     raise ValueError(
+        #         f"loss must be 'MLE' or 'log-likelihood', got '{loss}'"
+        #     )
+        v_loss = compute_loss(loss, intensity, acti_t, dt)
         v_loss.backward()
         P0.data -= step_size * P0.grad
         P0.data[1] = max(0, P0.data[1])  # alpha
         P0.data[3] = max(0, P0.data[3])  # sigma
-        P0.data[2] = max(P0.data[3], P0.data[2])  # m s.t. m - sigma > 0
+        # P0.data[2] = max(P0.data[3], P0.data[2])  # m s.t. m - sigma > 0
 
         pobj.append(v_loss.item())
+        if test:
+            intensity_test = mu0 + torch.conv_transpose1d(driver_torch_test[None, None],
+                                                          kernel[None, None]
+                                                          #    padding=(L-1,)
+                                                          )[0, 0, :-L+1]
+            pval.append(compute_loss(
+                loss, intensity_test, acti_t_test, dt).item())
 
-    print("Fitting model... done  ")
-    print(f"Estimated parameters: {P0.data}")
+    print(f"Fitting model... done ({np.round(time.time()-start)} s.) ")
+    print(f"Estimated parameters: {np.array(P0.data)}")
 
+    res_dict = {'est_intensity': np.array(intensity.detach()),
+                'est_kernel': np.array(kernel.detach()),
+                'pobj': pobj,
+                'est_params': P0.data}
+    if test:
+        res_dict.update(test_intensity=np.array(intensity_test.detach()),
+                        pval=pval, n_test=n_test)
+
+    return res_dict
+
+
+COLOR_TRUE = 'orange'
+COLOR_EST = 'blue'
+COLOR_TEST = 'green'
+
+
+def plot_global_fig(true_intensity, est_intensity, true_kernel, est_kernel,
+                    pobj, test_intensity=None, pval=None, loss='log-likelihood'):
+    """
+
+    """
     fig = plt.figure()
     gs = plt.GridSpec(2, 2, figure=fig)
 
     ax = fig.add_subplot(gs[0, :])
-    ax.plot(intensity.detach(), label="Estimated intensity")
-    ax.plot(true_intensity, '--', label="True intensity")
-    # plot_point_process(in_poi, ax=ax)
+    ax.plot(est_intensity, label="Estimated intensity", color=COLOR_EST)
+    ax.plot(true_intensity, '--', label="True intensity", color=COLOR_TRUE)
+    if test_intensity is not None:
+        t = np.arange(len(est_intensity), len(true_intensity))
+        ax.plot(t, test_intensity, '--',
+                label="test intensity", color=COLOR_TEST)
     ax.set_title("Intensity function")
-    ax.set_xlabel('')
-    # ax.legend()
 
     ax = fig.add_subplot(gs[1, 0])
-    # ax.set_title("Cost function")
-    ax.plot(pobj, label=f"{loss}")
+    ax.plot(pobj, label=f"{loss}", color=COLOR_EST)
+    if pval is not None:
+        ax.plot(pval, label=f"{loss} test", color=COLOR_TEST)
+    # ax.set_yscale('log')
     ax.legend()
 
     ax = fig.add_subplot(gs[1, 1])
-    ax.plot(kernel.detach(), label='Learned kernel')
-    ax.plot(true_kernel, label='True kernel')
+    ax.plot(est_kernel, label='Learned kernel', color=COLOR_EST)
+    ax.plot(true_kernel, '--', label='True kernel', color=COLOR_TRUE)
     ax.legend()
+
     plt.show()
 
-    return P0
-# %%
+    return fig
+# %% Run full experiment
 
 
 # true parameters
@@ -253,13 +300,54 @@ true_params = np.array([mu_0, alpha_true, mu_true, sig_true])
 T = 100
 L = 1000
 p_task = 0.3
-simu_params = [T, L, p_task]
+# simulate data
+seed = 42
+true_kernel, true_intensity, driver_tt, acti_tt, in_poi = simu(
+    true_params, simu_params=[T, L, p_task], seed=seed, plot_intensity=True)
 # initialize parameters
-rng = np.random.RandomState(seed=42)
-p = 0.1  # +- p around true parameters
+rng = np.random.RandomState(seed=seed)
+p = 0.1  # init parameters are +- p% around true parameters
 init_params = rng.uniform(low=true_params*(1-p), high=true_params*(1+p))
+print(f"True parameters: {true_params}")
+print(f"Initial parameters: {init_params}")
+# run gradient descent
+loss = 'log-likelihood'
+res_dict = run_gd(driver_tt, acti_tt, dt=1/L, init_params=init_params,
+                  loss=loss, kernel_zero_base=False, max_iter=10,
+                  step_size=1e-4)
+# plot final figure
+fig = plot_global_fig(true_intensity, res_dict['est_intensity'],
+                      true_kernel, res_dict['est_kernel'], res_dict['pobj'],
+                      res_dict['pval'], loss)
 
-est_params = run_exp(true_params, simu_params, init_params, max_iter=200,
-                     step_size=1e-4)
+
+# %% Plot part of intensities functions
+t_min, t_max = 0, 4000
+tt = driver_tt[t_min:t_max]
+plt.plot(res_dict['est_intensity'][t_min:t_max], label="Estimated intensity")
+plt.plot(true_intensity[t_min:t_max], '--', label="True intensity")
+plt.vlines(np.where(tt == 1)[0],
+           ymin=min(mu_0, res_dict['est_params'][0]),
+           ymax=6, linestyles='--', label="driver tt")
+plt.legend()
+plt.title("Intensity function")
+plt.show()
+
+# %% Plot part of intensities functions
+t_min, t_max = 70_001, 82_000
+t = np.arange(t_min, t_max)
+n_train = len(driver_tt) - res_dict['n_test']
+plt.plot(t, res_dict['test_intensity'][t_min-n_train:t_max-n_train],
+         label="Test intensity")
+plt.plot(t, true_intensity[t_min:t_max], '--', label="True intensity")
+# plot vertical lines for timestamps
+tt = np.where(driver_tt == 1)[0]
+plt.vlines(tt[(tt >= t_min) & (tt <= t_max)],
+           ymin=min(mu_0, res_dict['est_params'][0]),
+           ymax=6, linestyles='--', label="driver tt")
+
+plt.legend()
+plt.title("Intensity function")
+plt.show()
 
 # %%
