@@ -132,6 +132,8 @@ def get_driver_delays(intensity, t):
     for p in range(intensity.n_drivers):
         driver_tt = intensity.driver_tt[p]
         lower, upper = intensity.kernel[p].lower, intensity.kernel[p].upper
+        lower = max(0, lower)
+        upper = max(0, upper)
         # Construct a sparse matrix
         this_driver_delays = []
         indices = []

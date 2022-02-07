@@ -1,5 +1,5 @@
 # %%
-from cgitb import reset
+
 from scipy.optimize import check_grad
 import numpy as np
 import warnings
@@ -9,6 +9,8 @@ from dripp.trunc_norm_kernel.simu import simulate_data
 from dripp.trunc_norm_kernel.model import Intensity
 from dripp.trunc_norm_kernel.metric import negative_log_likelihood
 from dripp.trunc_norm_kernel.optim import initialize, em_truncated_norm
+
+EPS = 1e-5  # np.finfo(float).eps
 
 
 class RaisedCosineKernel():
@@ -138,8 +140,22 @@ class RaisedCosineKernel():
         x : array-like
         """
         x = np.atleast_1d(x)
+        mask_kernel = (x < self.lower) | (x > self.upper)
         res = np.pi / (2 * self.sigma) * \
             np.sin((x-self.m) / self.sigma * np.pi)
+        res[mask_kernel] = 0.
+
+        return res
+
+    def partial_u(self, x):
+        """ u = m - sigma : kernel.lower
+        x : array-like
+        """
+        x = np.atleast_1d(x)
+        mask_kernel = (x < self.lower) | (x > self.upper)
+        res = np.pi / (2 * self.sigma) * \
+            np.sin((x - self.lower) / self.sigma * np.pi - np.pi)
+        res[mask_kernel] = 0.
 
         return res
 
@@ -148,8 +164,10 @@ class RaisedCosineKernel():
         x : array-like
         """
         x = np.atleast_1d(x)
-        res = (x - self.m) / (2 * self.sigma**3) * np.pi * \
+        mask_kernel = (x < self.lower) | (x > self.upper)
+        res = (self.m - x) / (2 * self.sigma**3) * np.pi * \
             np.sin((x-self.m) / self.sigma * np.pi) - self.eval(x)
+        res[mask_kernel] = 0.
 
         return res
 
@@ -190,6 +208,7 @@ def grad_kernel_rc(x):
 
 
 check_grad(func_kernel_rc, grad_kernel_rc, [0.2, 0, 0.1])
+# XXX why not a float
 
 # %%
 
@@ -243,10 +262,37 @@ def partial_nll_rc_m(intensity):
     for p, delays in enumerate(intensity.driver_delays):
         alpha, kernel = intensity.alpha[p], intensity.kernel[p]
         val = delays.copy()
-        val.data = np.sin((val.data - kernel.m) / kernel.sigma * np.pi)
-        this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
-                             axis=0)
-        this_res *= -1 * alpha * np.pi / (2 * kernel.sigma**2)
+        val.data = kernel.partial_m(val.data)
+        this_res = -1 * alpha * \
+            np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t, axis=0)
+
+        res.append(this_res)
+
+        # val.data = np.sin((val.data - kernel.m) / kernel.sigma * np.pi)
+        # this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
+        #                      axis=0)
+        # this_res *= -1 * alpha * np.pi / (2 * kernel.sigma**2)
+        # res.append(this_res)
+
+    return np.array(res)
+
+
+def partial_nll_rc_u(intensity):
+    """
+
+    """
+    res = []
+
+    # compute value of intensity function at each activation time
+    intensity_at_t = intensity(t=intensity.acti_tt,
+                               driver_delays=intensity.driver_delays)
+
+    for p, delays in enumerate(intensity.driver_delays):
+        alpha, kernel = intensity.alpha[p], intensity.kernel[p]
+        val = delays.copy()
+        val.data = kernel.partial_u(val.data)
+        this_res = -1 * alpha * \
+            np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t, axis=0)
 
         res.append(this_res)
 
@@ -265,15 +311,22 @@ def partial_nll_rc_sigma(intensity):
 
     for p, delays in enumerate(intensity.driver_delays):
         alpha, kernel = intensity.alpha[p], intensity.kernel[p]
-        m, sigma = kernel.m, kernel.sigma
         val = delays.copy()
-        temp = (val.data - m) / sigma * np.pi
-        val.data = temp / (2 * sigma**2) * np.sin(temp) - \
-            kernel(val.data) / sigma
-        this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
-                             axis=0)
-        this_res *= -1 * alpha
+        val.data = kernel.partial_sigma(val.data)
+        this_res = -1 * alpha * \
+            np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t, axis=0)
+
         res.append(this_res)
+
+        # m, sigma = kernel.m, kernel.sigma
+        # val = delays.copy()
+        # temp = (val.data - m) / sigma * np.pi
+        # val.data = temp / (2 * sigma**2) * np.sin(temp) - \
+        #     kernel(val.data) / sigma
+        # this_res = np.nansum(np.array(val.sum(axis=1).T)[0] / intensity_at_t,
+        #                      axis=0)
+        # this_res *= -1 * alpha
+        # res.append(this_res)
 
     return np.array(res)
 
@@ -291,14 +344,24 @@ def gd(intensity, T, step, n_iter):
             sigma.append(this_kernel.sigma)
         m = np.array(m)
         sigma = np.array(sigma)
+        u = m - sigma
         # compute new values
         baseline -= step * partial_nll_rc_baseline(intensity, T)
         alpha -= step * partial_nll_rc_alpha(intensity)
-        m -= step * partial_nll_rc_m(intensity)
+        # force alpha to stay non-negative
+        alpha = alpha.clip(min=0)  # project on R+
+        u -= step * partial_nll_rc_u(intensity)
+        u = u.clip(min=0)  # project on R+ such that m - sigma > 0
         sigma -= step * partial_nll_rc_sigma(intensity)
+        sigma = sigma.clip(min=EPS)  # project on [EPS=10e-5, +inf] (def.)
         # update intensity
+        m = u + sigma
         intensity.update(baseline, alpha, m, sigma)
-        hist_loss.append(negative_log_likelihood(intensity, T))
+        if(alpha.max() == 0):  # all alphas are zero
+            print("alpha is null after %i iteration(s)." % i)
+            break
+        else:
+            hist_loss.append(negative_log_likelihood(intensity, T))
 
     params = baseline, alpha, m, sigma
     return params, hist_loss
@@ -331,7 +394,7 @@ def grad_nll_rc(x, driver_tt, acti_tt, T):
     intensity.update(baseline, alpha, m, sigma)
     res = [partial_nll_rc_baseline(intensity, T),
            partial_nll_rc_alpha(intensity)[0],
-           partial_nll_rc_m(intensity)[0],
+           -1 * partial_nll_rc_m(intensity)[0],
            partial_nll_rc_sigma(intensity)[0]]
     return res
 
@@ -345,7 +408,9 @@ driver_tt, acti_tt, _, _ = simulate_data(
     alpha=alpha_true, T=T, isi=1, add_jitter=False, n_tasks=0.8, n_drivers=1,
     seed=None, return_nll=False, verbose=False)
 
-check_grad(func_nll_rc, grad_nll_rc, true_params,
+print('Check likelihood gradient')
+test_params = 0.8, 1, 200e-3, 0.1
+check_grad(func_nll_rc, grad_nll_rc, test_params,
            driver_tt, acti_tt, T)
 
 
@@ -354,13 +419,16 @@ baseline_true, alpha_true, m_true, sigma_true = 0.8, [1], [400e-3], [0.1]
 true_params = baseline_true, alpha_true, m_true, sigma_true
 
 kernel_true = RaisedCosineKernel(m=m_true[0], sigma=sigma_true[0])
+print('Raised cosine kernel wwith true parameters')
 kernel_true.plot()
 
 T = 240
+# simulate data
 driver_tt, acti_tt, kernel_tg, intensity_tg = simulate_data(
     lower=0, upper=0.8, m=m_true, sigma=sigma_true, sfreq=150., baseline=baseline_true,
     alpha=alpha_true, T=T, isi=1, add_jitter=False, n_tasks=0.8, n_drivers=1,
     seed=None, return_nll=False, verbose=False)
+print('Truncated Gaussian kernel wwith initial parameters')
 kernel_tg[0].plot()
 
 
@@ -372,25 +440,29 @@ intensity_rc = Intensity(kernel=RaisedCosineKernel(),
 init_params = initialize(intensity_tg, T, initializer='smart_start')
 print("Initials parameters:\n(mu, alpha, m, sigma) = ", init_params)
 baseline_init, alpha_init, m_init, sigma_init = init_params
-intensity_rc.update(baseline_init, alpha_init, m_init, sigma_init)
+intensity_rc.update(baseline_true, alpha_true, m_true, sigma_true)
+print('Raised cosine kernel wwith initial parameters')
 intensity_rc.kernel[0].plot()
 
-nll_rc = negative_log_likelihood(intensity_rc, T)
-nll_tg = negative_log_likelihood(intensity_tg, T)
-# %%
-params, hist_loss = gd(intensity_rc, T, 0.01, 1000)
+# nll_rc = negative_log_likelihood(intensity_rc, T)
+# nll_tg = negative_log_likelihood(intensity_tg, T)
+# print('Loss with Raised Cosine:', nll_rc)
+# print('Loss with Truncated Gaussian:', nll_tg)
+
+print("Run GD on intensity with raised cosine kernel")
+params, hist_loss = gd(intensity_rc, T, 1e-4, 1000)
 print("Estimated parameters:\n(mu, alpha, m, sigma) = ", params)
 plt.plot(hist_loss)
 plt.show()
 # %%
 # check with EM on TG
-res_params_em, history_params, hist_loss_em = em_truncated_norm(
-    acti_tt, driver_tt=driver_tt, lower=0, upper=0.8, T=T, sfreq=150.,
-    initializer='smart_start', alpha_pos=True, n_iter=80, verbose=False,
-    disable_tqdm=False, compute_loss=True)
-baseline_hat, alpha_hat, m_hat, sigma_hat = res_params_em
-intensity_tg.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
-intensity_tg.kernel[0].plot()
-plt.plot(hist_loss_em)
-plt.show()
+# res_params_em, history_params, hist_loss_em = em_truncated_norm(
+#     acti_tt, driver_tt=driver_tt, lower=0, upper=0.8, T=T, sfreq=150.,
+#     initializer='smart_start', alpha_pos=True, n_iter=80, verbose=False,
+#     disable_tqdm=False, compute_loss=True)
+# baseline_hat, alpha_hat, m_hat, sigma_hat = res_params_em
+# intensity_tg.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
+# intensity_tg.kernel[0].plot()
+# plt.plot(hist_loss_em)
+# plt.show()
 # %%
