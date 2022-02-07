@@ -1,8 +1,14 @@
 # %%
+import itertools
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import time
+from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
+import seaborn as sns
+
+import pickle
 
 import torch
 
@@ -154,7 +160,7 @@ def compute_loss(loss, intensity, acti_t, dt):
         )
 
 
-def run_gd(driver_tt, acti_tt, dt=1/1000, init_params=None,
+def run_gd(driver_tt, acti_tt, L=1000, init_params=None,
            loss='log-likelihood', kernel_zero_base=False, max_iter=100,
            step_size=1e-5, test=0.3):
     """
@@ -167,7 +173,7 @@ def run_gd(driver_tt, acti_tt, dt=1/1000, init_params=None,
 
 
     """
-
+    dt = 1/L
     # intialize parameters
     P0 = torch.tensor(init_params, requires_grad=True)
     mu0 = P0[0]
@@ -203,7 +209,6 @@ def run_gd(driver_tt, acti_tt, dt=1/1000, init_params=None,
         # kernel = torch.exp(-(t - mu) ** 2 / sig ** 2)
         kernel = raised_cosine_kernel(t, P0, dt, kernel_zero_base)
         # torch.exp(mu0)
-        print(f"mu0: {mu0}")
         intensity = mu0 + torch.conv_transpose1d(driver_torch[None, None],
                                                  kernel[None, None]
                                                  #    padding=(L-1,)
@@ -273,15 +278,23 @@ def plot_global_fig(true_intensity, est_intensity, true_kernel, est_kernel,
     ax.set_title("Intensity function")
 
     ax = fig.add_subplot(gs[1, 0])
-    ax.plot(pobj, label=f"{loss}", color=COLOR_EST)
+    lns1 = ax.plot(pobj, label=f"{loss}", color=COLOR_EST)
+    ax.set_ylabel(r"Train")
     if pval is not None:
-        ax.plot(pval, label=f"{loss} test", color=COLOR_TEST)
+        ax2 = ax.twinx()
+        lns2 = ax2.plot(pval, label="test", color=COLOR_TEST)
+        # ax2.set_ylabel(r"Test")
     # ax.set_yscale('log')
-    ax.legend()
+
+    # added these three lines
+    lns = lns1 + lns2
+    labs = [l.get_label() for l in lns]
+    ax.legend(lns, labs)
 
     ax = fig.add_subplot(gs[1, 1])
     ax.plot(est_kernel, label='Learned kernel', color=COLOR_EST)
     ax.plot(true_kernel, '--', label='True kernel', color=COLOR_TRUE)
+    ax.yaxis.tick_right()
     ax.legend()
 
     plt.show()
@@ -306,48 +319,176 @@ true_kernel, true_intensity, driver_tt, acti_tt, in_poi = simu(
     true_params, simu_params=[T, L, p_task], seed=seed, plot_intensity=True)
 # initialize parameters
 rng = np.random.RandomState(seed=seed)
-p = 0.1  # init parameters are +- p% around true parameters
+p = 0.2  # init parameters are +- p% around true parameters
 init_params = rng.uniform(low=true_params*(1-p), high=true_params*(1+p))
+init_params = init_params.clip(1e-5)
 print(f"True parameters: {true_params}")
 print(f"Initial parameters: {init_params}")
 # run gradient descent
 loss = 'log-likelihood'
-res_dict = run_gd(driver_tt, acti_tt, dt=1/L, init_params=init_params,
-                  loss=loss, kernel_zero_base=False, max_iter=10,
+res_dict = run_gd(driver_tt, acti_tt, L=L, init_params=init_params,
+                  loss=loss, kernel_zero_base=False, max_iter=100,
                   step_size=1e-4)
 # plot final figure
-fig = plot_global_fig(true_intensity, res_dict['est_intensity'],
-                      true_kernel, res_dict['est_kernel'], res_dict['pobj'],
-                      res_dict['pval'], loss)
+fig = plot_global_fig(true_intensity, est_intensity=res_dict['est_intensity'],
+                      true_kernel=true_kernel, est_kernel=res_dict['est_kernel'],
+                      pobj=res_dict['pobj'], test_intensity=res_dict['test_intensity'],
+                      pval=res_dict['pval'], loss=loss)
 
 
 # %% Plot part of intensities functions
-t_min, t_max = 0, 4000
-tt = driver_tt[t_min:t_max]
-plt.plot(res_dict['est_intensity'][t_min:t_max], label="Estimated intensity")
-plt.plot(true_intensity[t_min:t_max], '--', label="True intensity")
-plt.vlines(np.where(tt == 1)[0],
-           ymin=min(mu_0, res_dict['est_params'][0]),
-           ymax=6, linestyles='--', label="driver tt")
-plt.legend()
-plt.title("Intensity function")
+# t_min, t_max = 0, 4000
+# tt = driver_tt[t_min:t_max]
+# plt.plot(res_dict['est_intensity'][t_min:t_max], label="Estimated intensity")
+# plt.plot(true_intensity[t_min:t_max], '--', label="True intensity")
+# plt.vlines(np.where(tt == 1)[0],
+#            ymin=min(mu_0, res_dict['est_params'][0]),
+#            ymax=6, linestyles='--', label="driver tt")
+# plt.legend()
+# plt.title("Intensity function")
+# plt.show()
+
+# # %% Plot part of intensities functions
+# t_min, t_max = 70_001, 82_000
+# t = np.arange(t_min, t_max)
+# n_train = len(driver_tt) - res_dict['n_test']
+# plt.plot(t, res_dict['test_intensity'][t_min-n_train:t_max-n_train],
+#          label="Test intensity")
+# plt.plot(t, true_intensity[t_min:t_max], '--', label="True intensity")
+# # plot vertical lines for timestamps
+# tt = np.where(driver_tt == 1)[0]
+# plt.vlines(tt[(tt >= t_min) & (tt <= t_max)],
+#            ymin=min(mu_0, res_dict['est_params'][0]),
+#            ymax=6, linestyles='--', label="driver tt")
+
+# plt.legend()
+# plt.title("Intensity function")
+# plt.show()
+
+# %%
+
+
+def procedure_ratio(p):
+
+    # true parameters
+    mu_0, alpha_true = p
+    mu_true = 0.3
+    sig_true = 0.2
+    true_params = np.array([mu_0, alpha_true, mu_true, sig_true])
+    # simulation parameters
+    T = 100
+    L = 1000
+    p_task = 0.3
+    # simulate data
+    seed = 42
+    true_kernel, true_intensity, driver_tt, acti_tt, in_poi = simu(
+        true_params, simu_params=[T, L, p_task], seed=seed, plot_intensity=False)
+    # initialize parameters
+    rng = np.random.RandomState(seed=seed)
+    p = 0.2  # init parameters are +- p% around true parameters
+    init_params = rng.uniform(low=true_params*(1-p), high=true_params*(1+p))
+    init_params = init_params.clip(1e-5)  # ensure all init param are > 0
+    print(f"True parameters: {true_params}")
+    print(f"Initial parameters: {init_params}")
+    # run gradient descent
+    loss = 'log-likelihood'
+    res_dict = run_gd(driver_tt, acti_tt, L=L, init_params=init_params,
+                      loss=loss, kernel_zero_base=False, max_iter=100,
+                      step_size=1e-4)
+
+    new_row = {**res_dict,
+               'mu_0': mu_0,
+               'alpha_true': alpha_true,
+               'init_params': init_params, 'true_params': true_params}
+
+    return new_row
+
+
+list_mu0 = [0.2, 0.4, 0.6, 0.8, 1.]
+list_alpha = [0.2, 0.4, 0.6, 0.8, 1.]
+list_p = list(itertools.product(list_mu0, list_alpha))
+new_rows = Parallel(n_jobs=6, verbose=1)(
+    delayed(procedure_ratio)(p) for p in list_p)
+
+df_ratio = pd.DataFrame()
+for new_row in new_rows:
+    df_ratio = df_ratio.append(new_row, ignore_index=True)
+
+
+df_ratio['loss_train'] = df_ratio['pobj'].apply(lambda x: x[-1])
+df_ratio['loss_test'] = df_ratio['pval'].apply(lambda x: x[-1])
+pickle.dump(df_ratio, open('df_ratio.pkl', "wb"))
+
+# %%
+df_ratio = pickle.load(open('df_ratio.pkl', "rb"))
+
+loss_train = df_ratio.pivot("mu_0", "alpha_true", "loss_train")
+ax = sns.heatmap(loss_train)
+ax.set_title('log-likelihood on train')
+ax.set_ylabel(r'$\mu$')
+ax.set_xlabel(r"$\alpha$")
 plt.show()
 
-# %% Plot part of intensities functions
-t_min, t_max = 70_001, 82_000
-t = np.arange(t_min, t_max)
-n_train = len(driver_tt) - res_dict['n_test']
-plt.plot(t, res_dict['test_intensity'][t_min-n_train:t_max-n_train],
-         label="Test intensity")
-plt.plot(t, true_intensity[t_min:t_max], '--', label="True intensity")
-# plot vertical lines for timestamps
-tt = np.where(driver_tt == 1)[0]
-plt.vlines(tt[(tt >= t_min) & (tt <= t_max)],
-           ymin=min(mu_0, res_dict['est_params'][0]),
-           ymax=6, linestyles='--', label="driver tt")
-
-plt.legend()
-plt.title("Intensity function")
+loss_test = df_ratio.pivot("mu_0", "alpha_true", "loss_test")
+ax = sns.heatmap(loss_test)
+ax.set_title('log-likelihood on ttest')
+ax.set_ylabel(r'$\mu$')
+ax.set_xlabel(r"$\alpha$")
 plt.show()
+# %%
 
+
+def procedure_T(T):
+
+    # true parameters
+    mu_0, alpha_true = 0.7, 0.7
+    mu_true = 0.3
+    sig_true = 0.2
+    true_params = np.array([mu_0, alpha_true, mu_true, sig_true])
+    # simulation parameters
+    L = 1000
+    p_task = 0.3
+    # simulate data
+    seed = 42
+    true_kernel, true_intensity, driver_tt, acti_tt, in_poi = simu(
+        true_params, simu_params=[T, L, p_task], seed=seed, plot_intensity=False)
+    # initialize parameters
+    rng = np.random.RandomState(seed=seed)
+    p = 0.2  # init parameters are +- p% around true parameters
+    init_params = rng.uniform(low=true_params*(1-p), high=true_params*(1+p))
+    init_params = init_params.clip(1e-5)  # ensure all init param are > 0
+    print(f"True parameters: {true_params}")
+    print(f"Initial parameters: {init_params}")
+    # run gradient descent
+    loss = 'log-likelihood'
+    res_dict = run_gd(driver_tt, acti_tt, L=L, init_params=init_params,
+                      loss=loss, kernel_zero_base=False, max_iter=100,
+                      step_size=1e-4)
+
+    new_row = {**res_dict,
+               'T': T,
+               'init_params': init_params,
+               'true_params': true_params}
+
+    return new_row
+
+
+new_rows = Parallel(n_jobs=5, verbose=1)(
+    delayed(procedure_T)(T) for T in [10, 100, 1000, 10_000])
+
+df_T = pd.DataFrame()
+for new_row in new_rows:
+    df_T = df_T.append(new_row, ignore_index=True)
+
+df_T['loss_train'] = df_T['pobj'].apply(lambda x: x[-1])
+df_T['loss_test'] = df_T['pval'].apply(lambda x: x[-1])
+pickle.dump(df_T, open('df_T.pkl', "wb"))
+
+# %%
+df_T = pickle.load(open('df_T.pkl', "rb"))
+
+plt.plot([10, 100, 1000, 10_000], df_T['loss_train'].values)
+plt.title("log-likelihood on train")
+plt.xlabel('T')
+plt.show()
 # %%
