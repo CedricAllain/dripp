@@ -212,8 +212,12 @@ for i, atom in enumerate(list_atoms):
         ax=ax, logx=False, logy=True, c=cmap.to_rgba(i+1), style=styles,
         legend=legend)
 
+ax.set_xlabel("Threshold, in %")
+ax.set_ylabel("Relative infinite norm")
+
 plt.savefig(SAVE_RESULTS_PATH / ('inf_norm.pdf'), dpi=300)
-plt.savefig(SAVE_RESULTS_PATH / ('inf_norm.png'), dpi=300)
+# plt.savefig(SAVE_RESULTS_PATH / ('inf_norm.png'), dpi=300)
+plt.savefig(SAVE_RESULTS_PATH / ('inf_norm.png'))
 plt.show()
 plt.close()
 

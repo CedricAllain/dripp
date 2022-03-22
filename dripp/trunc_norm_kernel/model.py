@@ -30,7 +30,8 @@ class TruncNormKernel():
     sfreq : int | None
         Sampling frequency used to create a grid between lower and upper to
         pre-compute kernel's values. If None, the kernel will be exactly
-        evaluate at each call. Warning: setting sfreq to None may considerably increase computational time. Defaults to 150.
+        evaluate at each call. Warning: setting sfreq to None may considerably
+        increase computational time. Defaults to 150.
     """
 
     def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.):
@@ -187,7 +188,7 @@ class TruncNormKernel():
 
         plt.plot(xx, self.eval(xx))
         plt.xlabel('Time (s)')
-        plt.title("Kernel function")
+        plt.title("Truncated Gaussian Kernel")
         plt.show()
 
     @property
@@ -234,13 +235,15 @@ class Intensity():
     def __init__(self, baseline=0, alpha=0, kernel=None,
                  driver_tt=None, acti_tt=None):
 
-        self.n_drivers = len(kernel)
+        self.kernel = np.atleast_1d(kernel)  # set of kernels functions
+        self.n_drivers = len(self.kernel)
 
         self.baseline = baseline
+
         # set of alpha coefficients
         self.alpha = convert_variable_multi(
             alpha, self.n_drivers, repeat=True)
-        self.kernel = np.atleast_1d(kernel)  # set of kernels functions
+
         # make sure we have one alpha coefficient per kernel
         assert len(self.alpha) == len(self.kernel), \
             "alpha and kernel parameters must have the same length"
