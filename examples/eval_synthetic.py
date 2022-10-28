@@ -24,6 +24,7 @@ SAVE_RESULTS_PATH /= 'results_sythetic'
 if not SAVE_RESULTS_PATH.exists():
     SAVE_RESULTS_PATH.mkdir(parents=True)
 
+# %%
 # ===================================================
 # PLOT PARAMETERS
 # ===================================================
@@ -71,6 +72,8 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
 em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
 # em_params_to_vary = {'T': np.array([10_000])}
 T_max = em_params_to_vary['T'].max()
+
+# %%
 
 df_res = run_multiple_em_on_synthetic(
     simu_params, simu_params_to_vary, em_params, em_params_to_vary,
@@ -139,6 +142,10 @@ plt.close()
 
 # %% ------ PLOT MEAN/STD OF THE RELATIVE NORM ------
 # (Figure 3 and A.1 in paper)
+double_columns = True
+path_df_res = SAVE_RESULTS_PATH
+df_res = pd.read_csv(path_df_res / 'results_em_synthetic.csv')
+
 
 list_df_mean = []
 list_df_std = []
@@ -168,10 +175,16 @@ for p in range(N_DRIVERS):
     title += rf" $\sigma={simu_params['sigma'][p]}$"
     list_title.append(title)
 
+# %%
 
 # plot mean
-fig, axes = plt.subplots(1, N_DRIVERS, sharey=True,
-                         sharex=True, figsize=figsize)
+if double_columns:
+    figsize = (2.5, 4)
+    fig, axes = plt.subplots(N_DRIVERS, 1, sharey=True,
+                            sharex=True, figsize=figsize)
+else:
+    fig, axes = plt.subplots(1, N_DRIVERS, sharey=True,
+                            sharex=True, figsize=figsize)
 
 for ii in range(N_DRIVERS):
     ax = axes[ii]
@@ -241,3 +254,5 @@ plt.tight_layout()
 plt.savefig(SAVE_RESULTS_PATH / 'fig3_computation_time_multi.pdf', dpi=300)
 plt.show()
 plt.close()
+
+

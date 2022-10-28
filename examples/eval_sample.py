@@ -100,7 +100,7 @@ plt.rcParams.update({
     'ytick.labelsize': fontsize,
 })
 
-fig = plt.figure(figsize=(5.5, 3.5))
+fig = plt.figure(figsize=(5.5, 4.666))
 gs = gridspec.GridSpec(nrows=3, ncols=4, hspace=0.26, wspace=0.18, figure=fig)
 
 # x axis for temporal pattern

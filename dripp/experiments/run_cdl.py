@@ -1,3 +1,4 @@
+# %%
 """
 Run Convolutional Dictionary Learning on mne.sample or mne.somato dataset
 """
@@ -27,6 +28,8 @@ BIDS_ROOT = DATA_DIR / "camcan/BIDSsep/smt/"  # Root path to raw BIDS files
 SSS_CAL_FILE = DATA_DIR / "camcan-mne/Cam-CAN_sss_cal.dat"
 CT_SPARSE_FILE = DATA_DIR / "camcan-mne/Cam-CAN_ct_sparse.fif"
 PARTICIPANTS_FILE = BIDS_ROOT / "participants.tsv"
+
+# %%
 
 
 @memory.cache(ignore=['n_jobs'])
