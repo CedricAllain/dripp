@@ -299,7 +299,8 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         return compute_baseline_mle(acti_tt, T)
 
     # define intances of kernels and intensity function
-    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq)] * n_drivers
+    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq)
+              for _ in range(n_drivers)]
     intensity = Intensity(kernel=kernel, driver_tt=driver_tt, acti_tt=acti_tt)
 
     # initialize parameters
@@ -331,7 +332,9 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         print("Initial loss (negative log-likelihood):", hist_loss[0])
 
     stop = False
+
     for n in tqdm(range(int(n_iter)), disable=disable_tqdm):
+
         # compute next values of parameters
         baseline_hat, alpha_hat, m_hat, sigma_hat = compute_nexts(intensity, T)
         if alpha_pos:
@@ -369,7 +372,7 @@ def em_truncated_norm(acti_tt, driver_tt=None,
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 10_000  # process time, in seconds
+    T = 1_000  # process time, in seconds
     lower, upper = 30e-3, 800e-3
     sfreq = 500.
     start_time = time.time()

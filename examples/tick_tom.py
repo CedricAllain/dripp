@@ -1,4 +1,6 @@
 # %%
+from scipy.optimize import check_grad
+from scipy.optimize import fmin_l_bfgs_b
 import itertools
 import numpy as np
 import pandas as pd
@@ -148,12 +150,12 @@ def simu(true_params, simu_params=[50, 1000, 0.5], seed=None,
 def compute_loss(loss, intensity, acti_t, dt):
     """
     """
-
+    T = len(intensity) * dt
     if loss == 'log-likelihood':
         # negative log-likelihood
-        return intensity.sum() * dt - torch.log(intensity[acti_t]).sum()
-    elif loss == 'MLE':
-        return (intensity ** 2).sum() * dt - 2 * (intensity[acti_t]).sum()
+        return (intensity.sum() * dt - torch.log(intensity[acti_t]).sum()) / T
+    elif loss == 'MSE':
+        return ((intensity ** 2).sum() * dt - 2 * (intensity[acti_t]).sum()) / T
     else:
         raise ValueError(
             f"loss must be 'MLE' or 'log-likelihood', got '{loss}'"
@@ -281,10 +283,8 @@ def plot_global_fig(true_intensity, est_intensity, true_kernel, est_kernel,
     lns1 = ax.plot(pobj, label=f"{loss}", color=COLOR_EST)
     ax.set_ylabel(r"Train")
     if pval is not None:
-        ax2 = ax.twinx()
-        lns2 = ax2.plot(pval, label="test", color=COLOR_TEST)
-        # ax2.set_ylabel(r"Test")
-    # ax.set_yscale('log')
+        # ax2 = ax.twinx()
+        lns2 = ax.plot(pval, label="test", color=COLOR_TEST)
 
     # added these three lines
     lns = lns1 + lns2
@@ -300,8 +300,11 @@ def plot_global_fig(true_intensity, est_intensity, true_kernel, est_kernel,
     plt.show()
 
     return fig
-# %% Run full experiment
 
+# %%
+
+
+# %% Run full experiment
 
 # true parameters
 mu_0 = 0.7
@@ -325,17 +328,88 @@ init_params = init_params.clip(1e-5)
 print(f"True parameters: {true_params}")
 print(f"Initial parameters: {init_params}")
 # run gradient descent
-loss = 'log-likelihood'
+loss = 'log-likelihood'  # 'log-likelihood' | 'MSE'
 res_dict = run_gd(driver_tt, acti_tt, L=L, init_params=init_params,
                   loss=loss, kernel_zero_base=False, max_iter=100,
-                  step_size=1e-4)
+                  step_size=1e-2)
 # plot final figure
 fig = plot_global_fig(true_intensity, est_intensity=res_dict['est_intensity'],
                       true_kernel=true_kernel, est_kernel=res_dict['est_kernel'],
                       pobj=res_dict['pobj'], test_intensity=res_dict['test_intensity'],
                       pval=res_dict['pval'], loss=loss)
 
+# %%
 
+driver_torch_temp = torch.tensor(driver_tt).double()
+acti_torch_temp = torch.tensor(acti_tt).double()
+
+test = 0.3
+if test:
+    n_test = np.int(np.round(test * len(driver_torch_temp)))
+    driver_torch = driver_torch_temp[:-n_test]
+    driver_torch_test = driver_torch_temp[-n_test:]
+    driver_t_test = driver_torch_test.to(torch.bool)
+
+    acti_torch = acti_torch_temp[:-n_test]
+    acti_torch_test = acti_torch_temp[-n_test:]
+    acti_t_test = acti_torch_test.to(torch.bool)
+else:
+    driver_torch = driver_torch_temp
+    acti_torch = acti_torch_temp
+
+# driver_t = driver_torch.to(torch.bool)
+acti_t = acti_torch.to(torch.bool)
+
+
+rng = np.random.RandomState(seed=seed)
+p = .2  # init parameters are +- p% around true parameters
+init_params = rng.uniform(low=true_params*(1-p), high=true_params*(1+p))
+print(init_params)
+
+
+def nll(params):
+
+    P0 = torch.tensor(params.copy(), requires_grad=True, dtype=torch.float64)
+    mu0 = P0[0]
+
+    # define kernel support
+    dt = 1/L
+    t = torch.arange(0, 1, dt, dtype=torch.float64)
+
+    P0.grad = None
+    kernel = raised_cosine_kernel(t, P0, dt, kernel_zero_base=False)
+    # torch.exp(mu0)
+    intensity = mu0 + torch.conv_transpose1d(driver_torch[None, None],
+                                             kernel[None, None]
+                                             )[0, 0, :-L+1]
+    v_loss = compute_loss(loss, intensity, acti_t, dt)
+    v_loss.backward()
+    assert v_loss.dtype == torch.double
+
+    return v_loss.item(), P0.grad.numpy() * 1e-2
+
+
+fmin_l_bfgs_b(nll, init_params, bounds=[(0, None)]*4, iprint=99)
+
+# XXX minimal reproducer
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+check_grad(lambda x: nll(x)[0], lambda x: nll(x)[1], init_params, epsilon=1e-7)
 # %% Plot part of intensities functions
 # t_min, t_max = 0, 4000
 # tt = driver_tt[t_min:t_max]
@@ -431,7 +505,7 @@ plt.show()
 
 loss_test = df_ratio.pivot("mu_0", "alpha_true", "loss_test")
 ax = sns.heatmap(loss_test)
-ax.set_title('log-likelihood on ttest')
+ax.set_title('log-likelihood on test')
 ax.set_ylabel(r'$\mu$')
 ax.set_xlabel(r"$\alpha$")
 plt.show()
@@ -473,8 +547,9 @@ def procedure_T(T):
     return new_row
 
 
+T_list = np.linspace(10, 500, 10)
 new_rows = Parallel(n_jobs=5, verbose=1)(
-    delayed(procedure_T)(T) for T in [10, 100, 1000, 10_000])
+    delayed(procedure_T)(T) for T in T_list)
 
 df_T = pd.DataFrame()
 for new_row in new_rows:
@@ -486,9 +561,15 @@ pickle.dump(df_T, open('df_T.pkl', "wb"))
 
 # %%
 df_T = pickle.load(open('df_T.pkl', "rb"))
+T_list = df_T['T'].values
 
-plt.plot([10, 100, 1000, 10_000], df_T['loss_train'].values)
+plt.plot(T_list, df_T['loss_train'].values)
 plt.title("log-likelihood on train")
+plt.xlabel('T')
+plt.show()
+
+plt.plot(T_list, df_T['loss_test'].values)
+plt.title("log-likelihood on test")
 plt.xlabel('T')
 plt.show()
 # %%
