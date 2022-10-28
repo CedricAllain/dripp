@@ -132,10 +132,7 @@ def load_data(data_dir=DATA_DIR, subject_id='sub-CC110033', n_splits=10,
         st_duration=10.0
     )
 
-    event_id = [1, 2, 3, 4, 5, 6]
-    events, _ = mne.events_from_annotations(raw)
-    events = mne.pick_events(events, include=event_id)
-    event_des = {
+    event_id = {
         'audiovis/1200Hz': 1,  # bimodal
         'audiovis/300Hz': 2,   # bimodal
         'audiovis/600Hz': 3,   # bimodal
@@ -143,6 +140,8 @@ def load_data(data_dir=DATA_DIR, subject_id='sub-CC110033', n_splits=10,
         'catch/0': 5,          # unimodal auditory
         'catch/1': 6           # unimodal visual
     }
+    events, _ = mne.events_from_annotations(raw)
+    events = mne.pick_events(events, include=list(event_id.values()))
 
     raw.filter(*filter_params, n_jobs=n_jobs)
 
@@ -185,8 +184,8 @@ def load_data(data_dir=DATA_DIR, subject_id='sub-CC110033', n_splits=10,
 
     # Deep copy before modifying info to avoid issues when saving EvokedArray
     info = deepcopy(info)
-    event_info = dict(event_id=event_id, event_des=event_des,
-                      events=events, subject_info=subject_info)
+    event_info = dict(
+        event_id=event_id, events=events, subject_info=subject_info)
 
     info['temp'] = event_info
 
