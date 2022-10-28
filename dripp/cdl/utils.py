@@ -109,120 +109,120 @@ def get_data_utils(data_source='sample', subject='sample',
     return data_utils
 
 
-def get_subject_info(subject_id, verbose=True):
-    """
-    """
+# def get_subject_info(subject_id, verbose=True):
+#     """
+#     """
 
-    # get age and sex of the subject
-    participants = pd.read_csv(PARTICIPANTS_FILE, sep='\t', header=0)
-    age, sex = participants[participants['participant_id']
-                            == 'sub-' + str(subject_id)][['age', 'sex']].iloc[0]
-    if verbose:
-        print(f'Subject ID: {subject_id}, {str(age)} year old {sex}')
+#     # get age and sex of the subject
+#     participants = pd.read_csv(PARTICIPANTS_FILE, sep='\t', header=0)
+#     age, sex = participants[participants['participant_id']
+#                             == 'sub-' + str(subject_id)][['age', 'sex']].iloc[0]
+#     if verbose:
+#         print(f'Subject ID: {subject_id}, {str(age)} year old {sex}')
 
-    return age, sex
-
-
-def get_info_camcan(subject_id):
-    # get age and sex of the subject
-    get_subject_info(subject_id)
-    raw, events, _, _ = raw_preprocessing(data_source='camcan')
-    print('Experiment duration, %.3f seconds' %
-          raw.get_data(picks=['meg']).shape[1] / 150.)
-    print('Counter events: ', Counter(events[:, -1]))
+#     return age, sex
 
 
-def raw_preprocessing(data_source, subject_id=None, sfreq=150.):
-    """For a given dataset name, apply a specific pre-processing and search for
-    events.
+# def get_info_camcan(subject_id):
+#     # get age and sex of the subject
+#     get_subject_info(subject_id)
+#     raw, events, _, _ = raw_preprocessing(data_source='camcan')
+#     print('Experiment duration, %.3f seconds' %
+#           raw.get_data(picks=['meg']).shape[1] / 150.)
+#     print('Counter events: ', Counter(events[:, -1]))
 
-    Parameters
-    ----------
-    data_source : 'sample' | 'somamto' | 'camcan'
-        Name of the dataset. Defaults to 'sample'.
 
-    subject_id : str | None
-        For Cam-CAN dataset, the subject id to run the CSC on.
-        Defaults to None.
-        Ex.: 'CC620264', a 76.33 year old woman.
+# def raw_preprocessing(data_source, subject_id=None, sfreq=150.):
+#     """For a given dataset name, apply a specific pre-processing and search for
+#     events.
 
-    sfreq : double
-        Sampling frequency. The signal will be resampled to match this.
-        Defaults to 150.
+#     Parameters
+#     ----------
+#     data_source : 'sample' | 'somamto' | 'camcan'
+#         Name of the dataset. Defaults to 'sample'.
 
-    Returns
-    -------
-    raw : instance of mne.Raw
+#     subject_id : str | None
+#         For Cam-CAN dataset, the subject id to run the CSC on.
+#         Defaults to None.
+#         Ex.: 'CC620264', a 76.33 year old woman.
 
-    events : 2d array
+#     sfreq : double
+#         Sampling frequency. The signal will be resampled to match this.
+#         Defaults to 150.
 
-    event_id : list
+#     Returns
+#     -------
+#     raw : instance of mne.Raw
 
-    event_des : dict
-    """
+#     events : 2d array
 
-    # get dataset utils
-    data_utils = get_data_utils(data_source=data_source, verbose=True)
+#     event_id : list
 
-    # Load data and preprocessing
-    print("Loading the data...", end=' ', flush=True)
-    if data_source in ['sample', 'somato']:
-        file_name = data_utils['file_name']
-        raw = mne.io.read_raw_fif(file_name, preload=True, verbose=False)
-        raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
-    elif data_source == 'camcan':
-        assert subject_id is not None
+#     event_des : dict
+#     """
 
-        bp = BIDSPath(
-            root=BIDS_ROOT,
-            subject=subject_id,
-            task="smt",
-            datatype="meg",
-            extension=".fif",
-            session="smt",
-        )
-        raw = read_raw_bids(bp)
-    print('done')
+#     # get dataset utils
+#     data_utils = get_data_utils(data_source=data_source, verbose=True)
 
-    print("Preprocessing the data...", end=' ', flush=True)
-    if data_source == 'sample':
-        raw.notch_filter(np.arange(60, 181, 60))
-        raw.filter(l_freq=2, h_freq=None)
-    elif data_source == 'somato':
-        raw.notch_filter(np.arange(50, 101, 50))
-        raw.filter(l_freq=2, h_freq=None)
-    elif data_source == 'camcan':
-        raw.load_data()
-        raw.filter(l_freq=None, h_freq=125)
-        raw.notch_filter([50, 100])
-        raw = mne.preprocessing.maxwell_filter(raw, calibration=SSS_CAL_FILE,
-                                               cross_talk=CT_SPARSE_FILE,
-                                               st_duration=10.0)
+#     # Load data and preprocessing
+#     print("Loading the data...", end=' ', flush=True)
+#     if data_source in ['sample', 'somato']:
+#         file_name = data_utils['file_name']
+#         raw = mne.io.read_raw_fif(file_name, preload=True, verbose=False)
+#         raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
+#     elif data_source == 'camcan':
+#         assert subject_id is not None
 
-    if data_source in ['sample', 'somato']:
-        stim_channel = data_utils['stim_channel']
-        events = mne.find_events(raw, stim_channel=stim_channel)
-        event_id = data_utils['event_id']
-        event_des = data_utils['event_des']
-    elif data_source == 'camcan':
-        raw.pick(['grad', 'stim'])
-        events, event_des = mne.events_from_annotations(raw)
-        # event_id = {'audiovis/1200Hz': 1,
-        #             'audiovis/300Hz': 2,
-        #             'audiovis/600Hz': 3,
-        #             'button': 4,
-        #             'catch/0': 5,
-        #             'catch/1': 6}
-        event_id = list(event_des.values())
-        raw.filter(l_freq=2, h_freq=45)
+#         bp = BIDSPath(
+#             root=BIDS_ROOT,
+#             subject=subject_id,
+#             task="smt",
+#             datatype="meg",
+#             extension=".fif",
+#             session="smt",
+#         )
+#         raw = read_raw_bids(bp)
+#     print('done')
 
-    raw, events = raw.resample(
-        sfreq, npad='auto', verbose=False, events=events)
-    # Set the first sample to 0 in event stim
-    events[:, 0] -= raw.first_samp
-    print('done')
+#     print("Preprocessing the data...", end=' ', flush=True)
+#     if data_source == 'sample':
+#         raw.notch_filter(np.arange(60, 181, 60))
+#         raw.filter(l_freq=2, h_freq=None)
+#     elif data_source == 'somato':
+#         raw.notch_filter(np.arange(50, 101, 50))
+#         raw.filter(l_freq=2, h_freq=None)
+#     elif data_source == 'camcan':
+#         raw.load_data()
+#         raw.filter(l_freq=None, h_freq=125)
+#         raw.notch_filter([50, 100])
+#         raw = mne.preprocessing.maxwell_filter(raw, calibration=SSS_CAL_FILE,
+#                                                cross_talk=CT_SPARSE_FILE,
+#                                                st_duration=10.0)
 
-    return raw, events, event_id, event_des
+#     if data_source in ['sample', 'somato']:
+#         stim_channel = data_utils['stim_channel']
+#         events = mne.find_events(raw, stim_channel=stim_channel)
+#         event_id = data_utils['event_id']
+#         event_des = data_utils['event_des']
+#     elif data_source == 'camcan':
+#         raw.pick(['grad', 'stim'])
+#         events, event_des = mne.events_from_annotations(raw)
+#         # event_id = {'audiovis/1200Hz': 1,
+#         #             'audiovis/300Hz': 2,
+#         #             'audiovis/600Hz': 3,
+#         #             'button': 4,
+#         #             'catch/0': 5,
+#         #             'catch/1': 6}
+#         event_id = list(event_des.values())
+#         raw.filter(l_freq=2, h_freq=45)
+
+#     raw, events = raw.resample(
+#         sfreq, npad='auto', verbose=False, events=events)
+#     # Set the first sample to 0 in event stim
+#     events[:, 0] -= raw.first_samp
+#     print('done')
+
+#     return raw, events, event_id, event_des
 
 # %%
 
@@ -370,28 +370,22 @@ def get_event_type_from_id(event_des_reverse=None, event_id=None,
     return labels
 
 
-def get_events_timestamps(events=None, sfreq=None, info=None,
-                          event_id='all'):
+def get_events_timestamps(events, event_id='all', sfreq=1.):
     """Return the dictionary of the timestamps corresponding to a set of event
     ids.
 
     Parameters
     ----------
     events : 2d-array of shape (n_events, 3)
-        The events array, as used in MNE. If None, will search for an "events"
-        key in the info dictionary. Defaults to None.
+        The events array, as used in MNE.
 
-    sfreq : float
-        The sampling frequency. If None, will search for an "sfreq" key in the
-        info dictionary. Defaults to None.
-
-    info : dict
-        Dictionary containing information about the experiment, similar to
-        mne.Info. Defaults to None.
-
-    event_id : 'all' | list of int
+    event_id : 'all' | list of int | list of tuples
         List of event id for which to compute their timestamps. If 'all', all
         event ids are considered. Defaults to'all'.
+
+    sfreq : float
+        The sampling frequency.
+        Defaults to 1, i.e., return vector positions.
 
     Returns
     -------
@@ -400,22 +394,38 @@ def get_events_timestamps(events=None, sfreq=None, info=None,
         event's timestamps (in seconds).
     """
 
-    if events is None:
-        events = info['events']
+    # if events is None:
+    #     events = info['events']
 
-    if sfreq is None:
-        sfreq = info['sfreq']
+    # if sfreq is None:
+    #     sfreq = info['sfreq']
+
+    # for i in event_id:
+    #     mask = events[:, -1] == i
+    #     events_timestamps[i] = events[:, 0][mask] / sfreq
 
     if event_id == 'all':
         event_id = list(set(events[:, -1]))
 
-    events_timestamps = {}  # save events' timestamps in a dictionary
+    events_tt = {}  # save events' timestamps in a dictionary
 
-    for i in event_id:
-        mask = events[:, -1] == i
-        events_timestamps[i] = events[:, 0][mask] / sfreq
+    def proc(evt_id):
+        if evt_id in events_tt.keys():
+            return events_tt[evt_id]
+        else:
+            mask = (events[:, -1] == evt_id)
+            return events[:, 0][mask] / sfreq
 
-    return events_timestamps
+    for this_id in event_id:
+        if isinstance(this_id, int):
+            events_tt[this_id] = proc(this_id)
+
+        elif isinstance(this_id, (tuple, list, np.ndarray)):
+            tt = np.concatenate([proc(evt_id) for evt_id in this_id])
+            tt.sort()
+            events_tt[this_id] = tt
+
+    return events_tt
 
 
 ###############################################################################
@@ -423,17 +433,12 @@ def get_events_timestamps(events=None, sfreq=None, info=None,
 ###############################################################################
 
 
-def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
+def get_activation(z_hat, idx_atoms='all', shift=True, v_hat_=None):
     """Get activation sparse vector from CDL results.
 
     Parameters
     ----------
-    model : alphacsc.convolutional_dictionary_learning.GreedyCDL | dict
-        Fitted model. If dict, must have v_hat_ and z_hat in its keys.
-
     z_hat : numpy.array of shape (n_trials, n_atoms, n_timestamps)
-        If z_hat is None, model must be a dict containing a 'z_hat' key.
-        Defaults to None
 
     idx_atoms : int | list of int | 'all'
         The idices of the atoms to consider. If 'all', then all the extracted
@@ -443,29 +448,27 @@ def get_activation(model, z_hat=None, idx_atoms='all', shift=True):
         If True, apply, for each atom's ativations, a shift of size equal.
         Defaults to True.
 
+    v_hat_ : numpy.ndarray of shape (n_atoms, n_times_atom)
+
     Returns
     -------
     acti : numpy array
-        shape (n_atoms, T * sfreq)
+        shape (n_atoms, n_times)
         the sparse vectors of atoms' activations values
     """
-    # retrieve fitting results
-    if isinstance(model, dict):
-        v_hat_ = np.array(model['v_hat_'])
-        z_hat = np.array(model['z_hat'])
-    else:
-        v_hat_ = model.v_hat_
 
-    assert z_hat is not None, \
-        "if z_hat is None, model must be a dict containing a 'z_hat' key"
+    if shift:
+        assert v_hat_ is not None, \
+            "v_hat_ is needed in order to shift activations."
 
-    if isinstance(idx_atoms, str) and idx_atoms == 'all':
-        idx_atoms = list(range(z_hat.shape[1]))
-    elif isinstance(idx_atoms, int):
-        idx_atoms = [idx_atoms]
+    n_atoms = z_hat.shape[1]
+    if idx_atoms == 'all':
+        idx_atoms = np.array(range(n_atoms))
+    elif isinstance(idx_atoms, (int, list, np.ndarray)):
+        idx_atoms = np.atleast_1d(idx_atoms)
 
-    assert isinstance(idx_atoms, list), \
-        "idx_atoms must be 'all' or of type int | list of int "
+    assert (idx_atoms >= n_atoms).sum() == 0, \
+        f"idx_atoms must contain values < {n_atoms}"
 
     # select desired atoms
     acti = z_hat[0, idx_atoms]
@@ -549,6 +552,9 @@ def filter_activation(acti, atom_to_filter='all', sfreq=150.,
         intervalle.
     """
 
+    if time_interval is None:
+        return acti
+
     blocksize = round(time_interval * sfreq)
     print("Filter activation on {} atoms using a sliding block of {} "
           "timestamps.".format(
@@ -629,71 +635,54 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
 
     return atoms_timestamps
 
-
 ###############################################################################
-# Post-processing
-###############################################################################
-
-def cdl_postprocess(cdl, z_hat, events, event_id, sfreq=150., shift=True,
-                    threshold=0):
-    T = z_hat.shape[2] / sfreq
-
-    # Determine events timestamps and activation vectors
-    events_tt = get_events_timestamps(
-        events=events, sfreq=sfreq, event_id=event_id)
-    if shift:
-        acti = get_activation(model=cdl, z_hat=z_hat.copy(), shift=True)
-    else:
-        acti = z_hat[0].copy()
-
-    acti = filter_activation(acti, sfreq)
-
-    acti_tt = get_atoms_timestamps(acti=acti, sfreq=sfreq, threshold=threshold)
-
-    return acti_tt, events_tt, T
-
-###############################################################################
-# To save variables, parameters and results into a JSON file
+# Global post-processing
 ###############################################################################
 
 
-def get_dict_cdl_params(cdl):
-    """From a alphacsc.GreedyCDL instance, returns a dictionary with its main
-    parameters so it can be savec in a JSON file
-
-    Parameters
-    ----------
-    cdl : alphacsc.GreedyCDL instance
-
-    Returns
-    -------
-    dict_cdl_params : dict
+def post_process_cdl(events, v_hat_, z_hat, event_id='all', sfreq=1.,
+                     post_process_params=None):
     """
-    dict_cdl_params = {'n_atoms': cdl.n_atoms,
-                       'n_times_atom': cdl.n_times_atom,
-                       'rank1': cdl.rank1,
-                       'uv_constraint': cdl.uv_constraint,
-                       'window': cdl.window,
-                       'unbiased_z_hat': cdl.unbiased_z_hat,
-                       'D_init': cdl.D_init,
-                       'lmbd_max': cdl.lmbd_max,
-                       'reg': cdl.reg,
-                       'n_iter': cdl.n_iter,
-                       'eps': cdl.eps,
-                       'solver_z': cdl.solver_z,
-                       'solver_z_kwargs': cdl.solver_z_kwargs,
-                       'solver_d': cdl.solver_d,
-                       'solver_d_kwargs': cdl.solver_d_kwargs,
-                       'sort_atoms': cdl.sort_atoms,
-                       'verbose': cdl.verbose,
-                       'random_state': cdl.random_state,
-                       'n_jobs': cdl.n_jobs}
+    XXX
+    """
 
-    return dict_cdl_params
+    if post_process_params is None:
+        post_process_params = dict(
+            time_interval=0.01, threshold=0, percent=True, per_atom=True)
+
+    events_tt = get_events_timestamps(
+        events=events, event_id=event_id, sfreq=sfreq)
+
+    acti = filter_activation(
+        acti=get_activation(z_hat=z_hat, v_hat_=v_hat_),
+        sfreq=sfreq,
+        time_interval=post_process_params.pop('time_interval'))
+    atoms_tt = get_atoms_timestamps(
+        acti=acti, sfreq=sfreq, **post_process_params)
+
+    return events_tt, atoms_tt
 
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
+###############################################################################
+# Others
+###############################################################################
+
+
+def apply_threshold(z, p_threshold, per_atom=True):
+    if len(z.shape) == 3:
+        z = z[0]
+
+    n_atoms = z.shape[0]
+
+    if per_atom:
+        z_nan = z.copy()
+        z_nan[z_nan == 0] = np.nan
+        mask = z_nan >= np.nanpercentile(
+            z_nan, p_threshold, axis=1, keepdims=True)
+
+        return [z_nan[i][mask[i]] for i in range(n_atoms)]
+
+    else:
+        threshold = np.percentile(z[z > 0], p_threshold)  # global threshold
+        print(f"Global thresholding at {p_threshold}%: {threshold}")
+        return [this_z[this_z > threshold] for this_z in z]
