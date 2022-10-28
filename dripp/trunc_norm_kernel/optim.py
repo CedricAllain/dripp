@@ -1,7 +1,7 @@
 """Functions that are called for parameters initialisation and EM
 computation.
 """
-
+# %%
 import numpy as np
 import time
 import numbers
@@ -160,6 +160,8 @@ def initialize(intensity, T=None, initializer='smart_start', seed=None):
                 # compute Lebesgue measure of driver p supports
                 s = compute_lebesgue_support(driver_tt[p], lower, upper)
                 alpha_init.append(delays.size / s - baseline_init)
+                # alpha_init.append(
+                #     (intensity.acti_tt.size - baseline_init * T) / s)
                 m_init.append(np.mean(delays))
                 sigma_init.append(max(EPS, np.std(delays)))
     else:
@@ -297,7 +299,8 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         return compute_baseline_mle(acti_tt, T)
 
     # define intances of kernels and intensity function
-    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq)] * n_drivers
+    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq)
+              for _ in range(n_drivers)]
     intensity = Intensity(kernel=kernel, driver_tt=driver_tt, acti_tt=acti_tt)
 
     # initialize parameters
@@ -329,7 +332,9 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         print("Initial loss (negative log-likelihood):", hist_loss[0])
 
     stop = False
+
     for n in tqdm(range(int(n_iter)), disable=disable_tqdm):
+
         # compute next values of parameters
         baseline_hat, alpha_hat, m_hat, sigma_hat = compute_nexts(intensity, T)
         if alpha_pos:
@@ -367,7 +372,7 @@ def em_truncated_norm(acti_tt, driver_tt=None,
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 10_000  # process time, in seconds
+    T = 1_000  # process time, in seconds
     lower, upper = 30e-3, 800e-3
     sfreq = 500.
     start_time = time.time()
@@ -375,7 +380,7 @@ if __name__ == '__main__':
         lower=lower, upper=upper,
         m=[400e-3, 400e-3], sigma=[0.2, 0.05],
         sfreq=sfreq,
-        baseline=0.8, alpha=[0.8, 0.8],
+        baseline=0.8, alpha=[-0.8, 0.8],
         T=T, isi=[1, 1.2], n_tasks=0.8,
         n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
@@ -384,8 +389,10 @@ if __name__ == '__main__':
 
     start_time = time.time()
     res_params, history_params, _ = em_truncated_norm(
-        acti_tt, driver_tt, lower, upper, T, sfreq, alpha_pos=True,
-        n_iter=30, verbose=True)
+        acti_tt, driver_tt, lower, upper, T, sfreq, alpha_pos=False,
+        n_iter=100, verbose=True)
     em_time = time.time() - start_time
     print('EM time', em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)
+
+# %%

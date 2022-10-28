@@ -1,7 +1,7 @@
 """Utils functions used for the simulation of driven point process
 with truncated Gaussian kernel.
 """
-
+# %%
 import numpy as np
 import time
 
@@ -147,7 +147,7 @@ def simu_1d_nonhomogeneous_poisson_process(intensity, T=240, seed=None,
         w = -np.log(u) / lambda_max  # w drawn from Exp(lambda_max)
         s += w
         D = rng.rand()
-        if D <= intensity(s) / lambda_max:
+        if D <= intensity(s) / lambda_max:  # if intensity(s) < 0, no event
             tt_list.append(s)
 
     if (tt_list == []) or (tt_list[-1] <= T):
@@ -305,9 +305,14 @@ if __name__ == '__main__':
         lower=lower, upper=upper,
         m=[400e-3, 400e-3], sigma=[0.2, 0.05],
         sfreq=300.,
-        baseline=0.5, alpha=[0.8, 0.8],
+        baseline=0.5, alpha=[-0.8, 0.8],
         T=T, isi=[1, 1.2], n_tasks=0.8,
         n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
     simu_time = time.time() - start_time
     print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
           % (N_DRIVERS, T, simu_time))
+
+    from dripp.trunc_norm_kernel.optim import initialize
+    baseline_init, alpha_init, m_init, sigma_init = initialize(intensity, T)
+
+# %%

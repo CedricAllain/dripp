@@ -124,61 +124,8 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
     data_utils = utils.get_data_utils(data_source=data_source, verbose=True)
 
     # Load data and preprocessing
-    print("Loading the data...", end=' ', flush=True)
-    if data_source in ['sample', 'somato']:
-        file_name = data_utils['file_name']
-        raw = mne.io.read_raw_fif(file_name, preload=True, verbose=False)
-        raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
-    elif data_source == 'camcan':
-        bp = BIDSPath(
-            root=BIDS_ROOT,
-            subject=subject_id,
-            task="smt",
-            datatype="meg",
-            extension=".fif",
-            session="smt",
-        )
-        raw = read_raw_bids(bp)
-        # get age and sex of the subject
-        participants = pd.read_csv(PARTICIPANTS_FILE, sep='\t', header=0)
-        age, sex = participants[participants['participant_id']
-                                == 'sub-' + str(subject_id)][['age', 'sex']].iloc[0]
-    print('done')
-
-    print("Preprocessing the data...", end=' ', flush=True)
-    if data_source == 'sample':
-        raw.notch_filter(np.arange(60, 181, 60))
-        raw.filter(l_freq=2, h_freq=None)
-    elif data_source == 'somato':
-        raw.notch_filter(np.arange(50, 101, 50))
-        raw.filter(l_freq=2, h_freq=None)
-    elif data_source == 'camcan':
-        raw.load_data()
-        raw.filter(l_freq=None, h_freq=125)
-        raw.notch_filter([50, 100])
-        raw = mne.preprocessing.maxwell_filter(raw, calibration=SSS_CAL_FILE,
-                                               cross_talk=CT_SPARSE_FILE,
-                                               st_duration=10.0)
-
-    if data_source in ['sample', 'somato']:
-        stim_channel = data_utils['stim_channel']
-        events = mne.find_events(raw, stim_channel=stim_channel)
-    elif data_source == 'camcan':
-        raw.pick(['grad', 'stim'])
-        events, event_id = mne.events_from_annotations(raw)
-        # event_id = {'audiovis/1200Hz': 1,
-        #             'audiovis/300Hz': 2,
-        #             'audiovis/600Hz': 3,
-        #             'button': 4,
-        #             'catch/0': 5,
-        #             'catch/1': 6}
-        raw.filter(l_freq=2, h_freq=45)
-
-    raw, events = raw.resample(
-        sfreq, npad='auto', verbose=False, events=events)
-    # Set the first sample to 0 in event stim
-    events[:, 0] -= raw.first_samp
-    print('done')
+    raw, events, event_id, _ = utils.raw_preprocessing(
+        data_source=data_source, subject_id=subject_id, sfreq=sfreq)
 
     X = raw.get_data(picks=['meg'])
     X_split = split_signal(X, n_splits=n_splits, apply_window=True)
@@ -232,7 +179,6 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
     T = z_hat.shape[2] / sfreq
 
     # Determine events timestamps and activation vectors
-    event_id = data_utils['event_id']
     events_timestamps = utils.get_events_timestamps(events=events,
                                                     sfreq=sfreq,
                                                     event_id=event_id)
@@ -248,15 +194,15 @@ def _run_cdl_data(sfreq=150., n_atoms=40, n_times_atom=None, reg=0.1,
                          'sfreq': sfreq,
                          'n_splits': n_splits,
                          'event_id': event_id}
-    if data_source == 'camcan':
-        dict_other_params = dict(dict_other_params,
-                                 **{'age': age,
-                                    'sex': sex,
-                                    'subject': subject_id})
-    elif data_source in ['sample', 'somato']:
-        dict_other_params = dict(dict_other_params,
-                                 **{'file_name': file_name,
-                                    'stim_channel': stim_channel})
+    # if data_source == 'camcan':
+    #     dict_other_params = dict(dict_other_params,
+    #                              **{'age': age,
+    #                                 'sex': sex,
+    #                                 'subject': subject_id})
+    # elif data_source in ['sample', 'somato']:
+    #     dict_other_params = dict(dict_other_params,
+    #                              **{'file_name': file_name,
+    #                                 'stim_channel': stim_channel})
 
     dict_cdl_fit_res = {'u_hat_': cdl.u_hat_.tolist(),
                         'v_hat_': cdl.v_hat_.tolist(),

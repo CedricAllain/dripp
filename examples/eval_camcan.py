@@ -19,6 +19,7 @@ from dripp.experiments.run_multiple_em_on_cdl import \
     run_multiple_em_on_cdl
 
 # from dripp.cdl import utils
+from dripp.cdl import utils
 from dripp.config import N_JOBS, SAVE_RESULTS_PATH
 from dripp.experiments.utils_plot import plot_cdl_atoms
 # from dripp.trunc_norm_kernel.model import TruncNormKernel
@@ -33,6 +34,7 @@ subject_id = "CC110037"  # 18.75
 # subject_id = "CC620264"  # 76.33 Female
 # subject_id = "CC723395"  # 86.08
 # subject_id = "CC320428"  # 45.58 Male
+utils.get_info_camcan(subject_id)
 
 atom_duration = 0.5
 sfreq = 150.
@@ -121,34 +123,8 @@ def eval_camcan(subject_id):
                        df_res_dripp=df_res_dripp, plotted_tasks=plotted_tasks,
                        save_fig=True, path_fig=SAVE_RESULTS_PATH / fig_name)
 
+
 # %%
-
-
-def get_info_camcan(subject_id):
-    # get age and sex of the subject
-    participants = pd.read_csv(PARTICIPANTS_FILE, sep='\t', header=0)
-    age, sex = participants[participants['participant_id']
-                            == 'sub-' + str(subject_id)][['age', 'sex']].iloc[0]
-    print(f'Subject ID: {subject_id}, {str(age)} year old {sex}')
-    #
-    cdl_params = {
-        'subject_id': subject_id,
-        'use_greedy': True,
-        'n_atoms': 20,
-        'n_times_atom': int(np.round(atom_duration * sfreq)),
-        'sfreq': sfreq,
-        'n_iter': 100,
-        'eps': 1e-5,
-        'reg': 0.2,
-        'tol_z': 1e-3,
-        'n_jobs': 5,
-        'n_splits': 10
-    }
-    dict_global = run_cdl_camcan(**cdl_params)
-    events = dict_global['dict_pair_up']['events']
-    print('Counter events: ', Counter(events[:, -1]))
-    print('Experiment duration, ', dict_global['dict_pair_up']['T'])
-
 
 if __name__ == '__main__':
     n_jobs = 1
@@ -161,7 +137,7 @@ if __name__ == '__main__':
             for this_subject_id in subject_ids)
     else:
         for this_subject_id in subject_ids:
-            get_info_camcan(this_subject_id)
+            utils.get_info_camcan(this_subject_id)
             eval_camcan(this_subject_id)
 
 # Subject ID: CC620264, 76.33 year old FEMALE

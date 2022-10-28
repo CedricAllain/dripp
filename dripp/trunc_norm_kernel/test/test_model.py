@@ -108,7 +108,7 @@ def test_intensity():
     # 2d lifting non-overlapping assumption
     driver_tt = [[3.4, 5, 5.1, 8, 10],
                  [0.5, 2, 3.6, 8.4, 9, 10.1]]
-    intensity.driver_tt = driver_tt  # update driver_tt
+    intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)
 
     tt = [0, 0.7, 3.8, 10.4]
     res = [baseline,

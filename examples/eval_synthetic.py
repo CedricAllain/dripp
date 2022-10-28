@@ -43,23 +43,33 @@ cmap = 'viridis_r'
 # %% ------ Set data simulation parameters and run EM ------
 
 N_DRIVERS = 2
-SFREQ = 1000
+# SFREQ = 1000
+SFREQ = 150
 
 # default parameters for data simulation
-simu_params = {'lower': 30e-3, 'upper': 800e-3,
-               'baseline': 0.8,
-               'alpha': [0.8, 0.8],
-               'm': [400e-3, 400e-3],
-               'sigma': [0.2, 0.05],
-               'isi': [1, 1.4]
-               }
+if N_DRIVERS == 1:
+    simu_params = {'lower': 30e-3, 'upper': 800e-3,
+                   'baseline': 0.8,
+                   'alpha': [0.8],
+                   'm': [400e-3],
+                   'sigma': [0.2],
+                   'isi': [1]
+                   }
+elif N_DRIVERS == 2:
+    simu_params = {'lower': 30e-3, 'upper': 800e-3,
+                   'baseline': 0.8,
+                   'alpha': [0.8, 0.8],
+                   'm': [400e-3, 400e-3],
+                   'sigma': [0.05, 0.2],
+                   'isi': [1.4, 1]
+                   }
 
 # parameters to vary for data simulation
 simu_params_to_vary = {
-    'seed': list(range(30)),
-    # 'seed': list(range(8)),
-    'n_tasks': [0.1, 0.3, 0.6]
-    # 'n_tasks': [0.3]
+    # 'seed': list(range(30)),
+    'seed': list(range(8)),
+    # 'n_tasks': [0.1, 0.3, 0.6]
+    'n_tasks': [0.3]
 }
 
 # default parameters for EM computation
@@ -69,8 +79,8 @@ em_params = {'lower': simu_params['lower'], 'upper': simu_params['upper'],
              'verbose': False}
 
 # parameters to vary for EM computation
-em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
-# em_params_to_vary = {'T': np.array([10_000])}
+# em_params_to_vary = {'T': np.logspace(2, 4, num=7).astype(int)}
+em_params_to_vary = {'T': np.array([10_000])}
 T_max = em_params_to_vary['T'].max()
 
 # %%
@@ -85,7 +95,8 @@ df_res = run_multiple_em_on_synthetic(
 T = em_params_to_vary['T'][-1]
 n_tasks = simu_params_to_vary['n_tasks'][-1]
 
-fig, axes = plt.subplots(1, 2, figsize=figsize)
+fig, axes = plt.subplots(1, N_DRIVERS, figsize=figsize)
+axes = np.atleast_1d(axes)
 
 start, stop = 0, 1
 xx = np.linspace(start, stop, int(np.ceil((stop - start) * 300)))
@@ -105,7 +116,7 @@ for i in range(N_DRIVERS):
     axes[i].plot(xx, yy, label=label, color='black', linestyle='--')
 
     # plot a few estimated kernels
-    for seed in range(8):
+    for seed in simu_params_to_vary['seed'][:8]:
         sub_df = df_res[(df_res['T'] == T) &
                         (df_res['n_tasks'] == n_tasks) &
                         (df_res['seed'] == seed)]
