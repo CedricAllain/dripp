@@ -10,11 +10,11 @@ from alphacsc import GreedyCDL, BatchCDL
 from alphacsc.datasets.mne_data import load_data as load_data_mne
 try:
     from alphacsc.datasets.camcan import load_data as load_data_camcan
-except ValueError:  # temporary, until alphacsc PR #102 is accepted
+except (ValueError, ImportError):
+    # temporary, until alphacsc PR #102 is accepted
     from .camcan import load_data as load_data_camcan
 
 from config import CACHEDIR
-# from utils import post_process_cdl
 
 memory = Memory(CACHEDIR, verbose=0)
 
@@ -179,6 +179,7 @@ def _run_cdl_data(dataset='sample', subject_id=None,
         events=info['temp']['events'],
         event_id=info['temp']['event_id'],
         sfreq=sfreq,
+        info=info,
         # Duration of the experiment, in seconds
         T=(n_times * n_splits) / sfreq
     )

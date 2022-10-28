@@ -662,48 +662,27 @@ def post_process_cdl(events, v_hat_, z_hat, event_id='all', sfreq=1.,
 
     return events_tt, atoms_tt
 
+
 ###############################################################################
-# To save variables, parameters and results into a JSON file
+# Others
 ###############################################################################
 
 
-# def get_dict_cdl_params(cdl):
-#     """From a alphacsc.GreedyCDL instance, returns a dictionary with its main
-#     parameters so it can be savec in a JSON file
+def apply_threshold(z, p_threshold, per_atom=True):
+    if len(z.shape) == 3:
+        z = z[0]
 
-#     Parameters
-#     ----------
-#     cdl : alphacsc.GreedyCDL instance
+    n_atoms = z.shape[0]
 
-#     Returns
-#     -------
-#     dict_cdl_params : dict
-#     """
-#     dict_cdl_params = {'n_atoms': cdl.n_atoms,
-#                        'n_times_atom': cdl.n_times_atom,
-#                        'rank1': cdl.rank1,
-#                        'uv_constraint': cdl.uv_constraint,
-#                        'window': cdl.window,
-#                        'unbiased_z_hat': cdl.unbiased_z_hat,
-#                        'D_init': cdl.D_init,
-#                        'lmbd_max': cdl.lmbd_max,
-#                        'reg': cdl.reg,
-#                        'n_iter': cdl.n_iter,
-#                        'eps': cdl.eps,
-#                        'solver_z': cdl.solver_z,
-#                        'solver_z_kwargs': cdl.solver_z_kwargs,
-#                        'solver_d': cdl.solver_d,
-#                        'solver_d_kwargs': cdl.solver_d_kwargs,
-#                        'sort_atoms': cdl.sort_atoms,
-#                        'verbose': cdl.verbose,
-#                        'random_state': cdl.random_state,
-#                        'n_jobs': cdl.n_jobs}
+    if per_atom:
+        z_nan = z.copy()
+        z_nan[z_nan == 0] = np.nan
+        mask = z_nan >= np.nanpercentile(
+            z_nan, p_threshold, axis=1, keepdims=True)
 
-#     return dict_cdl_params
+        return [z_nan[i][mask[i]] for i in range(n_atoms)]
 
-
-# class NumpyEncoder(json.JSONEncoder):
-#     def default(self, obj):
-#         if isinstance(obj, np.ndarray):
-#             return obj.tolist()
-#         return json.JSONEncoder.default(self, obj)
+    else:
+        threshold = np.percentile(z[z > 0], p_threshold)  # global threshold
+        print(f"Global thresholding at {p_threshold}%: {threshold}")
+        return [this_z[this_z > threshold] for this_z in z]
