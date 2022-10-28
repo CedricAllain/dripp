@@ -216,7 +216,7 @@ def compute_baseline_mle(acti_tt, T=None, return_nll=True):
 
 # @profile_this
 def em_truncated_norm(acti_tt, driver_tt=None,
-                      lower=30e-3, upper=500e-3, T=None, sfreq=150.,
+                      lower=30e-3, upper=500e-3, T=None, sfreq=150., use_dis=True,
                       init_params=None, initializer='smart_start',
                       alpha_pos=True, n_iter=80,
                       verbose=False, disable_tqdm=False, compute_loss=False):
@@ -245,6 +245,9 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         upper to pre-compute kernel's values. If None, the kernel will be
         exactly evaluate at each call. Warning: setting sfreq to None may
         considerably increase computational time. Defaults to 150.
+
+    use_dis : bool
+        If True, use kernel discretization. Defaults to True.
 
     init_params: tuple | None
         Intial values of (baseline, alpha, m, sigma). If None, intialize with
@@ -275,11 +278,9 @@ def em_truncated_norm(acti_tt, driver_tt=None,
     res_params : tuple of size 4
         Values of learned parameters baseline, alpha, m and sigma.
 
-    history_params : dict of array-like
-        For every learned parameter, its history over all EM iterations.
-
-    hist_loss : 1d numpy.array
-        Value of the negative log-likelihood over all EM iterations.
+    hist: pandas.DataFrame
+        contains all history for each parameter, as well as the loss, if
+        compute_loss is True
     """
 
     acti_tt = check_acti_tt(acti_tt)
@@ -299,7 +300,7 @@ def em_truncated_norm(acti_tt, driver_tt=None,
         return compute_baseline_mle(acti_tt, T)
 
     # define intances of kernels and intensity function
-    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq)
+    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq, use_dis=use_dis)
               for _ in range(n_drivers)]
     intensity = Intensity(kernel=kernel, driver_tt=driver_tt, acti_tt=acti_tt)
 
@@ -317,29 +318,29 @@ def em_truncated_norm(acti_tt, driver_tt=None,
     intensity.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
 
     # initialize history of parameters and loss
-    history_params = {'baseline': [baseline_hat],
-                      'alpha': [alpha_hat],
-                      'm': [m_hat],
-                      'sigma': [sigma_hat]}
+    hist = []
+    hist.append(dict(baseline=baseline_hat,
+                     alpha=alpha_hat,
+                     m=m_hat,
+                     sigma=sigma_hat,
+                     time_loop=0))
     if compute_loss:
         # define loss function
         nll = partial(negative_log_likelihood, T=T)
-        hist_loss = [nll(intensity)]
-    else:
-        hist_loss = []
+        hist[-1].update(loss=nll(intensity))
 
     if verbose and compute_loss:
-        print("Initial loss (negative log-likelihood):", hist_loss[0])
+        print("Initial loss (negative log-likelihood):", hist[-1]['loss'])
 
     stop = False
-
+    start = time.time()
     for n in tqdm(range(int(n_iter)), disable=disable_tqdm):
-
         # compute next values of parameters
         baseline_hat, alpha_hat, m_hat, sigma_hat = compute_nexts(intensity, T)
         if alpha_pos:
             # force alpha to stay non-negative
             alpha_hat = alpha_hat.clip(min=0)  # project on R+
+
             if(alpha_hat.max() == 0):  # all alphas are zero
                 if verbose:
                     print("alpha is null, compute baseline MLE.")
@@ -348,31 +349,31 @@ def em_truncated_norm(acti_tt, driver_tt=None,
                 stop = True
 
         # append history
-        history_params['baseline'].append(baseline_hat)
-        history_params['alpha'].append(alpha_hat)
-        history_params['m'].append(m_hat)
-        history_params['sigma'].append(sigma_hat)
+        hist.append(dict(baseline=baseline_hat,
+                         alpha=alpha_hat,
+                         m=m_hat,
+                         sigma=sigma_hat,
+                         time_loop=time.time()-start))
 
         if stop:
             if compute_loss:
-                hist_loss.append(nll_mle)
+                hist[-1].update(loss=nll_mle)
             break
         else:
             intensity.update(baseline_hat, alpha_hat, m_hat, sigma_hat)
-            # compute loss
-            if compute_loss:
-                hist_loss.append(nll(intensity))
+            if compute_loss:  # compute loss
+                hist[-1].update(loss=nll(intensity))
     res_params = baseline_hat, alpha_hat, m_hat, sigma_hat
 
     if verbose:
         print("Optimal parameters:\n(mu, alpha, m, sigma) = ", res_params)
 
-    return res_params, history_params, np.array(hist_loss)
+    return res_params, hist
 
 
 if __name__ == '__main__':
     N_DRIVERS = 2
-    T = 1_000  # process time, in seconds
+    T = 10_000  # process time, in seconds
     lower, upper = 30e-3, 800e-3
     sfreq = 500.
     start_time = time.time()
@@ -394,5 +395,3 @@ if __name__ == '__main__':
     em_time = time.time() - start_time
     print('EM time', em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)
-
-# %%

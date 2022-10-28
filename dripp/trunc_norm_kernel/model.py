@@ -1,6 +1,5 @@
 """Define kernel and intensity classes.
 """
-
 import numpy as np
 import itertools
 import math
@@ -32,9 +31,13 @@ class TruncNormKernel():
         pre-compute kernel's values. If None, the kernel will be exactly
         evaluate at each call. Warning: setting sfreq to None may considerably
         increase computational time. Defaults to 150.
+
+    use_dis : bool
+        If True, use kernel discretization. Defaults to True.
     """
 
-    def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.):
+    def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.,
+                 use_dis=True):
 
         check_truncation_values(lower, upper)
 
@@ -51,6 +54,7 @@ class TruncNormKernel():
         self.lower = lower
         self.upper = upper
         self.sfreq = sfreq
+        self.use_dis = use_dis
         self.update(m=m, sigma=sigma)
 
     def update(self, m, sigma):
@@ -62,13 +66,15 @@ class TruncNormKernel():
         self._a = a = (self.lower - self.m) / self.sigma
         self._b = b = (self.upper - self.m) / self.sigma
 
-        if self.sfreq is None:
+        if (self.sfreq is None) or (not self.use_dis):
             self._x_grid = None
             self._pdf_grid = None
         else:
             # define a grid on which the kernel will be evaluate
-            x_grid = np.arange(0, (self.upper - self.lower)
-                               * self.sfreq + 1) / self.sfreq
+            # x_grid = np.arange(0, (self.upper - self.lower)
+            #                    * self.sfreq + 1) / self.sfreq
+            dt = 1 / self.sfreq
+            x_grid = np.arange(0, self.upper+dt, step=dt)
             x_grid += self.lower
             self._x_grid = x_grid
             # evaluate the kernel on the pre-defined grid and save as argument
@@ -78,8 +84,10 @@ class TruncNormKernel():
         # compute maximum of the kernel
         self.max = self.get_max()
 
-    def eval(self, x):
+    def eval(self, x, verbose=False):
         """Exactly evaluate the kernel at given value(s)."""
+        if verbose:
+            print("Exactly evaluate kernel")
         return truncnorm.pdf(x, self._a, self._b, loc=self.m, scale=self.sigma)
 
     def __call__(self, x):
@@ -95,11 +103,11 @@ class TruncNormKernel():
         float | numpy.array
         """
 
-        if self.sfreq is None:
-            return eval(self, x)
+        if (self.sfreq is None) or (not self.use_dis):
+            return self.eval(x, verbose=False)
 
         x = np.asarray(x)
-        x_idx = np.asarray(((x - self.lower) * self.sfreq), dtype=int)
+        x_idx = np.asarray(np.round((x - self.lower) * self.sfreq), dtype=int)
         mask = ~np.isnan(x)
         out = np.full_like(x, fill_value=np.nan)
         mask_kernel = (x < self.lower) | (x > self.upper)
@@ -314,7 +322,8 @@ class Intensity():
             driver_delays = get_driver_delays(self, t)
 
         # initialize
-        intensities = self.baseline
+
+        intensities = np.zeros_like(t) + self.baseline
         for p, delays in enumerate(driver_delays):
             if delays.data.size == 0 or self.alpha[p] == 0:
                 # no delays for this driver of alpha is 0
@@ -344,6 +353,8 @@ class Intensity():
 
         # get sfreq used for kernel initialization
         sfreq = self.kernel[0].sfreq
+        if sfreq is None:
+            sfreq = 1_000
         # for each kernel do a convolution with its events timestamps
         intensity_grid = []
         for p in range(self.n_drivers):

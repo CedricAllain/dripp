@@ -5,6 +5,8 @@ with truncated Gaussian kernel.
 import numpy as np
 import time
 
+from tick.hawkes import SimuPoissonProcess
+
 from dripp.trunc_norm_kernel.utils import convert_variable_multi
 from dripp.trunc_norm_kernel.model import TruncNormKernel, Intensity
 from dripp.trunc_norm_kernel.metric import negative_log_likelihood
@@ -169,7 +171,7 @@ def simu_1d_nonhomogeneous_poisson_process(intensity, T=240, seed=None,
 def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
                   baseline=0.8, alpha=1, T=240, isi=1, add_jitter=False,
                   n_tasks=0.8, n_drivers=1, seed=None, return_nll=True,
-                  verbose=False):
+                  verbose=False, use_poisson=False, poisson_intensity=1):
     """Given some initial parameters, simulate driver's timestamps and
     driven process's activation timestamps, for the intensity defined with a
     truncated gaussian kernel.
@@ -260,12 +262,18 @@ def simulate_data(lower=30e-3, upper=500e-3, m=150e-3, sigma=0.1, sfreq=150.,
         seed += rng.choice(range(100), size=n_drivers, replace=False)
 
     # simulate task timestamps
-    driver_tt = []
-    for this_isi, this_n_tasks, this_seed in zip(isi, n_tasks, seed):
-        this_driver_tt = simu_timestamps_reg(
-            T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
-            add_jitter=add_jitter, verbose=verbose)
-        driver_tt.append(this_driver_tt)
+    if use_poisson or (sfreq is None):
+        poi = SimuPoissonProcess(
+            [poisson_intensity]*n_drivers, end_time=T, seed=int(seed[0]))
+        poi.simulate()
+        driver_tt = poi.timestamps
+    else:
+        driver_tt = []
+        for this_isi, this_n_tasks, this_seed in zip(isi, n_tasks, seed):
+            this_driver_tt = simu_timestamps_reg(
+                T=T, isi=this_isi, n_tasks=this_n_tasks, seed=this_seed,
+                add_jitter=add_jitter, verbose=verbose)
+            driver_tt.append(this_driver_tt)
 
     # define kernel and intensity functions
     lower = convert_variable_multi(lower, n_drivers, repeat=True)
@@ -314,5 +322,3 @@ if __name__ == '__main__':
 
     from dripp.trunc_norm_kernel.optim import initialize
     baseline_init, alpha_init, m_init, sigma_init = initialize(intensity, T)
-
-# %%

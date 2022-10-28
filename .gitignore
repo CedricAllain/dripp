@@ -8,6 +8,13 @@ __cache__/
 joblib/
 dripp_results/
 examples/dripp_results/
+*.pdf
+*.png
+*.npy
+*.pkl
+*.csv
+*.ipynb
+*.profile
 
 # C extensions
 *.so
