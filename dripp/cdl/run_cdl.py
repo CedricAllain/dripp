@@ -14,7 +14,7 @@ except (ValueError, ImportError):
     # temporary, until alphacsc PR #102 is accepted
     from .camcan import load_data as load_data_camcan
 
-from config import CACHEDIR
+from config import CACHEDIR, BIDS_root, SSS_CAL, CT_SPARSE
 
 memory = Memory(CACHEDIR, verbose=0)
 
@@ -113,7 +113,8 @@ def _run_cdl_data(dataset='sample', subject_id=None,
                     'smiley': 5, 'buttonpress': 32}
 
     elif dataset == 'camcan':
-        X_split, info = load_data_camcan(subject_id=subject_id, **load_params)
+        X_split, info = load_data_camcan(
+            BIDS_root, SSS_CAL, CT_SPARSE, subject_id, **load_params)
         info['temp']['event_id'].update(
             {'audio': (1, 2, 3, 5), 'vis': (1, 2, 3, 6)})
 

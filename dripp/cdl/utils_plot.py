@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 import mne
 
-from utils import apply_threshold
+from .utils import apply_threshold
 
 
 def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
