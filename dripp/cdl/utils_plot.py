@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 import mne
 
-from .utils import apply_threshold
+from utils import apply_threshold
 
 
 def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
@@ -169,4 +169,23 @@ def plot_z_threshold_effect(z_hat, list_threshold=[0, 25, 50, 75],
     if save:
         plt.savefig(fig_name)
 
+    plt.show()
+
+
+def plot_acti_tt_boxplot(acti_tt):
+    """
+
+    """
+
+    n_atoms = len(acti_tt)
+
+    df_acti = pd.DataFrame(data=acti_tt).T
+    df_acti = df_acti.rename(columns={k: f'Time{k}' for k in range(n_atoms)})
+    df_acti["id"] = df_acti.index
+    df_acti = pd.wide_to_long(df_acti, stubnames=['Time'], i='id', j='Atom')\
+        .reset_index()[['Atom', 'Time']]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    sns.boxplot(x='Atom', y='Time', data=df_acti, orient='h')
     plt.show()

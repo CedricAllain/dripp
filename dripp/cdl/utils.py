@@ -622,7 +622,7 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
         acti_nan[acti_nan == 0] = np.nan
         mask = acti_nan >= np.nanpercentile(
             acti_nan, threshold, axis=1, keepdims=True)
-        atoms_timestamps = [acti_nan[i][mask[i]] / sfreq
+        atoms_timestamps = [np.where(mask[i])[0] / sfreq
                             for i in range(n_atoms)]
         return atoms_timestamps
 
@@ -667,9 +667,21 @@ def post_process_cdl(events, v_hat_, z_hat, event_id='all', sfreq=1.,
 # Others
 ###############################################################################
 
+def unsplit_z(z):
+    """
+
+    """
+    n_splits, n_channels, n_times_split = z.shape
+    z = z.swapaxes(0, 1).reshape(
+        1, n_channels, n_times_split * n_splits)
+
+    return z
+
 
 def apply_threshold(z, p_threshold, per_atom=True):
     if len(z.shape) == 3:
+        if z.shape[0] > 1:
+            z = unsplit_z(z)
         z = z[0]
 
     n_atoms = z.shape[0]

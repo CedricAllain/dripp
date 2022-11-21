@@ -1,5 +1,12 @@
 from pathlib import Path
 
+# paths to CamCAN files for Inria Saclay users
+DATA_DIR = Path("/storage/store/data/")
+SSS_CAL = DATA_DIR / "camcan-mne/Cam-CAN_sss_cal.dat"
+CT_SPARSE = DATA_DIR / "camcan-mne/Cam-CAN_ct_sparse.fif"
+BIDS_root = DATA_DIR / "camcan/BIDSsep/smt/"
+PARTICIPANTS_FILE = BIDS_root / "participants.tsv"
+
 # path to directory where to save multiple results from dripp/example
 # and dripp/benchmarks
 SAVE_RESULTS_PATH = Path('./dripp_results')

@@ -14,7 +14,7 @@ except (ValueError, ImportError):
     # temporary, until alphacsc PR #102 is accepted
     from .camcan import load_data as load_data_camcan
 
-from config import CACHEDIR, BIDS_root, SSS_CAL, CT_SPARSE
+from dripp.config import CACHEDIR, BIDS_root, SSS_CAL, CT_SPARSE
 
 memory = Memory(CACHEDIR, verbose=0)
 
