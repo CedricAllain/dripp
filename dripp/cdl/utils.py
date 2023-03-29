@@ -7,7 +7,7 @@ from pathlib import Path
 from collections import Counter
 
 import mne
-from mne_bids import BIDSPath, read_raw_bids
+# from mne_bids import BIDSPath, read_raw_bids
 
 # for Cam-CAN dataset
 DATA_DIR = Path("/storage/store/data/")

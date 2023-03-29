@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 
 import mne
 
-from utils import apply_threshold
+from dripp.cdl.utils import apply_threshold
+from dripp.trunc_norm_kernel.model import TruncNormKernel
 
 
-def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
+def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_res=None):
     """Plot spatial and temporal representations of learned atoms.
 
     Parameters
@@ -34,6 +35,8 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
 
     fig_name : str | None
 
+    df_res : pandas DataFrame with DriPP results
+
     Returns
     -------
     None
@@ -50,11 +53,19 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
     t = np.arange(n_times_atom) / sfreq
 
     # number of plots by atom
-    n_plots = 2
+    if df_res is not None:
+        plot_intensity = True
+        df_ratio = []
+    else:
+        plot_intensity = False
+
+    n_plots = 2 + plot_intensity
     n_columns = min(6, len(plotted_atoms))
     split = int(np.ceil(len(plotted_atoms) / n_columns))
     figsize = (4 * n_columns, 3 * n_plots * split)
     fig, axes = plt.subplots(n_plots * split, n_columns, figsize=figsize)
+    if n_columns == 1:
+        axes = np.atleast_2d(axes).T
 
     for ii, kk in enumerate(plotted_atoms):
 
@@ -81,6 +92,54 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
         if i_col == 0:
             ax.set_ylabel('Temporal')
 
+        # Plot the learned intensities
+        if not plot_intensity:
+            continue
+        # else, plot the intensities
+        ax = next(it_axes)
+
+        plotted_tasks = df_res['tasks'][0]
+        df_temp = df_res[(df_res['atom'] == kk)]
+        lower, upper = df_temp['lower'].iloc[0], df_temp['upper'].iloc[0]
+        xx = np.linspace(0, upper, int((upper-lower)*1_000))
+        baseline = list(df_temp['baseline_hat'])[0]
+        this_atom_ratio = 0
+        this_atom_label = 'N/A'
+        for jj, label in enumerate(plotted_tasks):
+            # unpack parameters estimates
+            alpha = list(df_temp['alpha_hat'])[0][jj]
+            m = list(df_temp['m_hat'])[0][jj]
+            sigma = list(df_temp['sigma_hat'])[0][jj]
+            # compute ratio
+            temp_ratio = alpha / baseline
+            if temp_ratio > this_atom_ratio:
+                this_atom_ratio = temp_ratio
+                this_atom_label = label
+            # define kernel function
+            kernel = TruncNormKernel(lower, upper, m, sigma)
+            yy = baseline + alpha * kernel.eval(xx)
+            if ii > 0:
+                plot_label = None
+            else:
+                plot_label = label
+            # plot intensity
+            ax.plot(xx, yy, label=plot_label)
+
+        ax.set_xlim(min(xx), max(xx))
+        if i_col == 0:
+            ax.set_ylabel('Intensity')
+        ax.set_xlabel('Time (s)')
+        if plot_label:
+            ax.legend()
+
+        df_ratio.append({'atom': kk, 'ratio': this_atom_ratio,
+                        'label': this_atom_label})
+
+    if plot_intensity:
+        df_ratio = pd.DataFrame(data=df_ratio).sort_values(by='ratio')
+        top_atoms = df_ratio['atom'][:5].values
+        print(f"Top 5 atoms: {top_atoms}")
+
     fig.tight_layout()
 
     if fig_name:  # save figure
@@ -90,6 +149,9 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None):
 
     plt.show()
     plt.close()
+
+    if plot_intensity:
+        return df_ratio
 
 
 def plot_z_boxplot(z_hat, p_threshold=0, per_atom=True,
@@ -189,3 +251,23 @@ def plot_acti_tt_boxplot(acti_tt):
 
     sns.boxplot(x='Atom', y='Time', data=df_acti, orient='h')
     plt.show()
+
+
+def plot_events_distribution(dict_events=None, dict_atoms=None):
+    """Plot, on the same figure, the distributions of a list of events and a
+    list of atoms' activations.
+
+    Parameters
+    ----------
+
+    dict_events : dict
+        keys: string, label of the events
+        values: array-like, events' timestamps
+
+    dict_events : dict
+        keys: string, label of the atoms' activation
+        values: array-like, atoms' activation's timestamps
+
+    Returns
+    -------
+    """
