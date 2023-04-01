@@ -109,14 +109,19 @@ def _run_cdl_data(dataset='sample', subject_id=None,
                 info['temp']['event_id'] = {
                     'auditory/left': 1, 'auditory/right': 2,
                     'visual/left': 3, 'visual/right': 4,
-                    'auditory': (1, 2), 'visual': (3, 4),
-                    'smiley': 5, 'buttonpress': 32}
+                    'auditory': (1, 2),  # both auditory event types
+                    'visual': (3, 4),    # both visual event types
+                    'smiley': 5, 'buttonpress': 32
+                }
 
     elif dataset == 'camcan':
         X_split, info = load_data_camcan(
             BIDS_root, SSS_CAL, CT_SPARSE, subject_id, **load_params)
         info['temp']['event_id'].update(
-            {'audio': (1, 2, 3, 5), 'vis': (1, 2, 3, 6)})
+            {
+                'audio': (1, 2, 3, 5),  # bimodals events + unimodal auditory
+                'vis': (1, 2, 3, 6),    # bimodals events + unimodal visual
+            })
 
     print('done')
 
@@ -155,7 +160,7 @@ def _run_cdl_data(dataset='sample', subject_id=None,
         'solver_d_kwargs': {'max_iter': 300},  # original value: 300
         # sort atoms by explained variances
         'sort_atoms': True,
-        # Technical parameters
+        # technical parameters
         'verbose': 1,
         'random_state': 0,
         'n_jobs': n_jobs
