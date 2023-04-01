@@ -7,6 +7,7 @@ __pycache__/
 __cache__/
 joblib/
 dripp_results/
+dripp_uni/
 examples/dripp_results/
 *.pdf
 *.png
