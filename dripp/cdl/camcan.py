@@ -51,6 +51,55 @@ def get_subject_info(subject_id, participants_file):
     return subject_info
 
 
+def get_events(BIDS_root, subject_id, sfreq=150.):
+    """Only returns events and event id
+
+    Parameters
+    ----------
+    BIDS_root : str
+        The root directory of the BIDS dataset.
+
+    subject_id : str
+        Subject id, similar to the name of its corresponding folder
+
+
+    Returns
+    -------
+    """
+    bp = BIDSPath(
+        root=BIDS_root,
+        subject=subject_id.split('-')[1],
+        task="smt",
+        datatype="meg",
+        extension=".fif",
+        session="smt",
+    )
+    raw = read_raw_bids(bp)
+    raw.load_data()
+
+    event_id = {
+        'audiovis/1200Hz': 1,   # bimodal
+        'audiovis/300Hz': 2,    # bimodal
+        'audiovis/600Hz': 3,    # bimodal
+        'button': 4,            # button press
+        'catch/0': 5,           # unimodal auditory
+        'catch/1': 6,           # unimodal visual
+        'audio': (1, 2, 3, 5),  # bimodals events + unimodal auditory
+        'vis': (1, 2, 3, 6),    # bimodals events + unimodal visual
+    }
+    events, _ = mne.events_from_annotations(raw)
+    events = mne.pick_events(events, include=list(event_id.values()))
+    events = events.copy()
+    events[:, 0] -= raw.first_samp
+
+    if sfreq is not None:
+        pick_types_final = dict(meg='grad', eeg=False, eog=False, stim=False)
+        raw.pick_types(**pick_types_final)
+        _, events = raw.resample(sfreq, events=events, npad='auto')
+
+    return events, event_id
+
+
 @mem.cache(ignore=['n_jobs'])
 def load_data(BIDS_root, sss_cal, ct_sparse, subject_id='sub-CC110033',
               n_splits=10, sfreq=None, epoch=None, filter_params=[2., 45],
@@ -128,6 +177,7 @@ def load_data(BIDS_root, sss_cal, ct_sparse, subject_id='sub-CC110033',
     }
     events, _ = mne.events_from_annotations(raw)
     events = mne.pick_events(events, include=list(event_id.values()))
+    events = events.copy()
 
     raw.filter(*filter_params, n_jobs=n_jobs)
 
