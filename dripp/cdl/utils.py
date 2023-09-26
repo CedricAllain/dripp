@@ -7,6 +7,7 @@ from pathlib import Path
 from collections import Counter
 
 import mne
+
 # from mne_bids import BIDSPath, read_raw_bids
 
 # for Cam-CAN dataset
@@ -22,8 +23,7 @@ PARTICIPANTS_FILE = BIDS_ROOT / "participants.tsv"
 ###############################################################################
 
 
-def get_data_utils(data_source='sample', subject='sample',
-                   verbose=True):
+def get_data_utils(data_source="sample", subject="sample", verbose=True):
     """Returns dataset's informations such as paths, STIM channel,
     events description, etc.
 
@@ -43,37 +43,42 @@ def get_data_utils(data_source='sample', subject='sample',
     dict
     """
 
-    if data_source == 'sample':
+    if data_source == "sample":
         data_path = mne.datasets.sample.data_path()
-        data_folder = os.path.join(data_path, 'MEG', 'sample')
-        file_name = os.path.join(data_folder, 'sample_audvis_raw.fif')
+        data_folder = os.path.join(data_path, "MEG", "sample")
+        file_name = os.path.join(data_folder, "sample_audvis_raw.fif")
         # Path to BEM solution
-        subjects_dir = os.path.join(data_path, 'subjects')
-        fname_bem = os.path.join(subjects_dir, 'sample', 'bem',
-                                 'sample-5120-bem-sol.fif')
+        subjects_dir = os.path.join(data_path, "subjects")
+        fname_bem = os.path.join(
+            subjects_dir, "sample", "bem", "sample-5120-bem-sol.fif"
+        )
         # Path to transformation
-        fname_trans = os.path.join(data_folder,
-                                   'sample_audvis_raw-trans.fif')
+        fname_trans = os.path.join(data_folder, "sample_audvis_raw-trans.fif")
         # Path to noise covariance matrix
-        fname_cov = os.path.join(data_folder,
-                                 'sample_audvis-cov.fif')
+        fname_cov = os.path.join(data_folder, "sample_audvis-cov.fif")
         # Other
-        stim_channel = 'STI 014'  # STIM channel
+        stim_channel = "STI 014"  # STIM channel
         bads = []  # bad chanels
         add_bads = False
         event_id = [1, 2, 3, 4]  # event id to keep for evoking
-        event_des = {'auditory/left': 1, 'auditory/right': 2,
-                     'visual/left': 3, 'visual/right': 4,
-                     'smiley': 5, 'buttonpress': 32}
+        event_des = {
+            "auditory/left": 1,
+            "auditory/right": 2,
+            "visual/left": 3,
+            "visual/right": 4,
+            "smiley": 5,
+            "buttonpress": 32,
+        }
 
-    elif data_source == 'somato':
+    elif data_source == "somato":
         data_path = mne.datasets.somato.data_path()
         subjects_dir = None
-        file_name = os.path.join(data_path, 'sub-01', 'meg',
-                                 'sub-01_task-somato_meg.fif')
+        file_name = os.path.join(
+            data_path, "sub-01", "meg", "sub-01_task-somato_meg.fif"
+        )
         event_id = [1]
-        event_des = {'somato': 1}
-        stim_channel = 'STI 014'  # STIM channel
+        event_des = {"somato": 1}
+        stim_channel = "STI 014"  # STIM channel
         bads = []  # bad chanels
         add_bads = False
 
@@ -81,14 +86,16 @@ def get_data_utils(data_source='sample', subject='sample',
         fname_trans = None
         fname_bem = None
 
-    elif data_source == 'camcan':
+    elif data_source == "camcan":
         event_id = [1, 2, 3, 4, 5, 6]
-        event_des = {'audiovis/1200Hz': 1,  # bimodal
-                     'audiovis/300Hz': 2,   # bimodal
-                     'audiovis/600Hz': 3,   # bimodal
-                     'button': 4,
-                     'catch/0': 5,          # unimodal
-                     'catch/1': 6}          # unimodal
+        event_des = {
+            "audiovis/1200Hz": 1,  # bimodal
+            "audiovis/300Hz": 2,  # bimodal
+            "audiovis/600Hz": 3,  # bimodal
+            "button": 4,
+            "catch/0": 5,  # unimodal
+            "catch/1": 6,
+        }  # unimodal
     else:
         raise ValueError("data source %s is unknown" % data_source)
 
@@ -96,15 +103,21 @@ def get_data_utils(data_source='sample', subject='sample',
         print("Events description:", event_des)
         print("Only consider events", event_id)
 
-    data_utils = {'event_id': event_id, 'event_des': event_des}
-    if data_source in ['sample', 'somato']:
-        data_utils = dict(data_utils, **{'file_name': file_name,
-                                         'fname_bem': fname_bem,
-                                         'fname_trans': fname_trans,
-                                         'fname_cov': fname_cov,
-                                         'stim_channel': stim_channel,
-                                         'subject': subject,
-                                         'bads': bads, 'add_bads': add_bads})
+    data_utils = {"event_id": event_id, "event_des": event_des}
+    if data_source in ["sample", "somato"]:
+        data_utils = dict(
+            data_utils,
+            **{
+                "file_name": file_name,
+                "fname_bem": fname_bem,
+                "fname_trans": fname_trans,
+                "fname_cov": fname_cov,
+                "stim_channel": stim_channel,
+                "subject": subject,
+                "bads": bads,
+                "add_bads": add_bads,
+            },
+        )
 
     return data_utils
 
@@ -231,8 +244,9 @@ def get_data_utils(data_source='sample', subject='sample',
 ###############################################################################
 
 
-def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
-                           verbose=True):
+def get_event_id_from_type(
+    event_des=None, event_type="all", data_source=None, verbose=True
+):
     """Get the event id, or ids, corresponding to a type,
     given an events description.
 
@@ -265,16 +279,18 @@ def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
     -------
     list of int | list of list of int
     """
-    assert (event_des is not None) or (data_source is not None), \
-        "No event descriptions nor data source is given."
+    assert (event_des is not None) or (
+        data_source is not None
+    ), "No event descriptions nor data source is given."
 
     if event_des is None:
         # determine event descriptions based on data source
         data_utils = get_data_utils(
-            data_source, subject='CC110033', kind='passive', verbose=False)
-        event_des = data_utils['event_des']
+            data_source, subject="CC110033", kind="passive", verbose=False
+        )
+        event_des = data_utils["event_des"]
 
-    if event_type == 'all':
+    if event_type == "all":
         return list(event_des.values())
 
     if isinstance(event_type, str):
@@ -288,7 +304,7 @@ def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
                 id_temp.append(v)
                 break
 
-            k_split = k.split('/')
+            k_split = k.split("/")
             if t in set(k_split):
                 id_temp.append(v)
 
@@ -297,13 +313,12 @@ def get_event_id_from_type(event_des=None, event_type='all', data_source=None,
         elif len(id_temp) >= 2:
             event_id.append(id_temp)
         elif verbose:
-            print('No event of type %s in the given event description.' % t)
+            print("No event of type %s in the given event description." % t)
 
     return event_id
 
 
-def get_event_type_from_id(event_des_reverse=None, event_id=None,
-                           data_source='sample'):
+def get_event_type_from_id(event_des_reverse=None, event_id=None, data_source="sample"):
     """Get the event type, or types, corresponding to an id(s),
     given an inverse events description.
 
@@ -330,14 +345,16 @@ def get_event_type_from_id(event_des_reverse=None, event_id=None,
     -------
     list of str
     """
-    assert (event_des_reverse is not None) or (data_source is not None), \
-        "No event descriptions nor data source is given."
+    assert (event_des_reverse is not None) or (
+        data_source is not None
+    ), "No event descriptions nor data source is given."
 
     if event_des_reverse is None:
         # determine event descriptions based on data source
         data_utils = get_data_utils(
-            data_source, subject='CC110033', kind='passive', verbose=False)
-        event_des_reverse = {v: k for k, v in data_utils['event_des'].items()}
+            data_source, subject="CC110033", kind="passive", verbose=False
+        )
+        event_des_reverse = {v: k for k, v in data_utils["event_des"].items()}
 
     if isinstance(event_id, int):
         if event_id in event_des_reverse.keys():
@@ -361,16 +378,16 @@ def get_event_type_from_id(event_des_reverse=None, event_id=None,
                 labels.append(temp[0])
 
             # find common specification
-            common = set(temp[0].split('/'))
+            common = set(temp[0].split("/"))
             for label in temp[1:]:
-                common = common & set(label.split('/'))
+                common = common & set(label.split("/"))
 
             labels.append(list(common)[0])
 
     return labels
 
 
-def get_events_timestamps(events, event_id='all', sfreq=1.):
+def get_events_timestamps(events, event_id="all", sfreq=1.0):
     """Return the dictionary of the timestamps corresponding to a set of event
     ids.
 
@@ -404,7 +421,7 @@ def get_events_timestamps(events, event_id='all', sfreq=1.):
     #     mask = events[:, -1] == i
     #     events_timestamps[i] = events[:, 0][mask] / sfreq
 
-    if event_id == 'all':
+    if event_id == "all":
         event_id = list(set(events[:, -1]))
 
     events_tt = {}  # save events' timestamps in a dictionary
@@ -413,7 +430,7 @@ def get_events_timestamps(events, event_id='all', sfreq=1.):
         if evt_id in events_tt.keys():
             return events_tt[evt_id]
         else:
-            mask = (events[:, -1] == evt_id)
+            mask = events[:, -1] == evt_id
             return events[:, 0][mask] / sfreq
 
     for this_id in event_id:
@@ -433,7 +450,7 @@ def get_events_timestamps(events, event_id='all', sfreq=1.):
 ###############################################################################
 
 
-def get_activation(z_hat, idx_atoms='all', shift=True, v_hat_=None):
+def get_activation(z_hat, idx_atoms="all", shift=True, v_hat_=None):
     """Get activation sparse vector from CDL results.
 
     Parameters
@@ -458,17 +475,17 @@ def get_activation(z_hat, idx_atoms='all', shift=True, v_hat_=None):
     """
 
     if shift:
-        assert v_hat_ is not None, \
-            "v_hat_ is needed in order to shift activations."
+        assert v_hat_ is not None, "v_hat_ is needed in order to shift activations."
 
     n_atoms = z_hat.shape[1]
-    if idx_atoms == 'all':
+    if idx_atoms == "all":
         idx_atoms = np.array(range(n_atoms))
     elif isinstance(idx_atoms, (int, list, np.ndarray)):
         idx_atoms = np.atleast_1d(idx_atoms)
 
-    assert (idx_atoms >= n_atoms).sum() == 0, \
-        f"idx_atoms must contain values < {n_atoms}"
+    assert (
+        idx_atoms >= n_atoms
+    ).sum() == 0, f"idx_atoms must contain values < {n_atoms}"
 
     # select desired atoms
     acti = z_hat[0, idx_atoms]
@@ -513,15 +530,14 @@ def block_process_1d(a, blocksize):
     b = np.zeros(a.shape)
     a_len = a.shape[0]
     for i in range(a_len):
-        block = a[int(max(i-blocksize+1, 0)): int(min(i+blocksize, a_len))]
+        block = a[int(max(i - blocksize + 1, 0)) : int(min(i + blocksize, a_len))]
         if np.max(block) == a[i]:
             b[i] = a[i]
 
     return b
 
 
-def filter_activation(acti, atom_to_filter='all', sfreq=150.,
-                      time_interval=0.01):
+def filter_activation(acti, atom_to_filter="all", sfreq=150.0, time_interval=0.01):
     """For an array of atoms activations values, only keeps maximum values
     within a given time intervalle.
 
@@ -556,24 +572,25 @@ def filter_activation(acti, atom_to_filter='all', sfreq=150.,
         return acti
 
     blocksize = round(time_interval * sfreq)
-    print("Filter activation on {} atoms using a sliding block of {} "
-          "timestamps.".format(
-              atom_to_filter, blocksize))
+    print(
+        "Filter activation on {} atoms using a sliding block of {} "
+        "timestamps.".format(atom_to_filter, blocksize)
+    )
 
-    if isinstance(atom_to_filter, str) and atom_to_filter == 'all':
+    if isinstance(atom_to_filter, str) and atom_to_filter == "all":
         acti = np.apply_along_axis(block_process_1d, 1, acti, blocksize)
     elif isinstance(atom_to_filter, (list, np.ndarray)):
         for aa in atom_to_filter:
             acti[aa] = block_process_1d(acti[aa], blocksize)
     elif isinstance(atom_to_filter, int):
-        acti[atom_to_filter] = block_process_1d(
-            acti[atom_to_filter], blocksize)
+        acti[atom_to_filter] = block_process_1d(acti[atom_to_filter], blocksize)
 
     return acti
 
 
-def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
-                         percent=False, per_atom=True):
+def get_atoms_timestamps(
+    acti, sfreq=None, info=None, threshold=0, percent=False, per_atom=True
+):
     """Get atoms' activation timestamps, using a threshold on the activation
     values to filter out unsignificant values.
 
@@ -599,7 +616,7 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
         or globally. Defaults to False.
 
     per_atom : bool
-        If True, the threshold as a percentage will be applied per atom, e.g., 
+        If True, the threshold as a percentage will be applied per atom, e.g.,
         threshold = 5 will remove 5% of the activation of each atom. If false,
         the thresholding will be applied to all the activations. Defaults to
         True.
@@ -610,55 +627,57 @@ def get_atoms_timestamps(acti, sfreq=None, info=None, threshold=0,
         array of timestamps
     """
 
-    assert (sfreq is not None) or ('sfreq' in info.keys()), \
-        "Please give an info dict that has a 'sfreq' key."
+    assert (sfreq is not None) or (
+        "sfreq" in info.keys()
+    ), "Please give an info dict that has a 'sfreq' key."
 
     if sfreq is None:
-        sfreq = info['sfreq']
+        sfreq = info["sfreq"]
 
     n_atoms = acti.shape[0]
     if percent and per_atom:
         acti_nan = acti.copy()
         acti_nan[acti_nan == 0] = np.nan
-        mask = acti_nan >= np.nanpercentile(
-            acti_nan, threshold, axis=1, keepdims=True)
-        atoms_timestamps = [np.where(mask[i])[0] / sfreq
-                            for i in range(n_atoms)]
+        mask = acti_nan >= np.nanpercentile(acti_nan, threshold, axis=1, keepdims=True)
+        atoms_timestamps = [np.where(mask[i])[0] / sfreq for i in range(n_atoms)]
         return atoms_timestamps
 
     if percent and not per_atom:
         # compute the q-th percentile over all positive values
         threshold = np.percentile(acti[acti > 0], threshold)
 
-    atoms_timestamps = [np.where(acti[i] > threshold)[0] / sfreq
-                        for i in range(n_atoms)]
+    atoms_timestamps = [
+        np.where(acti[i] > threshold)[0] / sfreq for i in range(n_atoms)
+    ]
 
     return atoms_timestamps
+
 
 ###############################################################################
 # Global post-processing
 ###############################################################################
 
 
-def post_process_cdl(events, v_hat_, z_hat, event_id='all', sfreq=1.,
-                     post_process_params=None):
+def post_process_cdl(
+    events, v_hat_, z_hat, event_id="all", sfreq=1.0, post_process_params=None
+):
     """
     XXX
     """
 
     if post_process_params is None:
         post_process_params = dict(
-            time_interval=0.01, threshold=0, percent=True, per_atom=True)
+            time_interval=0.01, threshold=0, percent=True, per_atom=True
+        )
 
-    events_tt = get_events_timestamps(
-        events=events, event_id=event_id, sfreq=sfreq)
+    events_tt = get_events_timestamps(events=events, event_id=event_id, sfreq=sfreq)
 
     acti = filter_activation(
         acti=get_activation(z_hat=z_hat, v_hat_=v_hat_),
         sfreq=sfreq,
-        time_interval=post_process_params.pop('time_interval'))
-    atoms_tt = get_atoms_timestamps(
-        acti=acti, sfreq=sfreq, **post_process_params)
+        time_interval=post_process_params.pop("time_interval"),
+    )
+    atoms_tt = get_atoms_timestamps(acti=acti, sfreq=sfreq, **post_process_params)
 
     return events_tt, atoms_tt
 
@@ -667,13 +686,30 @@ def post_process_cdl(events, v_hat_, z_hat, event_id='all', sfreq=1.,
 # Others
 ###############################################################################
 
+
 def unsplit_z(z):
     """
+    Reshape and unsplit the input tensor along the time dimension.
 
+    Parameters
+    ----------
+    z : ndarray, shape (n_splits, n_atoms, n_times_split)
+        The input tensor to be reshaped and unsplit.
+
+    Returns
+    -------
+    z : ndarray, shape (1, n_atoms, n_times_split * n_splits)
+        The unsplit tensor.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> z = np.random.rand(2, 3, 4)
+    >>> unsplit_z(z).shape
+    (1, 3, 8)
     """
-    n_splits, n_channels, n_times_split = z.shape
-    z = z.swapaxes(0, 1).reshape(
-        1, n_channels, n_times_split * n_splits)
+    n_splits, n_atoms, n_times_split = z.shape
+    z = z.swapaxes(0, 1).reshape(1, n_atoms, n_times_split * n_splits)
 
     return z
 
@@ -689,8 +725,7 @@ def apply_threshold(z, p_threshold, per_atom=True):
     if per_atom:
         z_nan = z.copy()
         z_nan[z_nan == 0] = np.nan
-        mask = z_nan >= np.nanpercentile(
-            z_nan, p_threshold, axis=1, keepdims=True)
+        mask = z_nan >= np.nanpercentile(z_nan, p_threshold, axis=1, keepdims=True)
 
         return [z_nan[i][mask[i]] for i in range(n_atoms)]
 

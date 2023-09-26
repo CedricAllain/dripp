@@ -13,7 +13,9 @@ from dripp.cdl.utils import apply_threshold
 from dripp.trunc_norm_kernel.model import TruncNormKernel
 
 
-def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_res=None):
+def plot_atoms(
+    u, v, info, plotted_atoms="all", sfreq=150.0, fig_name=None, df_res=None
+):
     """Plot spatial and temporal representations of learned atoms.
 
     Parameters
@@ -45,7 +47,7 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_re
 
     n_atoms, n_times_atom = u.shape[0], int(v.shape[1])
 
-    if plotted_atoms == 'all':
+    if plotted_atoms == "all":
         plotted_atoms = range(n_atoms)
     elif isinstance(plotted_atoms, int):
         plotted_atoms = range(plotted_atoms)
@@ -68,10 +70,9 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_re
         axes = np.atleast_2d(axes).T
 
     for ii, kk in enumerate(plotted_atoms):
-
         # Select the axes to display the current atom
         i_row, i_col = ii // n_columns, ii % n_columns
-        it_axes = iter(axes[i_row * n_plots:(i_row + 1) * n_plots, i_col])
+        it_axes = iter(axes[i_row * n_plots : (i_row + 1) * n_plots, i_col])
 
         # Select the current atom
         v_k = v[kk, :]
@@ -79,18 +80,18 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_re
 
         # Plot the spatial map of the atom using mne topomap
         ax = next(it_axes)
-        ax.set_title('Atom % d' % kk, pad=0)
+        ax.set_title("Atom % d" % kk, pad=0)
 
         mne.viz.plot_topomap(data=u_k, pos=info, axes=ax, show=False)
         if i_col == 0:
-            ax.set_ylabel('Spatial', labelpad=28)
+            ax.set_ylabel("Spatial", labelpad=28)
 
         # Plot the temporal pattern of the atom
         ax = next(it_axes)
         ax.plot(t, v_k)
         ax.set_xlim(min(t), max(t))
         if i_col == 0:
-            ax.set_ylabel('Temporal')
+            ax.set_ylabel("Temporal")
 
         # Plot the learned intensities
         if not plot_intensity:
@@ -98,18 +99,18 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_re
         # else, plot the intensities
         ax = next(it_axes)
 
-        plotted_tasks = df_res['tasks'][0]
-        df_temp = df_res[(df_res['atom'] == kk)]
-        lower, upper = df_temp['lower'].iloc[0], df_temp['upper'].iloc[0]
-        xx = np.linspace(0, upper, int((upper-lower)*1_000))
-        baseline = list(df_temp['baseline_hat'])[0]
+        plotted_tasks = df_res["tasks"][0]
+        df_temp = df_res[(df_res["atom"] == kk)]
+        lower, upper = df_temp["lower"].iloc[0], df_temp["upper"].iloc[0]
+        xx = np.linspace(0, upper, int((upper - lower) * 1_000))
+        baseline = list(df_temp["baseline_hat"])[0]
         this_atom_ratio = 0
-        this_atom_label = 'N/A'
+        this_atom_label = "N/A"
         for jj, label in enumerate(plotted_tasks):
             # unpack parameters estimates
-            alpha = list(df_temp['alpha_hat'])[0][jj]
-            m = list(df_temp['m_hat'])[0][jj]
-            sigma = list(df_temp['sigma_hat'])[0][jj]
+            alpha = list(df_temp["alpha_hat"])[0][jj]
+            m = list(df_temp["m_hat"])[0][jj]
+            sigma = list(df_temp["sigma_hat"])[0][jj]
             # compute ratio
             temp_ratio = alpha / baseline
             if temp_ratio > this_atom_ratio:
@@ -127,25 +128,26 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_re
 
         ax.set_xlim(min(xx), max(xx))
         if i_col == 0:
-            ax.set_ylabel('Intensity')
-        ax.set_xlabel('Time (s)')
+            ax.set_ylabel("Intensity")
+        ax.set_xlabel("Time (s)")
         if plot_label:
             ax.legend()
 
-        df_ratio.append({'atom': kk, 'ratio': this_atom_ratio,
-                        'label': this_atom_label})
+        df_ratio.append(
+            {"atom": kk, "ratio": this_atom_ratio, "label": this_atom_label}
+        )
 
     if plot_intensity:
-        df_ratio = pd.DataFrame(data=df_ratio).sort_values(by='ratio')
-        top_atoms = df_ratio['atom'][:5].values
+        df_ratio = pd.DataFrame(data=df_ratio).sort_values(by="ratio")
+        top_atoms = df_ratio["atom"][:5].values
         print(f"Top 5 atoms: {top_atoms}")
 
     fig.tight_layout()
 
     if fig_name:  # save figure
         path_fig = fig_name
-        plt.savefig(path_fig + ".pdf", dpi=300, bbox_inches='tight')
-        plt.savefig(path_fig + ".png", dpi=300, bbox_inches='tight')
+        plt.savefig(path_fig + ".pdf", dpi=300, bbox_inches="tight")
+        plt.savefig(path_fig + ".png", dpi=300, bbox_inches="tight")
 
     plt.show()
     plt.close()
@@ -154,38 +156,74 @@ def plot_atoms(u, v, info, plotted_atoms='all', sfreq=150., fig_name=None, df_re
         return df_ratio
 
 
-def plot_z_boxplot(z_hat, p_threshold=0, per_atom=True,
-                   yscale='log', add_points=True, add_number=True,
-                   fig_name=None):
+def plot_z_boxplot(
+    z_hat,
+    p_threshold=0,
+    per_atom=True,
+    yscale="log",
+    type="box",
+    add_points=False,
+    add_number=False,
+    fig_name=None,
+):
     """
     Plot activations boxplot for each atom, with a possible thresholding.
     """
-    n_atoms = z_hat.shape[1]
-    values = apply_threshold(
-        z=z_hat, p_threshold=p_threshold, per_atom=per_atom)
+    if isinstance(z_hat, np.ndarray):
+        n_atoms = z_hat.shape[1]
+        values = apply_threshold(z=z_hat, p_threshold=p_threshold, per_atom=per_atom)
 
-    df_z = pd.DataFrame(data=values).T
-    df_z = df_z.rename(columns={k: f'Values{k}' for k in range(n_atoms)})
-    df_z["id"] = df_z.index
-    df_z = pd.wide_to_long(df_z, stubnames=['Values'], i='id', j='Atom')\
-             .reset_index()[['Atom', 'Values']]
+        df_z = pd.DataFrame(data=values).T
+        df_z = df_z.rename(columns={k: f"Values{k}" for k in range(n_atoms)})
+        df_z["id"] = df_z.index
+        df_global = pd.wide_to_long(
+            df_z, stubnames=["Values"], i="id", j="Atom"
+        ).reset_index()[["Atom", "Values"]]
+        hue = None
+        list_values = [values]
+    elif isinstance(z_hat, dict):
+        df_global = pd.DataFrame()
+        list_values = []
+        for label, this_z in z_hat.items():
+            n_atoms = this_z.shape[1]
+            values = apply_threshold(
+                z=this_z, p_threshold=p_threshold, per_atom=per_atom
+            )
+            list_values.append(values)
+
+            df_z = pd.DataFrame(data=values).T
+            df_z = df_z.rename(columns={k: f"Values{k}" for k in range(n_atoms)})
+            df_z["id"] = df_z.index
+            df_z = pd.wide_to_long(
+                df_z, stubnames=["Values"], i="id", j="Atom"
+            ).reset_index()[["Atom", "Values"]]
+            df_z["label"] = label
+            df_global = pd.concat([df_global, df_z], ignore_index=True)
+
+        hue = "label"
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.set_yscale(yscale)
 
-    sns.boxplot(x='Atom', y='Values', data=df_z)
+    if type == "box":
+        sns.boxplot(x="Atom", y="Values", data=df_global, hue=hue)
+    elif type == "violin":
+        sns.violinplot(x="Atom", y="Values", data=df_global, hue=hue)
 
     if add_points:
         sns.stripplot(
-            x="Atom", y="Values", data=df_z, size=2, color=".3", linewidth=0)
+            x="Atom", y="Values", data=df_global, size=2, color=".3", linewidth=0
+        )
 
     if add_number:
         ax2 = ax.twinx()
         xx = list(range(n_atoms))
-        yy = [len(z) for z in values]
-        ax2.plot(xx, yy, color="black", alpha=.8)
+        for values in list_values:
+            yy = [len(z) for z in values]
+            # ax2.plot(xx, yy, color="black", alpha=0.8)
+            ax2.plot(xx, yy, alpha=0.8)
         ax2.set_ylim(0)
-        ax2.set_ylabel('# non-nul activations')
+        ax2.set_ylabel("# non-nul activations")
 
     plt.xticks(rotation=45)
     title = "Activations repartition"
@@ -197,11 +235,16 @@ def plot_z_boxplot(z_hat, p_threshold=0, per_atom=True,
         plt.savefig(fig_name)
 
     plt.show()
+    plt.close()
 
 
-def plot_z_threshold_effect(z_hat, list_threshold=[0, 25, 50, 75],
-                            per_atom=True, save=False,
-                            fig_name='z_threshold_effect.png'):
+def plot_z_threshold_effect(
+    z_hat,
+    list_threshold=[0, 25, 50, 75],
+    per_atom=True,
+    save=False,
+    fig_name="z_threshold_effect.png",
+):
     """
     Plot the number of non-null activations for each atom for multiple levels
     of thresholding.
@@ -209,8 +252,9 @@ def plot_z_threshold_effect(z_hat, list_threshold=[0, 25, 50, 75],
     n_atoms = z_hat.shape[1]
 
     xx = list(range(n_atoms))
-    palette = [matplotlib.cm.viridis_r(x) for x in np.linspace(
-        0, 1, len(list_threshold)+1)][1:]
+    palette = [
+        matplotlib.cm.viridis_r(x) for x in np.linspace(0, 1, len(list_threshold) + 1)
+    ][1:]
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for i, p_threshold in enumerate(list_threshold):
@@ -218,12 +262,12 @@ def plot_z_threshold_effect(z_hat, list_threshold=[0, 25, 50, 75],
         yy = [len(z) for z in z_threshold]
         ax.plot(xx, yy, color=palette[i], label=p_threshold)
 
-    ax.set_xlim(0, n_atoms-1)
+    ax.set_xlim(0, n_atoms - 1)
     ax.set_xticks(xx)
     ax.set_ylim(0)
-    ax.legend(title='percentage')
-    ax.set_xlabel('Atom')
-    ax.set_ylabel('# non-nul activations')
+    ax.legend(title="percentage")
+    ax.set_xlabel("Atom")
+    ax.set_ylabel("# non-nul activations")
 
     plt.xticks(rotation=45)
     plt.title(f"Effect of {'per-atom' if per_atom else 'global'} thresholding")
@@ -235,21 +279,20 @@ def plot_z_threshold_effect(z_hat, list_threshold=[0, 25, 50, 75],
 
 
 def plot_acti_tt_boxplot(acti_tt):
-    """
-
-    """
+    """ """
 
     n_atoms = len(acti_tt)
 
     df_acti = pd.DataFrame(data=acti_tt).T
-    df_acti = df_acti.rename(columns={k: f'Time{k}' for k in range(n_atoms)})
+    df_acti = df_acti.rename(columns={k: f"Time{k}" for k in range(n_atoms)})
     df_acti["id"] = df_acti.index
-    df_acti = pd.wide_to_long(df_acti, stubnames=['Time'], i='id', j='Atom')\
-        .reset_index()[['Atom', 'Time']]
+    df_acti = pd.wide_to_long(
+        df_acti, stubnames=["Time"], i="id", j="Atom"
+    ).reset_index()[["Atom", "Time"]]
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    sns.boxplot(x='Atom', y='Time', data=df_acti, orient='h')
+    sns.boxplot(x="Atom", y="Time", data=df_acti, orient="h")
     plt.show()
 
 
@@ -271,3 +314,4 @@ def plot_events_distribution(dict_events=None, dict_atoms=None):
     Returns
     -------
     """
+    return None

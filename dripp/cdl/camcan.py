@@ -62,9 +62,13 @@ def get_events(BIDS_root, subject_id, sfreq=150.):
     subject_id : str
         Subject id, similar to the name of its corresponding folder
 
+    sfreq : float
+        Sampling frequency of the signal. The data are resampled to match it.
+
 
     Returns
     -------
+    events, event_id
     """
     bp = BIDSPath(
         root=BIDS_root,
