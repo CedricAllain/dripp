@@ -426,6 +426,8 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
     if event_id == "all":
         event_id = list(set(events[:, -1]))
 
+    event_id = np.atleast_1d(event_id)
+
     events_tt = {}  # save events' timestamps in a dictionary
 
     def proc(evt_id):
@@ -435,7 +437,7 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
             mask = events[:, -1] == evt_id
             return events[:, 0][mask] / sfreq
 
-    for this_task, this_id in event_id.items():
+    for this_id in event_id:
         if isinstance(this_id, int):
             events_tt[this_id] = proc(this_id)
 
