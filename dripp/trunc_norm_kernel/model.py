@@ -8,11 +8,16 @@ from scipy.stats import truncnorm
 import warnings
 import matplotlib.pyplot as plt
 
-from dripp.trunc_norm_kernel.utils import \
-    convert_variable_multi, get_driver_delays, check_truncation_values, check_driver_tt, check_acti_tt
+from dripp.trunc_norm_kernel.utils import (
+    convert_variable_multi,
+    get_driver_delays,
+    check_truncation_values,
+    check_driver_tt,
+    check_acti_tt,
+)
 
 
-class TruncNormKernel():
+class TruncNormKernel:
     """Class for truncated normal distribution kernel.
 
     Parameters
@@ -36,9 +41,7 @@ class TruncNormKernel():
         If True, use kernel discretization. Defaults to True.
     """
 
-    def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.,
-                 use_dis=True):
-
+    def __init__(self, lower=0, upper=1, m=None, sigma=None, sfreq=150.0, use_dis=True):
         check_truncation_values(lower, upper)
 
         # compute default values of shape parameters
@@ -48,8 +51,7 @@ class TruncNormKernel():
             sigma = 0.95 * (upper - lower) / 4
 
         if not sigma > 0:
-            warnings.warn(
-                "Sigma must be strictly positive, got sigma = %.3f." % sigma)
+            warnings.warn("Sigma must be strictly positive, got sigma = %.3f." % sigma)
 
         self.lower = lower
         self.upper = upper
@@ -74,12 +76,11 @@ class TruncNormKernel():
             # x_grid = np.arange(0, (self.upper - self.lower)
             #                    * self.sfreq + 1) / self.sfreq
             dt = 1 / self.sfreq
-            x_grid = np.arange(0, self.upper+dt, step=dt)
+            x_grid = np.arange(0, self.upper + dt, step=dt)
             x_grid += self.lower
             self._x_grid = x_grid
             # evaluate the kernel on the pre-defined grid and save as argument
-            self._pdf_grid = truncnorm.pdf(
-                x_grid, a, b, loc=self.m, scale=self.sigma)
+            self._pdf_grid = truncnorm.pdf(x_grid, a, b, loc=self.m, scale=self.sigma)
 
         # compute maximum of the kernel
         self.max = self.get_max()
@@ -111,7 +112,7 @@ class TruncNormKernel():
         mask = ~np.isnan(x)
         out = np.full_like(x, fill_value=np.nan)
         mask_kernel = (x < self.lower) | (x > self.upper)
-        out[mask_kernel] = 0.
+        out[mask_kernel] = 0.0
         mask &= ~mask_kernel
         out[mask] = self._pdf_grid[x_idx[mask]]
         return out
@@ -156,8 +157,7 @@ class TruncNormKernel():
         Tuple of 2 floats
         """
 
-        return truncnorm.interval(
-            alpha, self._a, self._b, loc=self.m, scale=self.sigma)
+        return truncnorm.interval(alpha, self._a, self._b, loc=self.m, scale=self.sigma)
 
     def integrate(self, b1, b2):
         """Integrate the kernel between b1 and b2.
@@ -171,10 +171,8 @@ class TruncNormKernel():
         -------
         float
         """
-        integ = truncnorm.cdf(b2, a=self._a, b=self._b,
-                              loc=self.m, scale=self.sigma)
-        integ -= truncnorm.cdf(b1, a=self._a, b=self._b,
-                               loc=self.m, scale=self.sigma)
+        integ = truncnorm.cdf(b2, a=self._a, b=self._b, loc=self.m, scale=self.sigma)
+        integ -= truncnorm.cdf(b1, a=self._a, b=self._b, loc=self.m, scale=self.sigma)
 
         return integ
 
@@ -195,7 +193,7 @@ class TruncNormKernel():
             xx = np.linspace(x_min, x_max, 600)
 
         plt.plot(xx, self.eval(xx))
-        plt.xlabel('Time (s)')
+        plt.xlabel("Time (s)")
         plt.title("Truncated Gaussian Kernel")
         plt.show()
 
@@ -216,7 +214,7 @@ class TruncNormKernel():
         self.update(m=value, sigma=self.sigma)
 
 
-class Intensity():
+class Intensity:
     """Class for intensity function.
 
     Parameters
@@ -240,21 +238,19 @@ class Intensity():
         The process' activation timestamps. Defaults to None.
     """
 
-    def __init__(self, baseline=0, alpha=0, kernel=None,
-                 driver_tt=None, acti_tt=None):
-
+    def __init__(self, baseline=0, alpha=0, kernel=None, driver_tt=None, acti_tt=None):
         self.kernel = np.atleast_1d(kernel)  # set of kernels functions
         self.n_drivers = len(self.kernel)
 
         self.baseline = baseline
 
         # set of alpha coefficients
-        self.alpha = convert_variable_multi(
-            alpha, self.n_drivers, repeat=True)
+        self.alpha = convert_variable_multi(alpha, self.n_drivers, repeat=True)
 
         # make sure we have one alpha coefficient per kernel
-        assert len(self.alpha) == len(self.kernel), \
-            "alpha and kernel parameters must have the same length"
+        assert len(self.alpha) == len(
+            self.kernel
+        ), "alpha and kernel parameters must have the same length"
         # ensure that driver_tt is a 2d array (# 1st dim. is number of drivers)
         self._driver_tt = check_driver_tt(driver_tt)
         self._acti_tt = check_acti_tt(acti_tt)  # ensure it is numpy 1d-array
@@ -364,18 +360,19 @@ class Intensity():
             dirac_tt[tt_idx] = 1
             # define the kernel pattern to use in convolution
             kernel = self.kernel[p]
-            kernel_grid = kernel(np.linspace(
-                0, kernel.upper, int(np.ceil(kernel.upper * sfreq))))
+            kernel_grid = kernel(
+                np.linspace(0, kernel.upper, int(np.ceil(kernel.upper * sfreq)))
+            )
             # do the convolution
-            this_intensity_grid = np.convolve(
-                dirac_tt, kernel_grid, mode='full')
+            this_intensity_grid = np.convolve(dirac_tt, kernel_grid, mode="full")
             # multiply by the corresponding factor
             this_intensity_grid *= self.alpha[p]
             intensity_grid.append(this_intensity_grid)
 
         # pad with 0 the intensity vectors
         intensity_grid = np.array(
-            list(itertools.zip_longest(*intensity_grid, fillvalue=0))).T
+            list(itertools.zip_longest(*intensity_grid, fillvalue=0))
+        ).T
 
         # sum accros the drivers
         intensity_grid = intensity_grid.sum(axis=0)
@@ -399,7 +396,7 @@ class Intensity():
             yy += alpha * kernel.eval(xx)
 
         plt.plot(xx, yy)
-        plt.xlabel('Time (s)')
+        plt.xlabel("Time (s)")
         plt.title("Intensity function at kernel")
         plt.show()
 
@@ -426,43 +423,91 @@ class Intensity():
         float
         """
 
-        integ = self.baseline * (b-a)
+        integ = self.baseline * (b - a)
         if self.alpha > 0:
             integ += self.alpha * self.kernel.integrate(a, b)
 
-        proba = integ ** n * np.exp(integ) / math.factorial(n)
+        proba = integ**n * np.exp(integ) / math.factorial(n)
 
         return proba
 
-    @ property
+    @property
     def driver_tt(self):
         return self._driver_tt
 
-    @ driver_tt.setter
+    @driver_tt.setter
     def driver_tt(self, value):
         self._driver_tt = np.array(value)
         # recompute driver delays from activation timestamps
         self.driver_delays = get_driver_delays(self, self.acti_tt)
 
-    @ property
+    @property
     def acti_tt(self):
         return self._acti_tt
 
-    @ acti_tt.setter
+    @acti_tt.setter
     def acti_tt(self, value):
         self._acti_tt = np.array(value)
         # recompute driver delays from activation timestamps
         self.driver_delays = get_driver_delays(self, self.acti_tt)
 
 
-if __name__ == '__main__':
+# class DriPP:
+#     """
+
+#     drivers_tt : dict of lists | list of lists
+#     """
+
+#     def __init__(self, drivers_tt, activations_tt, lower=0, upper=1, T=None):
+#         self.drivers_tt = drivers_tt
+#         self.activations_tt = check_acti_tt(activations_tt)
+#         self.lower = lower
+#         self.upper = upper
+
+#         if T is None:
+#             T = max(self.activations_tt) + upper
+
+#         self.T = T
+
+#     def fit(self, initializer="moment_matching", alpha_pos=True, n_iter=100):
+#         """ """
+#         if type(self.drivers_tt) == dict:
+#             tt = []
+#             labels = []
+#             for label, this_driver_tt in self.drivers_tt.items():
+#                 labels.append(label)
+#                 tt.append(this_driver_tt)
+
+#         # For each process, run an EM with all given drivers
+#         dict_res = {}
+#         for i, aa in enumerate(self.activations_tt):
+#             res_em = em_truncated_norm(
+#                 acti_tt=aa,
+#                 driver_tt=tt,
+#                 lower=self.lower,
+#                 upper=self.upper,
+#                 T=self.T,
+#                 initializer=initializer,
+#                 alpha_pos=alpha_pos,
+#                 n_iter=n_iter,
+#                 verbose=True,
+#                 disable_tqdm=False,
+#                 compute_loss=True,
+#             )
+#             dict_res[i] = res_em
+
+#         return dict_res
+
+
+if __name__ == "__main__":
     baseline, alpha = 1, [2, 1]
     # define 2 kernel functions
     m, sigma = 200e-3, 0.08
     lower, upper = 30e-3, 500e-3
-    kernel = [TruncNormKernel(lower, upper, m, sigma),
-              TruncNormKernel(lower, upper, m, sigma)]
-    driver_tt = [[3.4, 5, 5.1, 8, 10],
-                 [0.5, 2, 4]]
+    kernel = [
+        TruncNormKernel(lower, upper, m, sigma),
+        TruncNormKernel(lower, upper, m, sigma),
+    ]
+    driver_tt = [[3.4, 5, 5.1, 8, 10], [0.5, 2, 4]]
     acti_tt = [1.2, 3, 3.6, 3.7, 4.7, 5.24, 5.5]
     intensity = Intensity(baseline, alpha, kernel, driver_tt, acti_tt)

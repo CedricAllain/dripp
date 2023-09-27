@@ -219,7 +219,8 @@ def run_multiple_em_on_cdl(data_source='sample', cdl_params={},
 
     # if not given, will run the EM for every atom extracted
     if list_atoms is None:
-        n_atoms = dict_global['dict_cdl_params']['n_atoms']
+        # n_atoms = dict_global['dict_cdl_params']['n_atoms']
+        n_atoms = len(dict_global['dict_cdl_fit_res']['u_hat_'])
         list_atoms = list(range(n_atoms))
 
     if list_tasks is None:

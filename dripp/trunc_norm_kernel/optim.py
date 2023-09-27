@@ -42,18 +42,18 @@ def compute_lebesgue_support(all_tt, lower, upper):
     s = 0
     temp = (all_tt[0] + lower, all_tt[0] + upper)
     for i in range(all_tt.size - 1):
-        if all_tt[i+1] + lower > temp[1]:
+        if all_tt[i + 1] + lower > temp[1]:
             s += temp[1] - temp[0]
-            temp = (all_tt[i+1] + lower, all_tt[i+1] + upper)
+            temp = (all_tt[i + 1] + lower, all_tt[i + 1] + upper)
         else:
-            temp = (temp[0], all_tt[i+1] + upper)
+            temp = (temp[0], all_tt[i + 1] + upper)
 
     s += temp[1] - temp[0]
     return s
 
 
 def initialize_baseline(intensity, T=None):
-    """ Initialize the baseline parameter with a smart strategy.
+    """Initialize the baseline parameter with a smart strategy.
 
     The initial value correspond of the average number of activations that lend
     outside any kernel support.
@@ -87,12 +87,11 @@ def initialize_baseline(intensity, T=None):
     s = compute_lebesgue_support(all_tt, lower, upper)
     if T is None:
         T = intensity.acti_tt.max() + upper
-    baseline_init = (len(intensity.acti_tt) -
-                     len(set(acti_in_support))) / (T - s)
+    baseline_init = (len(intensity.acti_tt) - len(set(acti_in_support))) / (T - s)
     return baseline_init
 
 
-def initialize(intensity, T=None, initializer='smart_start', seed=None):
+def initialize(intensity, T=None, initializer="smart_start", seed=None):
     """Initializa EM 4 parameters (baseline, alpha, m and sigma) given an
     initialization method.
 
@@ -125,19 +124,19 @@ def initialize(intensity, T=None, initializer='smart_start', seed=None):
 
     lower, upper = intensity.kernel[0].lower, intensity.kernel[0].upper
 
-    if initializer == 'random':
+    if initializer == "random":
         rng = np.random.RandomState(seed)
         baseline_init = rng.uniform(low=0.15, high=1)
         m_init = rng.uniform(low=max(lower, 0.1), high=upper, size=n_drivers)
         sigma_init = rng.uniform(low=5e-2, high=1, size=n_drivers)
         alpha_init = rng.uniform(low=0.15, high=1, size=n_drivers)
 
-    elif initializer == 'smart_start':
+    elif initializer == "smart_start" or initializer == "moment_matching":
         # default values
         default_m = (upper - lower) / 2
         default_sigma = 0.95 * (upper - lower) / 4
 
-        if intensity.acti_tt.size == 0:   # no activation at all on the process
+        if intensity.acti_tt.size == 0:  # no activation at all on the process
             baseline_init = 0
             alpha_init = np.full(n_drivers, fill_value=0)
             m_init = np.full(n_drivers, fill_value=default_m)
@@ -153,7 +152,7 @@ def initialize(intensity, T=None, initializer='smart_start', seed=None):
         for p, delays in enumerate(intensity.driver_delays):
             delays = delays.data
             if delays.size == 0:
-                alpha_init.append(- baseline_init)
+                alpha_init.append(-baseline_init)
                 m_init.append(default_m)
                 sigma_init.append(default_sigma)
             else:
@@ -215,11 +214,22 @@ def compute_baseline_mle(acti_tt, T=None, return_nll=True):
 
 
 # @profile_this
-def em_truncated_norm(acti_tt, driver_tt=None,
-                      lower=30e-3, upper=500e-3, T=None, sfreq=150., use_dis=True,
-                      init_params=None, initializer='smart_start',
-                      alpha_pos=True, n_iter=80,
-                      verbose=False, disable_tqdm=False, compute_loss=False):
+def em_truncated_norm(
+    acti_tt,
+    driver_tt=None,
+    lower=30e-3,
+    upper=500e-3,
+    T=None,
+    sfreq=150.0,
+    use_dis=True,
+    init_params=None,
+    initializer="smart_start",
+    alpha_pos=True,
+    n_iter=80,
+    verbose=False,
+    disable_tqdm=False,
+    compute_loss=False,
+):
     """Run EM-based algorithm.
 
     Parameters
@@ -294,22 +304,25 @@ def em_truncated_norm(acti_tt, driver_tt=None,
 
     if len(driver_tt) == 0:
         if verbose:
-            print("Intensity has no driver timestamps. "
-                  "Will return baseline MLE and corresponding loss "
-                  "(negative log-likelihood).")
+            print(
+                "Intensity has no driver timestamps. "
+                "Will return baseline MLE and corresponding loss "
+                "(negative log-likelihood)."
+            )
         return compute_baseline_mle(acti_tt, T)
 
     # define intances of kernels and intensity function
-    kernel = [TruncNormKernel(lower, upper, sfreq=sfreq, use_dis=use_dis)
-              for _ in range(n_drivers)]
+    kernel = [
+        TruncNormKernel(lower, upper, sfreq=sfreq, use_dis=use_dis)
+        for _ in range(n_drivers)
+    ]
     intensity = Intensity(kernel=kernel, driver_tt=driver_tt, acti_tt=acti_tt)
 
     # initialize parameters
     if init_params is None:
         init_params = initialize(intensity, T, initializer=initializer)
         if verbose:
-            print("Initials parameters:\n(mu, alpha, m, sigma) = ",
-                  init_params)
+            print("Initials parameters:\n(mu, alpha, m, sigma) = ", init_params)
 
     baseline_hat, alpha_hat, m_hat, sigma_hat = init_params
     if alpha_pos:
@@ -319,18 +332,22 @@ def em_truncated_norm(acti_tt, driver_tt=None,
 
     # initialize history of parameters and loss
     hist = []
-    hist.append(dict(baseline=baseline_hat,
-                     alpha=alpha_hat,
-                     m=m_hat,
-                     sigma=sigma_hat,
-                     time_loop=0))
+    hist.append(
+        dict(
+            baseline=baseline_hat,
+            alpha=alpha_hat,
+            m=m_hat,
+            sigma=sigma_hat,
+            time_loop=0,
+        )
+    )
     if compute_loss:
         # define loss function
         nll = partial(negative_log_likelihood, T=T)
         hist[-1].update(loss=nll(intensity))
 
     if verbose and compute_loss:
-        print("Initial loss (negative log-likelihood):", hist[-1]['loss'])
+        print("Initial loss (negative log-likelihood):", hist[-1]["loss"])
 
     stop = False
     start = time.time()
@@ -341,19 +358,24 @@ def em_truncated_norm(acti_tt, driver_tt=None,
             # force alpha to stay non-negative
             alpha_hat = alpha_hat.clip(min=0)  # project on R+
 
-            if(alpha_hat.max() == 0):  # all alphas are zero
+            if alpha_hat.max() == 0:  # all alphas are zero
                 if verbose:
                     print("alpha is null, compute baseline MLE.")
                 baseline_hat, nll_mle = compute_baseline_mle(
-                    acti_tt, T, return_nll=True)
+                    acti_tt, T, return_nll=True
+                )
                 stop = True
 
         # append history
-        hist.append(dict(baseline=baseline_hat,
-                         alpha=alpha_hat,
-                         m=m_hat,
-                         sigma=sigma_hat,
-                         time_loop=time.time()-start))
+        hist.append(
+            dict(
+                baseline=baseline_hat,
+                alpha=alpha_hat,
+                m=m_hat,
+                sigma=sigma_hat,
+                time_loop=time.time() - start,
+            )
+        )
 
         if stop:
             if compute_loss:
@@ -371,27 +393,46 @@ def em_truncated_norm(acti_tt, driver_tt=None,
     return res_params, hist
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     N_DRIVERS = 2
     T = 10_000  # process time, in seconds
     lower, upper = 30e-3, 800e-3
-    sfreq = 500.
+    sfreq = 500.0
     start_time = time.time()
     driver_tt, acti_tt, _, intensity = simulate_data(
-        lower=lower, upper=upper,
-        m=[400e-3, 400e-3], sigma=[0.2, 0.05],
+        lower=lower,
+        upper=upper,
+        m=[400e-3, 400e-3],
+        sigma=[0.2, 0.05],
         sfreq=sfreq,
-        baseline=0.8, alpha=[-0.8, 0.8],
-        T=T, isi=[1, 1.2], n_tasks=0.8,
-        n_drivers=N_DRIVERS, seed=0, return_nll=False, verbose=False)
+        baseline=0.8,
+        alpha=[-0.8, 0.8],
+        T=T,
+        isi=[1, 1.2],
+        n_tasks=0.8,
+        n_drivers=N_DRIVERS,
+        seed=0,
+        return_nll=False,
+        verbose=False,
+    )
     simu_time = time.time() - start_time
-    print("Simulation time for %i driver(s) over %i seconds: %.3f seconds"
-          % (N_DRIVERS, T, simu_time))
+    print(
+        "Simulation time for %i driver(s) over %i seconds: %.3f seconds"
+        % (N_DRIVERS, T, simu_time)
+    )
 
     start_time = time.time()
     res_params, history_params, _ = em_truncated_norm(
-        acti_tt, driver_tt, lower, upper, T, sfreq, alpha_pos=False,
-        n_iter=100, verbose=True)
+        acti_tt,
+        driver_tt,
+        lower,
+        upper,
+        T,
+        sfreq,
+        alpha_pos=False,
+        n_iter=100,
+        verbose=True,
+    )
     em_time = time.time() - start_time
-    print('EM time', em_time)
+    print("EM time", em_time)
     print("baseline_hat, alpha_hat, m_hat, sigma_hat:\n", res_params)

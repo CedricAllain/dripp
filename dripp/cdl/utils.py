@@ -8,6 +8,8 @@ from collections import Counter
 
 import mne
 
+from dripp.cdl.run_cdl import run_cdl_sample, run_cdl_somato, run_cdl_camcan
+
 # from mne_bids import BIDSPath, read_raw_bids
 
 # for Cam-CAN dataset
@@ -398,7 +400,7 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
 
     event_id : 'all' | list of int | list of tuples
         List of event id for which to compute their timestamps. If 'all', all
-        event ids are considered. Defaults to'all'.
+        event ids are considered. Defaults to 'all'.
 
     sfreq : float
         The sampling frequency.
@@ -433,7 +435,7 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
             mask = events[:, -1] == evt_id
             return events[:, 0][mask] / sfreq
 
-    for this_id in event_id:
+    for this_task, this_id in event_id.items():
         if isinstance(this_id, int):
             events_tt[this_id] = proc(this_id)
 
@@ -588,7 +590,7 @@ def filter_activation(acti, atom_to_filter="all", sfreq=150.0, time_interval=0.0
     return acti
 
 
-def get_atoms_timestamps(
+def get_activations_timestamps(
     acti, sfreq=None, info=None, threshold=0, percent=False, per_atom=True
 ):
     """Get atoms' activation timestamps, using a threshold on the activation
@@ -639,18 +641,16 @@ def get_atoms_timestamps(
         acti_nan = acti.copy()
         acti_nan[acti_nan == 0] = np.nan
         mask = acti_nan >= np.nanpercentile(acti_nan, threshold, axis=1, keepdims=True)
-        atoms_timestamps = [np.where(mask[i])[0] / sfreq for i in range(n_atoms)]
-        return atoms_timestamps
+        activations_tt = [np.where(mask[i])[0] / sfreq for i in range(n_atoms)]
+        return activations_tt
 
     if percent and not per_atom:
         # compute the q-th percentile over all positive values
         threshold = np.percentile(acti[acti > 0], threshold)
 
-    atoms_timestamps = [
-        np.where(acti[i] > threshold)[0] / sfreq for i in range(n_atoms)
-    ]
+    activations_tt = [np.where(acti[i] > threshold)[0] / sfreq for i in range(n_atoms)]
 
-    return atoms_timestamps
+    return activations_tt
 
 
 ###############################################################################
@@ -677,9 +677,65 @@ def post_process_cdl(
         sfreq=sfreq,
         time_interval=post_process_params.pop("time_interval"),
     )
-    atoms_tt = get_atoms_timestamps(acti=acti, sfreq=sfreq, **post_process_params)
+    activations_tt = get_activations_timestamps(
+        acti=acti, sfreq=sfreq, **post_process_params
+    )
 
-    return events_tt, atoms_tt
+    return events_tt, activations_tt
+
+
+def get_dict_global(
+    dataset="sample",
+    cdl_params={},
+    post_process_params=dict(
+        time_interval=0.01, threshold=0, percent=True, per_atom=True
+    ),
+):
+    """
+
+    cdl_params : dict
+        parameters for CDL model
+        By default, is empty, i.e., CDL will run with defaults parameters
+
+    post_process_params : dict
+
+    """
+
+    if dataset == "sample":
+        dict_cdl_res = run_cdl_sample(**cdl_params)
+    elif dataset == "somato":
+        dict_cdl_res = run_cdl_somato(**cdl_params)
+    elif dataset == "camcan":
+        dict_cdl_res = run_cdl_camcan(**cdl_params)
+
+    sfreq = dict_cdl_res["sfreq"]
+    events, event_id = dict_cdl_res["events"], dict_cdl_res["event_id"]
+    u_hat_, v_hat_ = dict_cdl_res["u_hat_"], dict_cdl_res["v_hat_"]
+    z_hat = dict_cdl_res["z_hat"]
+
+    # Determine events timestamps and activation vectors
+    events_tt, activations_tt = post_process_cdl(
+        events,
+        v_hat_,
+        z_hat,
+        event_id=event_id,
+        sfreq=sfreq,
+        post_process_params=post_process_params,
+    )
+
+    dict_global = {
+        "u_hat_": u_hat_.tolist(),
+        "v_hat_": v_hat_.tolist(),
+        "z_hat": z_hat.tolist(),
+        "T": dict_cdl_res["T"],
+        "sfreq": sfreq,
+        "events": events,
+        "event_id": event_id,
+        "events_tt": events_tt,
+        "activations_tt": activations_tt,
+    }
+
+    return dict_global
 
 
 ###############################################################################
