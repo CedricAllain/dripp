@@ -13,7 +13,7 @@ try:
     from alphacsc.datasets.camcan import load_data as load_data_camcan
 except (ValueError, ImportError):
     # temporary, until alphacsc PR #102 is accepted
-    from .camcan import load_data as load_data_camcan
+    from dripp.datasets.camcan import load_data as load_data_camcan
 
 from dripp.config import CACHEDIR, BIDS_root, SSS_CAL, CT_SPARSE
 
