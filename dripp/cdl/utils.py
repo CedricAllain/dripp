@@ -124,121 +124,6 @@ def get_data_utils(data_source="sample", subject="sample", verbose=True):
     return data_utils
 
 
-# def get_subject_info(subject_id, verbose=True):
-#     """
-#     """
-
-#     # get age and sex of the subject
-#     participants = pd.read_csv(PARTICIPANTS_FILE, sep='\t', header=0)
-#     age, sex = participants[participants['participant_id']
-#                             == 'sub-' + str(subject_id)][['age', 'sex']].iloc[0]
-#     if verbose:
-#         print(f'Subject ID: {subject_id}, {str(age)} year old {sex}')
-
-#     return age, sex
-
-
-# def get_info_camcan(subject_id):
-#     # get age and sex of the subject
-#     get_subject_info(subject_id)
-#     raw, events, _, _ = raw_preprocessing(data_source='camcan')
-#     print('Experiment duration, %.3f seconds' %
-#           raw.get_data(picks=['meg']).shape[1] / 150.)
-#     print('Counter events: ', Counter(events[:, -1]))
-
-
-# def raw_preprocessing(data_source, subject_id=None, sfreq=150.):
-#     """For a given dataset name, apply a specific pre-processing and search for
-#     events.
-
-#     Parameters
-#     ----------
-#     data_source : 'sample' | 'somamto' | 'camcan'
-#         Name of the dataset. Defaults to 'sample'.
-
-#     subject_id : str | None
-#         For Cam-CAN dataset, the subject id to run the CSC on.
-#         Defaults to None.
-#         Ex.: 'CC620264', a 76.33 year old woman.
-
-#     sfreq : double
-#         Sampling frequency. The signal will be resampled to match this.
-#         Defaults to 150.
-
-#     Returns
-#     -------
-#     raw : instance of mne.Raw
-
-#     events : 2d array
-
-#     event_id : list
-
-#     event_des : dict
-#     """
-
-#     # get dataset utils
-#     data_utils = get_data_utils(data_source=data_source, verbose=True)
-
-#     # Load data and preprocessing
-#     print("Loading the data...", end=' ', flush=True)
-#     if data_source in ['sample', 'somato']:
-#         file_name = data_utils['file_name']
-#         raw = mne.io.read_raw_fif(file_name, preload=True, verbose=False)
-#         raw.pick_types(meg='grad', eeg=False, eog=False, stim=True)
-#     elif data_source == 'camcan':
-#         assert subject_id is not None
-
-#         bp = BIDSPath(
-#             root=BIDS_ROOT,
-#             subject=subject_id,
-#             task="smt",
-#             datatype="meg",
-#             extension=".fif",
-#             session="smt",
-#         )
-#         raw = read_raw_bids(bp)
-#     print('done')
-
-#     print("Preprocessing the data...", end=' ', flush=True)
-#     if data_source == 'sample':
-#         raw.notch_filter(np.arange(60, 181, 60))
-#         raw.filter(l_freq=2, h_freq=None)
-#     elif data_source == 'somato':
-#         raw.notch_filter(np.arange(50, 101, 50))
-#         raw.filter(l_freq=2, h_freq=None)
-#     elif data_source == 'camcan':
-#         raw.load_data()
-#         raw.filter(l_freq=None, h_freq=125)
-#         raw.notch_filter([50, 100])
-#         raw = mne.preprocessing.maxwell_filter(raw, calibration=SSS_CAL_FILE,
-#                                                cross_talk=CT_SPARSE_FILE,
-#                                                st_duration=10.0)
-
-#     if data_source in ['sample', 'somato']:
-#         stim_channel = data_utils['stim_channel']
-#         events = mne.find_events(raw, stim_channel=stim_channel)
-#         event_id = data_utils['event_id']
-#         event_des = data_utils['event_des']
-#     elif data_source == 'camcan':
-#         raw.pick(['grad', 'stim'])
-#         events, event_des = mne.events_from_annotations(raw)
-#         # event_id = {'audiovis/1200Hz': 1,
-#         #             'audiovis/300Hz': 2,
-#         #             'audiovis/600Hz': 3,
-#         #             'button': 4,
-#         #             'catch/0': 5,
-#         #             'catch/1': 6}
-#         event_id = list(event_des.values())
-#         raw.filter(l_freq=2, h_freq=45)
-
-#     raw, events = raw.resample(
-#         sfreq, npad='auto', verbose=False, events=events)
-#     # Set the first sample to 0 in event stim
-#     events[:, 0] -= raw.first_samp
-#     print('done')
-
-#     return raw, events, event_id, event_des
-
 # %%
 
 ###############################################################################
@@ -412,16 +297,6 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
         Keys are int, the event id, and values are numpy.array of float, the
         event's timestamps (in seconds).
     """
-
-    # if events is None:
-    #     events = info['events']
-
-    # if sfreq is None:
-    #     sfreq = info['sfreq']
-
-    # for i in event_id:
-    #     mask = events[:, -1] == i
-    #     events_timestamps[i] = events[:, 0][mask] / sfreq
 
     if event_id == "all":
         event_id = list(set(events[:, -1]))
