@@ -8,7 +8,7 @@ from collections import Counter
 
 import mne
 
-from dripp.cdl.run_cdl import run_cdl_sample, run_cdl_somato, run_cdl_camcan
+from dripp.cdl.run_cdl import run_default_cdl
 
 # from mne_bids import BIDSPath, read_raw_bids
 
@@ -441,7 +441,7 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
             mask = events[:, -1] == evt_id
             return events[:, 0][mask] / sfreq
 
-    for label, this_id in event_id.item():
+    for label, this_id in event_id.items():
         if isinstance(this_id, int):
             events_tt[label] = proc(this_id)
 
@@ -692,6 +692,7 @@ def post_process_cdl(
 
 def get_dict_global(
     dataset="sample",
+    subject_id=None,  # for Cam-CAN dataset
     cdl_params={},
     post_process_params=dict(
         time_interval=0.01, threshold=0, percent=True, per_atom=True
@@ -707,12 +708,9 @@ def get_dict_global(
 
     """
 
-    if dataset == "sample":
-        dict_cdl_res = run_cdl_sample(**cdl_params)
-    elif dataset == "somato":
-        dict_cdl_res = run_cdl_somato(**cdl_params)
-    elif dataset == "camcan":
-        dict_cdl_res = run_cdl_camcan(**cdl_params)
+    dict_cdl_res = run_default_cdl(
+        dataset, subject_id=subject_id, cdl_params=cdl_params
+    )
 
     sfreq = dict_cdl_res["sfreq"]
     events, event_id = dict_cdl_res["events"], dict_cdl_res["event_id"]

@@ -4,6 +4,7 @@ Run Convolutional Dictionary Learning on mne.sample or mne.somato dataset
 import numpy as np
 
 from joblib import Memory
+import warnings
 
 from alphacsc import GreedyCDL, BatchCDL
 from alphacsc.datasets.mne_data import load_data as load_data_mne
@@ -126,6 +127,12 @@ def _run_cdl_data(
                 }
 
     elif dataset == "camcan":
+        if subject_id is None:
+            subject_id = "CC320428"
+            warnings.warn(
+                f"No subject_id provided for {dataset} dataset. "
+                f"Using default subject_id {subject_id}."
+            )
         X_split, info = load_data_camcan(
             BIDS_root, SSS_CAL, CT_SPARSE, subject_id, **load_params
         )
@@ -292,3 +299,35 @@ def run_cdl_camcan(
         use_greedy=use_greedy,
         n_jobs=n_jobs,
     )
+
+
+def run_default_cdl(dataset, subject_id=None, cdl_params={}):
+    """Run Convolutional Dictionary Learning on specified dataset with default
+    parameters.
+
+    Parameters
+    ----------
+    dataset : str, 'sample' | 'camcan' | 'somato'
+        Data source name.
+
+    subject_id : str
+
+    cdl_params : dict
+        Parameters for Convolutional Dictionary Learning.
+        Defaults to {}.
+
+    Returns
+    -------
+    dict_cdl_res : dict
+        Results of Convolutional Dictionary Learning.
+
+    """
+
+    if dataset == "sample":
+        dict_cdl_res = run_cdl_sample(**cdl_params)
+    elif dataset == "somato":
+        dict_cdl_res = run_cdl_somato(**cdl_params)
+    elif dataset == "camcan":
+        dict_cdl_res = run_cdl_camcan(subject_id=subject_id, **cdl_params)
+
+    return dict_cdl_res
