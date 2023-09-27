@@ -426,7 +426,11 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
     if event_id == "all":
         event_id = list(set(events[:, -1]))
 
-    event_id = np.atleast_1d(event_id)
+    if isinstance(event_id, int):
+        event_id = np.atleast_1d(event_id)
+
+    if not isinstance(event_id, dict):
+        event_id = {i: v for i, v in enumerate(event_id)}
 
     events_tt = {}  # save events' timestamps in a dictionary
 
@@ -437,14 +441,14 @@ def get_events_timestamps(events, event_id="all", sfreq=1.0):
             mask = events[:, -1] == evt_id
             return events[:, 0][mask] / sfreq
 
-    for this_id in event_id:
+    for label, this_id in event_id.item():
         if isinstance(this_id, int):
-            events_tt[this_id] = proc(this_id)
+            events_tt[label] = proc(this_id)
 
         elif isinstance(this_id, (tuple, list, np.ndarray)):
             tt = np.concatenate([proc(evt_id) for evt_id in this_id])
             tt.sort()
-            events_tt[this_id] = tt
+            events_tt[label] = tt
 
     return events_tt
 

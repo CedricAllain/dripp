@@ -1,13 +1,13 @@
 """
 Run Convolutional Dictionary Learning on mne.sample or mne.somato dataset
 """
-
 import numpy as np
 
 from joblib import Memory
 
 from alphacsc import GreedyCDL, BatchCDL
 from alphacsc.datasets.mne_data import load_data as load_data_mne
+
 try:
     from alphacsc.datasets.camcan import load_data as load_data_camcan
 except (ValueError, ImportError):
@@ -19,11 +19,20 @@ from dripp.config import CACHEDIR, BIDS_root, SSS_CAL, CT_SPARSE
 memory = Memory(CACHEDIR, verbose=0)
 
 
-@memory.cache(ignore=['n_jobs'])
-def _run_cdl_data(dataset='sample', subject_id=None,
-                  load_params=dict(sfreq=150.), use_greedy=True,
-                  n_atoms=40, n_times_atom=None, reg=0.1,
-                  n_iter=100, eps=1e-4, tol_z=1e-3, n_jobs=5):
+@memory.cache(ignore=["n_jobs"])
+def _run_cdl_data(
+    dataset="sample",
+    subject_id=None,
+    load_params=dict(sfreq=150.0),
+    use_greedy=True,
+    n_atoms=40,
+    n_times_atom=None,
+    reg=0.1,
+    n_iter=100,
+    eps=1e-4,
+    tol_z=1e-3,
+    n_jobs=5,
+):
     """Run a Greedy Convolutional Dictionary Learning on mne.[data_source]
     dataset.
 
@@ -96,36 +105,40 @@ def _run_cdl_data(dataset='sample', subject_id=None,
             Pre-process of results that serve as input in a EM algorithm.
     """
 
-    print("Loading and preprocessing the data...", end=' ', flush=True)
+    print("Loading and preprocessing the data...", end=" ", flush=True)
 
-    if dataset in ['sample', 'somato']:
+    if dataset in ["sample", "somato"]:
         X_split, info = load_data_mne(dataset=dataset, **load_params)
 
-        if dataset == 'sample':
+        if dataset == "sample":
             try:
-                info['temp']['event_id'].update(
-                    {'auditory': (1, 2), 'visual': (3, 4)})
+                info["temp"]["event_id"].update({"auditory": (1, 2), "visual": (3, 4)})
             except KeyError:  # temporary, until alphacsc PR #102 is accepted
-                info['temp']['event_id'] = {
-                    'auditory/left': 1, 'auditory/right': 2,
-                    'visual/left': 3, 'visual/right': 4,
-                    'auditory': (1, 2),  # both auditory event types
-                    'visual': (3, 4),    # both visual event types
-                    'smiley': 5, 'buttonpress': 32
+                info["temp"]["event_id"] = {
+                    "auditory/left": 1,
+                    "auditory/right": 2,
+                    "visual/left": 3,
+                    "visual/right": 4,
+                    "auditory": (1, 2),  # both auditory event types
+                    "visual": (3, 4),  # both visual event types
+                    "smiley": 5,
+                    "buttonpress": 32,
                 }
 
-    elif dataset == 'camcan':
+    elif dataset == "camcan":
         X_split, info = load_data_camcan(
-            BIDS_root, SSS_CAL, CT_SPARSE, subject_id, **load_params)
-        info['temp']['event_id'].update(
+            BIDS_root, SSS_CAL, CT_SPARSE, subject_id, **load_params
+        )
+        info["temp"]["event_id"].update(
             {
-                'audio': (1, 2, 3, 5),  # bimodals events + unimodal auditory
-                'vis': (1, 2, 3, 6),    # bimodals events + unimodal visual
-            })
+                "audio": (1, 2, 3, 5),  # bimodals events + unimodal auditory
+                "vis": (1, 2, 3, 6),  # bimodals events + unimodal visual
+            }
+        )
 
-    print('done')
+    print("done")
 
-    sfreq = load_params['sfreq']
+    sfreq = load_params["sfreq"]
     if n_times_atom is None:
         # by default, extract atoms of duration 1 second
         n_times_atom = int(round(sfreq * 1.0))
@@ -133,37 +146,36 @@ def _run_cdl_data(dataset='sample', subject_id=None,
     # Define Greedy Convolutional Dictionary Learning model
     cdl_params = {
         # Shape of the dictionary
-        'n_atoms': n_atoms,
-        'n_times_atom': n_times_atom,
+        "n_atoms": n_atoms,
+        "n_times_atom": n_times_atom,
         # Request a rank1 dictionary with unit norm temporal and spatial maps
-        'rank1': True,
-        'uv_constraint': 'separate',
+        "rank1": True,
+        "uv_constraint": "separate",
         # apply a temporal window reparametrization
-        'window': True,
+        "window": True,
         # at the end, refit the activations with fixed support
         # and no reg to unbias
-        'unbiased_z_hat': True,
+        "unbiased_z_hat": True,
         # Initialize the dictionary with random chunk from the data
-        'D_init': 'chunk',
+        "D_init": "chunk",
         # rescale the regularization parameter to be a percentage of lambda_max
-        'lmbd_max': "scaled",  # original value: "scaled"
-        'reg': reg,
+        "lmbd_max": "scaled",  # original value: "scaled"
+        "reg": reg,
         # Number of iteration for the alternate minimization and cvg threshold
-        'n_iter': n_iter,  # original value: 100
-        'eps': eps,  # original value: 1e-4
+        "n_iter": n_iter,  # original value: 100
+        "eps": eps,  # original value: 1e-4
         # solver for the z-step
-        'solver_z': "lgcd",
-        'solver_z_kwargs': {'tol': tol_z,  # stopping criteria
-                            'max_iter': 100000},
+        "solver_z": "lgcd",
+        "solver_z_kwargs": {"tol": tol_z, "max_iter": 100000},  # stopping criteria
         # solver for the d-step
-        'solver_d': 'alternate_adaptive',
-        'solver_d_kwargs': {'max_iter': 300},  # original value: 300
+        "solver_d": "alternate_adaptive",
+        "solver_d_kwargs": {"max_iter": 300},  # original value: 300
         # sort atoms by explained variances
-        'sort_atoms': True,
+        "sort_atoms": True,
         # technical parameters
-        'verbose': 1,
-        'random_state': 0,
-        'n_jobs': n_jobs
+        "verbose": 1,
+        "random_state": 0,
+        "n_jobs": n_jobs,
     }
 
     if use_greedy:
@@ -181,41 +193,82 @@ def _run_cdl_data(dataset='sample', subject_id=None,
 
     dict_res = dict(
         cdl_params=cdl_params,
-        u_hat_=u_hat_, v_hat_=v_hat_, z_hat=z_hat,
-        events=info['temp']['events'],
-        event_id=info['temp']['event_id'],
+        u_hat_=u_hat_,
+        v_hat_=v_hat_,
+        z_hat=z_hat,
+        events=info["temp"]["events"],
+        event_id=info["temp"]["event_id"],
         sfreq=sfreq,
         info=info,
         # Duration of the experiment, in seconds
-        T=(n_times * n_splits) / sfreq
+        T=(n_times * n_splits) / sfreq,
     )
 
     return dict_res
 
 
-def run_cdl_sample(sfreq=150., n_atoms=40, n_times_atom=150, reg=0.1,
-                   n_iter=100, eps=1e-4, n_jobs=5, n_splits=10):
+def run_cdl_sample(
+    sfreq=150.0,
+    n_atoms=40,
+    n_times_atom=150,
+    reg=0.1,
+    n_iter=100,
+    eps=1e-4,
+    n_jobs=5,
+    n_splits=10,
+):
     """Run Convolutional Dictionary Learning on mne.sample."""
     load_params = dict(sfreq=sfreq, n_splits=n_splits)
-    return _run_cdl_data(dataset='sample', load_params=load_params,
-                         n_atoms=n_atoms, n_times_atom=n_times_atom,
-                         reg=reg, n_iter=n_iter, eps=eps, n_jobs=n_jobs)
+    return _run_cdl_data(
+        dataset="sample",
+        load_params=load_params,
+        n_atoms=n_atoms,
+        n_times_atom=n_times_atom,
+        reg=reg,
+        n_iter=n_iter,
+        eps=eps,
+        n_jobs=n_jobs,
+    )
 
 
-def run_cdl_somato(sfreq=150., n_atoms=25, n_times_atom=75, reg=0.2,
-                   n_iter=100, eps=1e-4, use_greedy=False, n_jobs=5,
-                   n_splits=10):
+def run_cdl_somato(
+    sfreq=150.0,
+    n_atoms=25,
+    n_times_atom=75,
+    reg=0.2,
+    n_iter=100,
+    eps=1e-4,
+    use_greedy=False,
+    n_jobs=5,
+    n_splits=10,
+):
     """Run Convolutional Dictionary Learning on mne.somato."""
     load_params = dict(sfreq=sfreq, n_splits=n_splits)
-    return _run_cdl_data(dataset='somato', load_params=load_params,
-                         n_atoms=n_atoms, n_times_atom=n_times_atom,
-                         reg=reg, n_iter=n_iter, eps=eps, n_jobs=n_jobs)
+    return _run_cdl_data(
+        dataset="somato",
+        load_params=load_params,
+        n_atoms=n_atoms,
+        n_times_atom=n_times_atom,
+        reg=reg,
+        n_iter=n_iter,
+        eps=eps,
+        n_jobs=n_jobs,
+    )
 
 
-def run_cdl_camcan(subject_id="CC320428", sfreq=150., n_atoms=30,
-                   n_times_atom=int(np.round(0.7*150.)), reg=0.2, n_iter=100,
-                   eps=1e-5, tol_z=1e-3, use_greedy=False, n_jobs=5,
-                   n_splits=10):
+def run_cdl_camcan(
+    subject_id="CC320428",
+    sfreq=150.0,
+    n_atoms=30,
+    n_times_atom=int(np.round(0.7 * 150.0)),
+    reg=0.2,
+    n_iter=100,
+    eps=1e-5,
+    tol_z=1e-3,
+    use_greedy=False,
+    n_jobs=5,
+    n_splits=10,
+):
     """Run Convolutional Dictionary Learning on Cam-CAN dataset.
 
     Parameters
@@ -226,8 +279,16 @@ def run_cdl_camcan(subject_id="CC320428", sfreq=150., n_atoms=30,
 
     """
     load_params = dict(sfreq=sfreq, n_splits=n_splits)
-    return _run_cdl_data(dataset='camcan', subject_id=subject_id,
-                         load_params=load_params, n_atoms=n_atoms,
-                         n_times_atom=n_times_atom, reg=reg,
-                         n_iter=n_iter, eps=eps, tol_z=tol_z,
-                         use_greedy=use_greedy, n_jobs=n_jobs)
+    return _run_cdl_data(
+        dataset="camcan",
+        subject_id=subject_id,
+        load_params=load_params,
+        n_atoms=n_atoms,
+        n_times_atom=n_times_atom,
+        reg=reg,
+        n_iter=n_iter,
+        eps=eps,
+        tol_z=tol_z,
+        use_greedy=use_greedy,
+        n_jobs=n_jobs,
+    )
