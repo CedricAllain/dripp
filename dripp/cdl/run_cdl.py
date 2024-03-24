@@ -301,7 +301,7 @@ def run_cdl_camcan(
     )
 
 
-def run_default_cdl(dataset, subject_id=None, cdl_params={}):
+def run_cdl(dataset, subject_id=None, cdl_params={}):
     """Run Convolutional Dictionary Learning on specified dataset with default
     parameters.
 

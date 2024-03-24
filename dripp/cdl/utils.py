@@ -8,7 +8,7 @@ from collections import Counter
 
 import mne
 
-from dripp.cdl.run_cdl import run_default_cdl
+from dripp.cdl.run_cdl import run_cdl
 
 # from mne_bids import BIDSPath, read_raw_bids
 
@@ -583,7 +583,7 @@ def get_dict_global(
 
     """
 
-    dict_cdl_res = run_default_cdl(
+    dict_cdl_res = run_cdl(
         dataset, subject_id=subject_id, cdl_params=cdl_params
     )
 
